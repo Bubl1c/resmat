@@ -6,15 +6,15 @@ import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.user.{UserEntity, UserGroupEntity, UserType, UsersService}
 import org.joda.time.DateTime
 
-import scala.concurrent.duration.
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, ExecutionContext}
 
 object Data {
   val group1 = UserGroupEntity(None, "group1")
 
-  def userStudent(goupId: Long) = UserEntity(None, "student", "root", "Andrii student", "Mozharovskyi", "student@email.com", UserType.Student, Some(goupId))
-  val userAdmin = UserEntity(None, "admin", "root", "Andrii admin", "Mozharovskyi", "admin@email.com", UserType.Admin, None)
-  val userInstructor = UserEntity(None, "instructor", "root", "Andrii instructor", "Mozharovskyi", "instructor@email.com", UserType.Instructor, None)
+  def userStudent(goupId: Long) = UserEntity(None, "student", "root", "Andrii student", "Mozharovskyi", "student@email.com", UserType.Student, "1", Some(goupId))
+  val userAdmin = UserEntity(None, "admin", "root", "Andrii admin", "Mozharovskyi", "admin@email.com", UserType.Admin, "2", None)
+  val userInstructor = UserEntity(None, "instructor", "root", "Andrii instructor", "Mozharovskyi", "instructor@email.com", UserType.Instructor, "3", None)
 
   def userToken(userId: Long) =
     TokenEntity(None, userId, "b1d3981def9b427bbf9707eedbdc0cbe", DateTime.parse("2017-01-27T18:37:24.000+02:00").plusMinutes(userId.toInt), Some(DateTime.now().plusYears(100)))

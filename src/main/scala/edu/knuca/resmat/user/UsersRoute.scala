@@ -21,58 +21,46 @@ class UsersRoute(val authService: AuthService,
   import edu.knuca.resmat.http.JsonProtocol._
 
   def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = pathPrefix("users") {
-    pathEndOrSingleSlash {
-      get {
-        complete(getAll().map(_.asJson))
-      }
-    } ~
-    pathPrefix("instructor") {
-      pathEndOrSingleSlash {
-        get {
-          complete("Accesible only for instructors")
-        }
-      }
-    } ~
-    (pathPrefix("student") & authorize(user.isStudent)) {
-      pathEndOrSingleSlash {
-        get {
-          complete("Accesible only for students")
-        }
-      }
-    } ~
-    (pathPrefix("admin") & authorize(user.isAdmin)) {
-      get {
-        complete("Accesible only for admins")
-      }
-    } ~
     pathPrefix("current") {
       pathEndOrSingleSlash {
         get {
           complete(user)
         } ~
-        post {
+        put {
           entity(as[UserEntityUpdate]) { userUpdate =>
             complete(updateUser(user.id, userUpdate).map(_.asJson))
           }
         }
       }
     } ~
-    pathPrefix(IntNumber) { id =>
+    authorize(user.notStudent) {
       pathEndOrSingleSlash {
         get {
-          complete(getUserById(id).map(_.asJson))
-        } ~
-          post {
-            entity(as[UserEntityUpdate]) { userUpdate =>
-              complete(updateUser(id, userUpdate).map(_.asJson))
-            }
-          } ~
-          delete {
-            onSuccess(deleteUser(id)) { ignored =>
-              complete(NoContent)
-            }
+          complete(getAll().map(_.asJson))
+        }
+        post {
+          entity(as[UserEntity]) { userEntity =>
+            complete(Created -> createUser(userEntity).map(_.asJson))
           }
-      }
+        }
+      } ~
+        pathPrefix(IntNumber) { id =>
+          pathEndOrSingleSlash {
+            get {
+              complete(getUserById(id).map(_.asJson))
+            } ~
+              put {
+                entity(as[UserEntityUpdate]) { userUpdate =>
+                  complete(updateUser(id, userUpdate).map(_.asJson))
+                }
+              } ~
+              delete {
+                onSuccess(deleteUser(id)) { ignored =>
+                  complete(NoContent)
+                }
+              }
+          }
+        }
     }
   }
 

@@ -21,6 +21,12 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
+  def getByAccessKey(accessKey: String): Option[UserEntity] = {
+    db.run { implicit c =>
+      UsersQueries.getByAccessKey(accessKey).as(UsersQueries.parser.singleOpt)
+    }
+  }
+
   def getAll(): Future[Seq[UserEntity]] = Future {
     db.run { implicit c =>
       UsersQueries.getAll.as(UsersQueries.parser.*)
@@ -86,7 +92,8 @@ object UsersQueries {
     email <- str("email")
     userType <- int("user_type")
     groupId <- long("group_id").?
-  } yield UserEntity(Some(id), username, password, firstName, lastName, email, UserType(userType), groupId)
+    accessKey <- str("access_key")
+  } yield UserEntity(Some(id), username, password, firstName, lastName, email, UserType(userType), accessKey, groupId)
 
   val groupParser = for {
     id <- long("id")
@@ -95,8 +102,8 @@ object UsersQueries {
 
   def insert(user: UserEntity) = SQL(
     """
-      |INSERT INTO users (username, password, first_name, last_name, email, user_type, group_id)
-      |VALUES ({username}, {password}, {firstName}, {lastName}, {email}, {userType}, {groupId})
+      |INSERT INTO users (username, password, first_name, last_name, email, user_type, access_key, group_id)
+      |VALUES ({username}, {password}, {firstName}, {lastName}, {email}, {userType}, {accessKey}, {groupId})
     """.stripMargin
   ).on(
     "username" -> user.username,
@@ -105,6 +112,7 @@ object UsersQueries {
     "lastName" -> user.lastName,
     "email" -> user.email,
     "userType" -> user.userType.id,
+    "accessKey" -> user.accessKey,
     "groupId" -> user.userGroupId)
 
   def insert(group: UserGroupEntity) = SQL(
@@ -115,8 +123,18 @@ object UsersQueries {
   ).on("name" -> group.name)
 
   def update(user: UserEntity) =
-    SQL("UPDATE users SET username={username}, password={password} WHERE id = {userId}")
-      .on("username" -> user.username, "password" -> user.password)
+    SQL(
+      """UPDATE users
+        |SET username={username}, password={password}, first_name={firstName}, last_name={lastName}, email={email},
+        | access_key={accessKey}
+        |WHERE id = {userId}""".stripMargin)
+      .on(
+        "username" -> user.username,
+        "password" -> user.password,
+        "firstName" -> user.firstName,
+        "lastName" -> user.lastName,
+        "email" -> user.email,
+        "accessKey" -> user.accessKey)
 
   def delete(userId: Long) = SQL("DELETE FROM users WHERE id = {userId}").on("userId" -> userId)
 
@@ -127,4 +145,8 @@ object UsersQueries {
   def getBy(username: String, password: String) = SQL(
     "SELECT * FROM users WHERE username = {username} AND password = {password}"
   ).on("username" -> username, "password" -> password)
+
+  def getByAccessKey(accessKey: String) = SQL(
+    "SELECT * FROM users WHERE access_key = {accessKey}"
+  ).on("accessKey" -> accessKey)
 }

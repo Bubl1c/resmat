@@ -19,20 +19,20 @@ class AuthRoute(val authService: AuthService, val usersService: UsersService, va
   import edu.knuca.resmat.http.JsonProtocol._
 
   val route = pathPrefix("auth") {
-    path("signIn") {
+    path("sign-in") {
       pathEndOrSingleSlash {
         post {
           entity(as[LoginPassword]) { loginPassword =>
-            complete(signIn(loginPassword.login, loginPassword.password).map(_.asJson))
+            complete(signIn(loginPassword.login, loginPassword.password))
           }
         }
       }
     } ~
-    path("signUp") {
+    path("access-key") {
       pathEndOrSingleSlash {
         post {
-          entity(as[UserEntity]) { userEntity =>
-            complete(Created -> signUp(userEntity).map(_.asJson))
+          entity(as[AccessKey]) { accessKey =>
+            complete(signInWithAccessKey(accessKey.accessKey).map(_.asJson))
           }
         }
       }
@@ -50,5 +50,6 @@ class AuthRoute(val authService: AuthService, val usersService: UsersService, va
   }
 
   private case class LoginPassword(login: String, password: String)
+  private case class AccessKey(accessKey: String)
 
 }

@@ -1,11 +1,13 @@
 package edu.knuca.resmat.auth
 
+import java.sql.Connection
 import java.util.UUID
 
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.GeneralHelpers
 import edu.knuca.resmat.db.DatabaseService
+import edu.knuca.resmat.http.UnauthenticatedException
 import edu.knuca.resmat.user.{AuthenticatedUser, UserEntity, UsersService}
 import org.joda.time.DateTime
 
@@ -35,21 +37,25 @@ trait AuthService { this: LazyLogging =>
     }
   }
 
-  def signIn(login: String, password: String): Future[Option[EncodedToken]] = Future {
+  def signIn(login: String, password: String): Future[EncodedToken] = Future {
     db.run{implicit c =>
       val token = usersService.getBy(login, password).flatMap{ userEntity =>
-        TokensQueries.getByUserId(userEntity.id.get).as(TokensQueries.parser.singleOpt) match {
-          case Some(tokenEntity) => Some(tokenEntity)
-          case None => Option(Await.result(createToken(userEntity.id.get), 5 seconds))
-        }
+        Some(getOrCreateToken(userEntity.id.get))
       }
-      token.map(TokenUtils.encode)
+      TokenUtils.encode(token.getOrElse(
+        throw UnauthenticatedException()
+      ))
     }
   }
 
-  def signUp(newUser: UserEntity): Future[TokenEntity] = {
+  def signInWithAccessKey(accessKey: String): Future[EncodedToken] = Future {
     db.run{implicit c =>
-      usersService.createUser(newUser).flatMap(user => createToken(user.id.get))
+      val token = usersService.getByAccessKey(accessKey).flatMap{ userEntity =>
+        Some(getOrCreateToken(userEntity.id.get))
+      }
+      TokenUtils.encode(token.getOrElse(
+        throw UnauthenticatedException()
+      ))
     }
   }
 
@@ -63,6 +69,13 @@ trait AuthService { this: LazyLogging =>
         case Some(tokenId) => TokensQueries.getById(tokenId).as(TokensQueries.parser.single)
         case None => throw new RuntimeException("Failed to insert token for user id: " + userId)
       }
+    }
+  }
+
+  private def getOrCreateToken(userId: Long)(implicit c: Connection): TokenEntity = {
+    TokensQueries.getByUserId(userId).as(TokensQueries.parser.singleOpt) match {
+      case Some(tokenEntity) => tokenEntity
+      case None => Await.result(createToken(userId), 5 seconds)
     }
   }
 

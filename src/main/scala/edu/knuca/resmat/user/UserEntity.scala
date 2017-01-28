@@ -15,6 +15,7 @@ case class AuthenticatedUser(id: Long, username: String, email: String, userType
   val isStudent = userType == UserType.Student
   val isInstructor = userType == UserType.Instructor
   val isAdmin = userType == UserType.Admin
+  val notStudent = userType != UserType.Student
 }
 
 case class UserEntity(id: Option[Long] = None,
@@ -24,21 +25,24 @@ case class UserEntity(id: Option[Long] = None,
                       lastName: String,
                       email: String,
                       userType: UserType.UserType,
+                      accessKey: String,
                       userGroupId: Option[Long]) {
   require(!username.isEmpty, "username.empty")
   require(!password.isEmpty, "password.empty")
   require(!firstName.isEmpty, "firstName.empty")
   require(!lastName.isEmpty, "lastName.empty")
   require(!email.isEmpty, "email.empty")
+  require(!accessKey.isEmpty, "accessKey.empty")
 }
 
 case class UserGroupEntity(id: Option[Long] = None, name: String)
 
 case class UserEntityUpdate(username: Option[String] = None,
                             password: Option[String] = None,
-                            firstName: Option[String],
-                            lastName: Option[String],
-                            email: Option[String]) {
+                            firstName: Option[String] = None,
+                            lastName: Option[String] = None,
+                            email: Option[String] = None,
+                            accessKey: Option[String] = None) {
   def merge(user: UserEntity): UserEntity = {
     UserEntity(
       user.id,
@@ -48,6 +52,7 @@ case class UserEntityUpdate(username: Option[String] = None,
       lastName.getOrElse(user.lastName),
       email.getOrElse(user.email),
       user.userType,
+      user.accessKey,
       user.userGroupId)
   }
 }
