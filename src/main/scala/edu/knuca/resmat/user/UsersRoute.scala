@@ -20,11 +20,11 @@ class UsersRoute(val authService: AuthService,
 
   import edu.knuca.resmat.http.JsonProtocol._
 
-  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = pathPrefix("users") {
+  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = pathPrefix("api-users") {
     pathPrefix("current") {
       pathEndOrSingleSlash {
         get {
-          complete(user)
+          complete(getById(user.id))
         } ~
         put {
           entity(as[UserEntityUpdate]) { userUpdate =>
@@ -33,34 +33,44 @@ class UsersRoute(val authService: AuthService,
         }
       }
     } ~
+    pathPrefix("logout") {
+      pathEndOrSingleSlash {
+        post {
+          complete {
+            authService.logout(user)
+            NoContent
+          }
+        }
+      }
+    } ~
     authorize(user.notStudent) {
       pathEndOrSingleSlash {
         get {
           complete(getAll().map(_.asJson))
-        }
+        } ~
         post {
           entity(as[UserEntity]) { userEntity =>
             complete(Created -> createUser(userEntity).map(_.asJson))
           }
         }
       } ~
-        pathPrefix(IntNumber) { id =>
-          pathEndOrSingleSlash {
-            get {
-              complete(getUserById(id).map(_.asJson))
-            } ~
-              put {
-                entity(as[UserEntityUpdate]) { userUpdate =>
-                  complete(updateUser(id, userUpdate).map(_.asJson))
-                }
-              } ~
-              delete {
-                onSuccess(deleteUser(id)) { ignored =>
-                  complete(NoContent)
-                }
-              }
+      pathPrefix(IntNumber) { id =>
+        pathEndOrSingleSlash {
+          get {
+            complete(getById(id).map(_.asJson))
+          } ~
+          put {
+            entity(as[UserEntityUpdate]) { userUpdate =>
+              complete(updateUser(id, userUpdate).map(_.asJson))
+            }
+          } ~
+          delete {
+            onSuccess(deleteUser(id)) { ignored =>
+              complete(NoContent)
+            }
           }
         }
+      }
     }
   }
 

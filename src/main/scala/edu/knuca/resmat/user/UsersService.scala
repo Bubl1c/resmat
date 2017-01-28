@@ -33,7 +33,7 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
-  def getUserById(id: Long): Future[Option[UserEntity]] = Future {
+  def getById(id: Long): Future[Option[UserEntity]] = Future {
     db.run { implicit c =>
       UsersQueries.getById(id).as(UsersQueries.parser.singleOpt)
     }
@@ -65,7 +65,7 @@ trait UsersService { this: LazyLogging =>
 
   def updateUser(id: Long, userUpdate: UserEntityUpdate): Future[Option[UserEntity]] = db.runTransaction{implicit c =>
     logger.debug(s"Updating user. id: $id, update: $userUpdate")
-    getUserById(id).flatMap {
+    getById(id).flatMap {
       case Some(userEntity) =>
         val updatedUser = userUpdate.merge(userEntity)
         val rowsUpdated = UsersQueries.update(updatedUser).executeUpdate()
@@ -83,7 +83,7 @@ trait UsersService { this: LazyLogging =>
 object UsersQueries {
   import anorm.SqlParser.{int, long, str}
 
-  val parser = for {
+  val parserWithPassword  = for {
     id <- long("id")
     username <- str("username")
     password <- str("password")
@@ -94,6 +94,8 @@ object UsersQueries {
     groupId <- long("group_id").?
     accessKey <- str("access_key")
   } yield UserEntity(Some(id), username, password, firstName, lastName, email, UserType(userType), accessKey, groupId)
+
+  val parser = parserWithPassword.map(_.copy(password = ""))
 
   val groupParser = for {
     id <- long("id")

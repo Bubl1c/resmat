@@ -4,9 +4,9 @@ case class UserTypeData(id: Int, name: String)
 
 object UserType extends Enumeration {
   type UserType = Value
-  val Student = Value(1, "Student")
-  val Instructor = Value(2, "Instructor")
-  val Admin = Value(3, "Admin")
+  val Student = Value(1, "student")
+  val Instructor = Value(2, "instructor")
+  val Admin = Value(3, "admin")
 
   def valuesSet: Set[UserTypeData] = values.map(v => UserTypeData(v.id, v.toString))
 }
@@ -28,7 +28,6 @@ case class UserEntity(id: Option[Long] = None,
                       accessKey: String,
                       userGroupId: Option[Long]) {
   require(!username.isEmpty, "username.empty")
-  require(!password.isEmpty, "password.empty")
   require(!firstName.isEmpty, "firstName.empty")
   require(!lastName.isEmpty, "lastName.empty")
   require(!email.isEmpty, "email.empty")

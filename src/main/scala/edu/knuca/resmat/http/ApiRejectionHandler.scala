@@ -13,6 +13,8 @@ trait ApiRejectionHandler {
           complete(HttpResponse(Unauthorized))
         case AuthorizationFailedRejection =>
           complete(HttpResponse(Unauthorized))
+        case MissingHeaderRejection(header) =>
+          complete(HttpResponse(Unauthorized))
       }
       .handleNotFound(complete(HttpResponse(NotFound)))
       .result()

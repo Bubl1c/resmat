@@ -30,7 +30,7 @@ trait AuthService { this: LazyLogging =>
     db.run{implicit c =>
       val tokenEntityOpt = TokensQueries.getByToken(token.token, token.created).as(TokensQueries.parser.singleOpt)
       val userEntityOpt = tokenEntityOpt match {
-        case Some(tokenEntity) => Await.result(usersService.getUserById(tokenEntity.userId), 5 seconds)
+        case Some(tokenEntity) => Await.result(usersService.getById(tokenEntity.userId), 5 seconds)
         case None => None
       }
       userEntityOpt.map(u => AuthenticatedUser(u.id.get, u.username, u.email, u.userType, u.userGroupId))
@@ -45,6 +45,12 @@ trait AuthService { this: LazyLogging =>
       TokenUtils.encode(token.getOrElse(
         throw UnauthenticatedException()
       ))
+    }
+  }
+
+  def logout(authenticatedUser: AuthenticatedUser): Future[Unit] = Future {
+    db.run{implicit c =>
+      TokensQueries.deleteByUserId(authenticatedUser.id).executeUpdate()
     }
   }
 
@@ -120,4 +126,6 @@ object TokensQueries {
   def getByToken(token: String, created: DateTime) =
     SQL("SELECT * FROM tokens WHERE token = {token} AND created = {created} AND expires > now()")
       .on("token" -> token, "created" -> GeneralHelpers.toMysql(created))
+
+  def deleteByUserId(userId: Long) = SQL("DELETE FROM tokens WHERE user_id = {userId}").on("userId" -> userId)
 }

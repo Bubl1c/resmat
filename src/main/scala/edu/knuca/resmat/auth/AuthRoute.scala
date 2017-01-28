@@ -19,6 +19,11 @@ class AuthRoute(val authService: AuthService, val usersService: UsersService, va
   import edu.knuca.resmat.http.JsonProtocol._
 
   val route = pathPrefix("auth") {
+    pathEndOrSingleSlash {
+      get {
+        complete("auth get result")
+      }
+    } ~
     path("sign-in") {
       pathEndOrSingleSlash {
         post {

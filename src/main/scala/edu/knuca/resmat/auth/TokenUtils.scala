@@ -9,10 +9,6 @@ import org.joda.time.{DateTime, DateTimeZone}
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
-case class EncodedToken(encodedAccessToken: String, userId: Long, created: DateTime, expires: Option[DateTime])
-
-case class DecodedToken(token: String, userId: Long, created: DateTime)
-
 /**
   * Util class for generating private and public token parts.
   *
