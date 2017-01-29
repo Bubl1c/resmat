@@ -18,4 +18,6 @@ def g(ut: UserType.UserType) = ut + ""
 
 g(UserType.Admin)
 
-UserType.
+val i = Option("str")
+
+i.map(str => null)

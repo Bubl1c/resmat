@@ -5,6 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 class DefaultUsersService(val db: DatabaseService)
                          (implicit val executionContext: ExecutionContext) extends UsersService with LazyLogging {
@@ -15,21 +16,15 @@ trait UsersService { this: LazyLogging =>
   def db: DatabaseService
   implicit val executionContext: ExecutionContext
 
-  def getBy(username: String, password: String): Option[UserEntity] = {
-    db.run { implicit c =>
-      UsersQueries.getBy(username, password).as(UsersQueries.parser.singleOpt)
-    }
-  }
-
   def getByAccessKey(accessKey: String): Option[UserEntity] = {
     db.run { implicit c =>
       UsersQueries.getByAccessKey(accessKey).as(UsersQueries.parser.singleOpt)
     }
   }
 
-  def getAll(): Future[Seq[UserEntity]] = Future {
+  def getAllNotStudents(): Future[Seq[UserEntity]] = Future {
     db.run { implicit c =>
-      UsersQueries.getAll.as(UsersQueries.parser.*)
+      UsersQueries.getAll.as(UsersQueries.parser.*).filter(_.userType != UserType.Student)
     }
   }
 
@@ -39,14 +34,26 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
-  def createGroup(group: UserGroupEntity): Future[UserGroupEntity] = Future {
-    db.runTransaction{ implicit c =>
-      logger.debug(s"Creating group: $group")
-      val groupIdOpt: Option[Long] = UsersQueries.insert(group).executeInsert()
-      groupIdOpt match {
-        case Some(groupId) => group.copy(id = Some(groupId))
-        case None => throw new RuntimeException(s"User group wasn't created, failed to insert. $group")
-      }
+  def getByIdInStudentGroup(id: Long, groupId: Long): Future[Option[UserEntity]] =
+    getStudentsByGroup(groupId).flatMap(students =>
+      Future.successful(students.find(_.id.contains(id)))
+    )
+
+  def getBy(username: String, password: String): Option[UserEntity] = {
+    db.run { implicit c =>
+      UsersQueries.getBy(username, password).as(UsersQueries.parser.singleOpt)
+    }
+  }
+
+  def getBy(userType: UserType.UserType): Future[Seq[UserEntity]] = Future {
+    db.run { implicit c =>
+      UsersQueries.getBy(userType).as(UsersQueries.parser.*)
+    }
+  }
+
+  def getStudentsByGroup(userGroupId: Long): Future[Seq[UserEntity]] = Future {
+    db.run { implicit c =>
+      UsersQueries.getStudentsByGroup(userGroupId).as(UsersQueries.parser.*)
     }
   }
 
@@ -63,21 +70,89 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
-  def updateUser(id: Long, userUpdate: UserEntityUpdate): Future[Option[UserEntity]] = db.runTransaction{implicit c =>
-    logger.debug(s"Updating user. id: $id, update: $userUpdate")
-    getById(id).flatMap {
-      case Some(userEntity) =>
+  def updateUser(id: Long, userUpdate: UserEntityUpdate): Future[Option[UserEntity]] = getById(id).flatMap {
+    case Some(userEntity) =>
+      logger.debug(s"Updating user. id: $id, update: $userUpdate")
+      db.runTransaction{implicit c =>
         val updatedUser = userUpdate.merge(userEntity)
         val rowsUpdated = UsersQueries.update(updatedUser).executeUpdate()
         if (rowsUpdated != 1) throw new RuntimeException("Failed to update user, rows updated: " + rowsUpdated)
         Future.successful(Some(updatedUser))
-      case None => Future.successful(None)
+      }
+    case None => Future.successful(None)
+  }
+
+  def deleteUser(id: Long, checkType: Option[UserType.UserType] = None): Future[Int] = Future { db.run { implicit c =>
+    val userOpt = UsersQueries.getById(id).as(UsersQueries.parser.singleOpt)
+    userOpt match {
+      case Some(user) =>
+        checkUserType(user, checkType).get
+        UsersQueries.delete(id).executeUpdate()
+      case None => 0
+    }
+  }}
+
+  def moveStudentToGroup(studentId: Long, groupId: Long): Future[Option[UserEntity]] = getById(studentId).flatMap {
+    case Some(userEntity) =>
+      checkUserType(userEntity, Some(UserType.Student)).get
+      db.runTransaction{implicit c =>
+        val rowsUpdated = UsersQueries.moveStudentToGroup(userEntity.id.get, groupId).executeUpdate()
+        if (rowsUpdated != 1)
+          throw new RuntimeException("Failed to move student to another group, rows updated: " + rowsUpdated)
+        Future.successful(
+          Some(userEntity.copy(studentGroupId = Some(groupId)))
+        )
+      }
+    case None => Future.successful(None)
+  }
+
+  /*===================== GROUPS ============================*/
+
+  def createStudentGroup(group: StudentGroupEntity): Future[StudentGroupEntity] = Future {
+    db.runTransaction{ implicit c =>
+      logger.debug(s"Creating group: $group")
+      val groupIdOpt: Option[Long] = UsersQueries.insertStudentGroup(group).executeInsert()
+      groupIdOpt match {
+        case Some(groupId) => group.copy(id = Some(groupId))
+        case None => throw new RuntimeException(s"User group wasn't created, failed to insert. $group")
+      }
     }
   }
 
-  def deleteUser(id: Long): Future[Int] = Future { db.run { implicit c =>
-    UsersQueries.delete(id).executeUpdate()
-  }}
+  def getAllStudentGroups(): Future[Seq[StudentGroupEntity]] = Future {
+    db.run { implicit c =>
+      UsersQueries.getAllStudentGroups().as(UsersQueries.groupParser.*)
+    }
+  }
+
+  def getStudentGroupById(groupId: Long): Future[Option[StudentGroupEntity]] = Future {
+    db.run { implicit c =>
+      UsersQueries.getStudentGroupById(groupId).as(UsersQueries.groupParser.singleOpt)
+    }
+  }
+
+  def updateStudentGroup(groupId: Long, groupUpdate: StudentGroupEntityUpdate): Future[StudentGroupEntity] = {
+    db.runTransaction { implicit c =>
+      val rowsUpdated = UsersQueries.updateStudentGroup(groupId, groupUpdate).executeUpdate()
+      if(rowsUpdated != 1) {
+        throw new RuntimeException(s"Failed to update user group with id: $groupId. Updated rows: $rowsUpdated")
+      }
+      getStudentGroupById(groupId).map(_.getOrElse(
+        throw new RuntimeException(s"Failed to update user group with id: $groupId. Failed to fetch by id")
+      ))
+    }
+  }
+
+  private def checkUserType(user: UserEntity, checkTypeOpt: Option[UserType.UserType]): Try[UserEntity] = Try {
+    checkTypeOpt.foreach( checkType =>
+      require(
+        user.userType == checkType,
+        s"Type check failed, required: $checkType, found: ${user.userType}"
+      )
+    )
+    user
+  }
+
 }
 
 object UsersQueries {
@@ -97,11 +172,6 @@ object UsersQueries {
 
   val parser = parserWithPassword.map(_.copy(password = ""))
 
-  val groupParser = for {
-    id <- long("id")
-    name <- str("name")
-  } yield UserGroupEntity(Some(id), name)
-
   def insert(user: UserEntity) = SQL(
     """
       |INSERT INTO users (username, password, first_name, last_name, email, user_type, access_key, group_id)
@@ -115,14 +185,7 @@ object UsersQueries {
     "email" -> user.email,
     "userType" -> user.userType.id,
     "accessKey" -> user.accessKey,
-    "groupId" -> user.userGroupId)
-
-  def insert(group: UserGroupEntity) = SQL(
-    """
-      |INSERT INTO user_groups (name)
-      |VALUES ({name})
-    """.stripMargin
-  ).on("name" -> group.name)
+    "groupId" -> user.studentGroupId)
 
   def update(user: UserEntity) =
     SQL(
@@ -131,12 +194,17 @@ object UsersQueries {
         | access_key={accessKey}
         |WHERE id = {userId}""".stripMargin)
       .on(
+        "userId" -> user.id.get,
         "username" -> user.username,
         "password" -> user.password,
         "firstName" -> user.firstName,
         "lastName" -> user.lastName,
         "email" -> user.email,
         "accessKey" -> user.accessKey)
+
+  def moveStudentToGroup(userId: Long, groupId: Long) =
+    SQL("UPDATE users SET group_id={groupId} WHERE id = {userId}")
+    .on("userId" -> userId, "groupId" -> groupId)
 
   def delete(userId: Long) = SQL("DELETE FROM users WHERE id = {userId}").on("userId" -> userId)
 
@@ -148,7 +216,36 @@ object UsersQueries {
     "SELECT * FROM users WHERE username = {username} AND password = {password}"
   ).on("username" -> username, "password" -> password)
 
+  def getBy(userType: UserType.UserType) = SQL(
+    "SELECT * FROM users WHERE user_type = {userType}"
+  ).on("userType" -> userType.id)
+
+  def getStudentsByGroup(groupId: Long) = SQL(
+    "SELECT * FROM users WHERE user_type = {userType} AND group_id = {groupId}"
+  ).on("userType" -> UserType.Student.id, "groupId" -> groupId)
+
   def getByAccessKey(accessKey: String) = SQL(
     "SELECT * FROM users WHERE access_key = {accessKey}"
   ).on("accessKey" -> accessKey)
+
+  /*===================== GROUPS ============================*/
+
+  val groupParser = for {
+    id <- long("id")
+    name <- str("name")
+  } yield StudentGroupEntity(Some(id), name)
+
+  def insertStudentGroup(group: StudentGroupEntity) = SQL(
+    """
+      |INSERT INTO student_groups (name)
+      |VALUES ({name})
+    """.stripMargin
+  ).on("name" -> group.name)
+
+  def getAllStudentGroups() = SQL("SELECT * FROM student_groups")
+
+  def getStudentGroupById(groupId: Long) = SQL("SELECT * FROM student_groups WHERE id = {groupId}").on("groupId" -> groupId)
+
+  def updateStudentGroup(groupId: Long, groupUpdate: StudentGroupEntityUpdate) =
+    SQL("UPDATE student_groups SET name = {name} WHERE id = {id}").on("id" -> groupId, "name" -> groupUpdate.name)
 }

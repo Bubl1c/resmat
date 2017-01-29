@@ -33,7 +33,7 @@ trait AuthService { this: LazyLogging =>
         case Some(tokenEntity) => Await.result(usersService.getById(tokenEntity.userId), 5 seconds)
         case None => None
       }
-      userEntityOpt.map(u => AuthenticatedUser(u.id.get, u.username, u.email, u.userType, u.userGroupId))
+      userEntityOpt.map(u => AuthenticatedUser(u.id.get, u.username, u.email, u.userType, u.studentGroupId))
     }
   }
 

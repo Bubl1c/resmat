@@ -11,9 +11,8 @@ import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 
-class UsersRoute(val authService: AuthService,
-                 usersService: UsersService
-                       )(implicit executionContext: ExecutionContext) extends CirceSupport {
+class UsersRoute(val authService: AuthService, usersService: UsersService)
+                (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import StatusCodes._
   import usersService._
@@ -46,25 +45,25 @@ class UsersRoute(val authService: AuthService,
     authorize(user.notStudent) {
       pathEndOrSingleSlash {
         get {
-          complete(getAll().map(_.asJson))
+          complete(getAllNotStudents().map(_.asJson))
         } ~
-        post {
+        (post & authorize(user.notStudent)) { //TODO: authorize(user.isAdmin)
           entity(as[UserEntity]) { userEntity =>
             complete(Created -> createUser(userEntity).map(_.asJson))
           }
         }
       } ~
-      pathPrefix(IntNumber) { id =>
+      pathPrefix(LongNumber) { id =>
         pathEndOrSingleSlash {
           get {
             complete(getById(id).map(_.asJson))
           } ~
-          put {
+          (put & authorize(user.notStudent)) { //TODO: authorize(user.isAdmin)
             entity(as[UserEntityUpdate]) { userUpdate =>
               complete(updateUser(id, userUpdate).map(_.asJson))
             }
           } ~
-          delete {
+          (delete & authorize(user.isAdmin)) {
             onSuccess(deleteUser(id)) { ignored =>
               complete(NoContent)
             }

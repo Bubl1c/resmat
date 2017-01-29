@@ -2,6 +2,13 @@ package edu.knuca.resmat.user
 
 case class UserTypeData(id: Int, name: String)
 
+/**
+  * Enumeration for user types
+  * usages:
+  * id                - to store in DB
+  * name = toString   - to send to UI
+  * Value = UserType  - to use in business logic
+  */
 object UserType extends Enumeration {
   type UserType = Value
   val Student = Value(1, "student")
@@ -26,15 +33,16 @@ case class UserEntity(id: Option[Long] = None,
                       email: String,
                       userType: UserType.UserType,
                       accessKey: String,
-                      userGroupId: Option[Long]) {
+                      studentGroupId: Option[Long]) {
   require(!username.isEmpty, "username.empty")
   require(!firstName.isEmpty, "firstName.empty")
   require(!lastName.isEmpty, "lastName.empty")
-  require(!email.isEmpty, "email.empty")
   require(!accessKey.isEmpty, "accessKey.empty")
 }
 
-case class UserGroupEntity(id: Option[Long] = None, name: String)
+case class StudentGroupEntityUpdate(name: String)
+
+case class StudentGroupEntity(id: Option[Long] = None, name: String)
 
 case class UserEntityUpdate(username: Option[String] = None,
                             password: Option[String] = None,
@@ -52,6 +60,6 @@ case class UserEntityUpdate(username: Option[String] = None,
       email.getOrElse(user.email),
       user.userType,
       user.accessKey,
-      user.userGroupId)
+      user.studentGroupId)
   }
 }
