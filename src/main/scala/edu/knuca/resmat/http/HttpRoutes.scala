@@ -3,12 +3,14 @@ package edu.knuca.resmat.http
 import akka.http.scaladsl.server.Directives._
 import edu.knuca.resmat.InitialDataGenerator
 import edu.knuca.resmat.auth.{AuthRoute, AuthService}
+import edu.knuca.resmat.exam.{ExamRoute, ExamService}
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
 
 import scala.concurrent.ExecutionContext
 
-class HttpRoutes(usersService: UsersService, val authService: AuthService, val dataGenerator: InitialDataGenerator)
+class HttpRoutes(usersService: UsersService, val authService: AuthService, val examService: ExamService)
+                (val dataGenerator: InitialDataGenerator)
                 (implicit executionContext: ExecutionContext)
   extends CorsSupport
     with ApiExceptionHandlers
@@ -18,6 +20,7 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val d
   val usersRouter = new UsersRoute(authService, usersService)
   val authRouter = new AuthRoute(authService, usersService, dataGenerator)
   val studentsRouter = new StudentsRoute(usersService)
+  val examRouter = new ExamRoute(examService)
 
   val routes =
     pathPrefix("v1") {
@@ -26,7 +29,8 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val d
           authRouter.route ~
           authenticate { implicit user: AuthenticatedUser =>
             usersRouter.route ~
-            studentsRouter.route
+            studentsRouter.route ~
+            examRouter.route
           }
         }
       }

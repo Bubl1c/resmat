@@ -9,8 +9,8 @@ import edu.knuca.resmat.db.{DBConfig, DatabaseService, FlywayService}
 import edu.knuca.resmat.http.HttpRoutes
 import edu.knuca.resmat.user.{DefaultUsersService, UsersService}
 import edu.knuca.resmat.utils.Config
-
 import akka.http.scaladsl.server.directives.DebuggingDirectives
+import edu.knuca.resmat.exam.{ExamService, TestSetExamService}
 
 import scala.concurrent.ExecutionContext
 
@@ -33,11 +33,13 @@ object Main extends App with Config {
 
   val usersService: UsersService = new DefaultUsersService(databaseService)
   val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
+  val testSetExamService: TestSetExamService = new TestSetExamService(databaseService)
+  val examService: ExamService = new ExamService(databaseService)(testSetExamService)
 
   val dataGenerator = new InitialDataGenerator(databaseService, usersService, authService)
   dataGenerator.generate()
 
-  val httpRoutes = new HttpRoutes(usersService, authService, dataGenerator)
+  val httpRoutes = new HttpRoutes(usersService, authService, examService)(dataGenerator)
   val httpRouteLogged = DebuggingDirectives.logRequestResult("Resmat REST API", Logging.WarningLevel)(httpRoutes.routes)
 
   Http().bindAndHandle(httpRouteLogged, httpHost, httpPort)

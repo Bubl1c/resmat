@@ -16,7 +16,7 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
       logger.warn("User credentials expired: ", m)
       complete(StatusCodes.Forbidden -> ErrorMessage("Credentials expired. Please change your password", ErrorCodes.CredentialsExpired))
     case e @ NotFoundException(m) =>
-      logger.warn(s"Item not found: ", e)
+      logger.warn(s"Item not found: ", m)
       completeNotFound
     case NotAuthorized(m) =>
       logger.warn(s"User not authorized: ", m)
@@ -34,7 +34,7 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
     case e =>
       val id = java.util.UUID.randomUUID()
       logger.error(s"Server Error $id", e)
-      complete(StatusCodes.InternalServerError -> ErrorMessage(s"There was an error processing your request. Reference id: $id"))
+      complete(StatusCodes.InternalServerError -> ErrorMessage(s"There was an error processing your request: ${e.getMessage}. Reference id: $id"))
   }
 
   private def completeNotFound = complete(StatusCodes.NotFound -> ErrorMessage("Requested resource not found"))

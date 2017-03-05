@@ -1,12 +1,13 @@
 package edu.knuca.resmat.http
 
+import edu.knuca.resmat.exam._
 import edu.knuca.resmat.user.UserType
 import io.circe.{Decoder, Encoder, Json}
 import io.circe.syntax._
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object JsonProtocol {
 
@@ -15,16 +16,44 @@ object JsonProtocol {
   }
   implicit val decodeDateTime: Decoder[DateTime] = Decoder.decodeString.emap { str =>
     Try(ISODateTimeFormat.dateTime().parseDateTime(str)) match {
-      case scala.util.Success(dateTime) => Right(dateTime)
-      case scala.util.Failure(t) => Left(t.getMessage)
+      case Success(dateTime) => Right(dateTime)
+      case Failure(t) => Left(t.getMessage)
     }
   }
 
   implicit val encodeUserType: Encoder[UserType.UserType] = Encoder.encodeString.contramap[UserType.UserType](_.toString)
-  implicit val decodeUserType: Decoder[UserType.UserType] = Decoder.decodeString.emap { str =>
-    Try(UserType.withName(str)) match {
+  implicit val decodeUserType: Decoder[UserType.UserType] = enumDecoder(UserType)
+
+  implicit val encodeESDT: Encoder[ExamStepDataType.ExamStepDataType] = Encoder.encodeString.contramap[ExamStepDataType.ExamStepDataType](_.toString)
+  implicit val decodeESDT: Decoder[ExamStepDataType.ExamStepDataType] = enumDecoder(ExamStepDataType)
+
+  implicit val encodeTaskType: Encoder[TaskType.TaskType] = Encoder.encodeString.contramap[TaskType.TaskType](_.toString)
+  implicit val decodeTaskType: Decoder[TaskType.TaskType] = enumDecoder(TaskType)
+
+  implicit val encodeTestType: Encoder[TestType.TestType] = Encoder.encodeString.contramap[TestType.TestType](_.toString)
+  implicit val decodeTestType: Decoder[TestType.TestType] = enumDecoder(TestType)
+
+  implicit val encodeExamStatus: Encoder[ExamStatus.ExamStatus] = Encoder.encodeString.contramap[ExamStatus.ExamStatus](_.toString)
+  implicit val decodeExamStatus: Decoder[ExamStatus.ExamStatus] = enumDecoder(ExamStatus)
+
+  implicit val encodeExamStepStatus: Encoder[ExamStepStatus.ExamStepStatus] = Encoder.encodeString.contramap[ExamStepStatus.ExamStepStatus](_.toString)
+  implicit val decodeExamStepStatus: Decoder[ExamStepStatus.ExamStepStatus] = enumDecoder(ExamStepStatus)
+
+  implicit val encodeTOVT: Encoder[TestOptionValueType.TestOptionValueType] = Encoder.encodeString.contramap[TestOptionValueType.TestOptionValueType](_.toString)
+  implicit val decodeTOVT: Decoder[TestOptionValueType.TestOptionValueType] = enumDecoder(TestOptionValueType)
+
+  def enumDecoder(en: Enumeration) = Decoder.decodeString.emap { str =>
+    Try(en.withName(str)) match {
       case scala.util.Success(ut) => Right(ut)
       case scala.util.Failure(t) => Left(t.getMessage)
+    }
+  }
+
+  implicit val encodeStepData: Encoder[StepData] = new Encoder[StepData] {
+    import io.circe.generic.auto._
+    override def apply(a: StepData) = a match {
+      case tsd: TestSetDto => tsd.asJson
+      case ni: NI => ni.asJson
     }
   }
 }
