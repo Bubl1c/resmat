@@ -43,10 +43,10 @@ object TestOptionValueType extends PimpedEnumeration {
   val Text = Value(2, "words")
 }
 
-case class UserExam(id: Long, userId: Long, examConfId: Long, variant: Int, currentStepId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
-case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long, dataSetId: Long)
-case class UserExamStepAttemptTestSet(id: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
-case class UserExamStepAttemptTest(stepAttemptTestSetId: Long, testId: Long)
+case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
+case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long)
+case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
+case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId: Long, done: Boolean = false, mistakes: Int = 0)
 
 
 
@@ -56,7 +56,9 @@ case class ExamStepConf(id: Long,
                         examConfId: Long,
                         sequence: Int,
                         name: String,
-                        stepType: ExamStepDataType.ExamStepDataType)
+                        stepType: ExamStepDataType.ExamStepDataType,
+                        mistakesPerAttemptLimit: Int,
+                        attemptsLimit: Int)
 case class ExamStepVariantConf(id: Long, examStepConfId: Long, examId: Long, dataSetConfId: Long)
 
 
@@ -74,12 +76,12 @@ case class ExamStepVariantConf(id: Long, examStepConfId: Long, examId: Long, dat
 //case class UserTaskVariant(id: Long, userId: Long, taskVariantId: Long)
 
 
-case class TestSetConf(id: Long, examConfId: Long, examStepConfId: Long, mistakesPerAttemptLimit: Int, attemptsLimit: Int)
+case class TestSetConf(id: Long, examConfId: Long, examStepConfId: Long)
 case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupId: Long)
 
-case class TestGroup(id: Long, name: String)
-case class Test(id: Long, groupId: Long, question: String, testType: TestType.TestType = TestType.Radio, help: Option[String] = None)
-case class TestOption(id: Long, testId: Long, sequence: Int, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
+case class TestGroupConf(id: Long, name: String)
+case class TestConf(id: Long, groupId: Long, question: String, testType: TestType.TestType = TestType.Radio, help: Option[String] = None)
+case class TestOptionConf(id: Long, testConfId: Long, sequence: Int, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
 
 case class InputSet(id: Long, name: String)
 case class InputSetInput(id: Long,

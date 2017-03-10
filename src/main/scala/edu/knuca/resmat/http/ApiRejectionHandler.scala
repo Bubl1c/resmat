@@ -14,7 +14,7 @@ trait ApiRejectionHandler {
         case AuthorizationFailedRejection =>
           complete(HttpResponse(Unauthorized))
         case MissingHeaderRejection(header) =>
-          complete(HttpResponse(Unauthorized))
+          complete(Unauthorized -> s"Header $header not found!")
       }
       .handleNotFound(complete(HttpResponse(NotFound)))
       .result()

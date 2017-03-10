@@ -8,14 +8,14 @@ import edu.knuca.resmat.exam.ExamStepDataType.ExamStepDataType
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ExecutionContext, Future}
 
-trait StepData
+trait StepDataDto
 
-case class UserExamDto(userExamId: Long, variant: Int, status: ExamStatus, currentStep: Option[UserExamStepPreviewDto], conf: ExamConf)
+case class UserExamDto(userExam: UserExam, currentStepPreview: Option[UserExamStepPreviewDto], examConf: ExamConf)
 case class UserExamStepPreviewDto(sequence: Int, stepType: ExamStepDataType, description: String)
-case class UserExamStepInfoDto(conf: ExamStepConf, attempts: Seq[UserExamStepAttempt])
-case class UserExamStepAttemptDto(conf: ExamStepConf, info: UserExamStepAttempt, data: StepData)
+case class UserExamStepInfoDto(stepConf: ExamStepConf, attempts: Seq[UserExamStepAttempt])
+case class UserExamStepAttemptDto(stepConf: ExamStepConf, attempt: UserExamStepAttempt, stepData: StepDataDto)
 
-case class NI(data: String = "not implemented") extends StepData
+case class NI(data: String = "not implemented") extends StepDataDto
 
 class ExamService(val db: DatabaseService)
                  (testSetExamService: TestSetExamService)
@@ -25,7 +25,7 @@ class ExamService(val db: DatabaseService)
     ExamConf(1, "Exam1", "Exam1 description")
   )
   private val examStepConfs: List[ExamStepConf] = List(
-    ExamStepConf(1, 1, 1, "Exam1Step1", ExamStepDataType.TestSet)
+    ExamStepConf(1, 1, 1, "Exam1Step1", ExamStepDataType.TestSet, 5, 3)
   )
   private val examStepVariantConfs: List[ExamStepVariantConf] = List( //figure out variants
     ExamStepVariantConf(1, 1, 1, 1)
@@ -35,12 +35,12 @@ class ExamService(val db: DatabaseService)
   //                      User specific data
   //===============================================================
 
-  private val userExams: List[UserExam] = List(
-    UserExam(1, 1, 1, 1, 1, ExamStatus.InProgress, None, None),
-    UserExam(2, 1, 1, 1, -1, ExamStatus.Initial, None, None)
+  private val userExams: ListBuffer[UserExam] = ListBuffer(
+    UserExam(1, 1, 1, 1, ExamStatus.InProgress, None, None),
+    UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
   )
   private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer(
-    UserExamStepAttempt(1, 1, 1, 1, 0, 1, ExamStepStatus.Failed, 1, 1)
+    UserExamStepAttempt(1, 1, 1, 1, 0, 1, ExamStepStatus.Failed, 1)
   )
 
   //===============================================================
@@ -64,6 +64,16 @@ class ExamService(val db: DatabaseService)
     }
   }
 
+  def getUserExamCurrentStepWithAttemptData(userExamId: Long): Option[UserExamStepAttemptDto] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(_.id == userExam.currentStepConfId).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with id: ${userExam.currentStepConfId} not found.")
+    )
+    getUserExamStepCurrentAttempt(userExam.id, examStepConf.sequence)
+  }
+
   def getUserExamStepInfos(userExamId: Long): Seq[UserExamStepInfoDto] = {
     val userExamOpt = userExams.find(_.id == userExamId)
     if(userExamOpt.isDefined) {
@@ -77,15 +87,28 @@ class ExamService(val db: DatabaseService)
 
   def getUserExamStepInfo(userExamId: Long, sequence: Int): Option[UserExamStepInfoDto] = {
     val steps = getUserExamStepInfos(userExamId)
-    steps.find(_.conf.sequence == sequence)
+    steps.find(_.stepConf.sequence == sequence)
   }
 
-  def getUserExamStepCurrentAttempt(userExamId: Long, sequence: Int): Option[UserExamStepAttemptDto] = {
+  def getUserExamStepAttempts(userExamId: Long, sequence: Int): Seq[UserExamStepAttemptDto] = {
     val userExam = userExams.find(_.id == userExamId).getOrElse(
       throw new RuntimeException(s"Exam with id: $userExamId not found.")
     )
     val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == sequence).getOrElse(
       throw new RuntimeException(s"Exam ($userExamId) step with sequence: $sequence not found.")
+    )
+
+    val attempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+
+    attempts.flatMap(getAttemptDto(_, examStepConf))
+  }
+
+  def getUserExamStepCurrentAttempt(userExamId: Long, stepSequence: Int): Option[UserExamStepAttemptDto] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
     )
 
     val existingAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
@@ -101,6 +124,106 @@ class ExamService(val db: DatabaseService)
         getAttemptDto(notSubmittedAttempt, examStepConf)
       }
     }
+  }
+
+  //todo make this method return uncompleted parts
+  def submitStep(userExamId: Long, stepSequence: Int): Boolean = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
+    )
+    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+
+    val notSubmittedAttempts = allStepAttempts.filter(_.status == ExamStepStatus.NotSubmitted)
+    val successAttempts = allStepAttempts.filter(_.status == ExamStepStatus.Success)
+
+    if(successAttempts.nonEmpty || notSubmittedAttempts.size != 1) {
+      throw new IllegalStateException(s"When submitting user exam id: $userExamId step sequence: $stepSequence " +
+        s"success attempts: $successAttempts, not submitted attempts: $notSubmittedAttempts")
+    }
+
+    val stepAttempt = notSubmittedAttempts.head
+    if(isStepCompleted(stepAttempt, examStepConf)) {
+      updateStepAttempt(stepAttempt.copy(status = ExamStepStatus.Success))
+      true
+    } else {
+      false
+    }
+  }
+
+  def isStepCompleted(stepAttempt: UserExamStepAttempt, examStepConf: ExamStepConf): Boolean = {
+    examStepConf.stepType match {
+      case ExamStepDataType.TestSet =>
+        val stepAttemptTestSet = testSetExamService.getTestSetByAttemptId(stepAttempt.id).getOrElse(
+          throw new RuntimeException(s"Test set for step attempt with id: ${stepAttempt.id} not found!")
+        )
+        val notCompletedTestConfs = testSetExamService.getNotCompletedTestConfsInTestSet(stepAttemptTestSet.id)
+        if(notCompletedTestConfs.isEmpty) {
+          true
+        } else {
+          false
+        }
+      case ExamStepDataType.TaskFlow =>
+        false
+      case ExamStepDataType.Results =>
+        false
+      case anyOther =>
+        throw new IllegalArgumentException(s"Unhandled ExamStepDataType: $anyOther")
+    }
+  }
+
+  def verifyTestSetAnswer(userExamId: Long,
+                          stepSequence: Int,
+                          stepAttemptId: Long,
+                          testId: Long,
+                          submittedOptions: Seq[Long]): Option[VerifiedTestAnswerDto] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
+    )
+    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
+      throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
+    )
+    val stepAttemptTestSet = testSetExamService.getTestSetByAttemptId(currentStepAttempt.id).getOrElse(
+      throw new RuntimeException(s"Test set for step attempt with id: ${currentStepAttempt.id} not found!")
+    )
+
+    testSetExamService.verifyTestAnswer(stepAttemptTestSet.id, testId, submittedOptions).map{ verifiedTestAnswer =>
+      val updatedMistakesAmount = currentStepAttempt.mistakesAmount + verifiedTestAnswer.mistakesAmount
+
+      //If mistakes limit exceeded - mark attempt as failed
+      if(updatedMistakesAmount > examStepConf.mistakesPerAttemptLimit) {
+        updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount, status = ExamStepStatus.Failed))
+        //If step attempts limit exceeded - mark exam as failed
+        if(allStepAttempts.size == examStepConf.attemptsLimit) {
+          updateUserExam(userExam.copy(status = ExamStatus.Failed))
+        }
+      } else if(updatedMistakesAmount > currentStepAttempt.mistakesAmount){
+        updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount))
+      }
+
+      verifiedTestAnswer
+    }
+  }
+
+  def updateStepAttempt(stepAttempt: UserExamStepAttempt): UserExamStepAttempt = {
+    val stepAttemptIndex = userExamStepAttempts.indexWhere(_.id == stepAttempt.id)
+    userExamStepAttempts.update(
+      stepAttemptIndex,
+      stepAttempt
+    )
+    stepAttempt
+  }
+
+  def updateUserExam(userExam: UserExam): UserExam = {
+    val userExamIndex = userExams.indexWhere(_.id == userExam.id)
+    userExams.update(userExamIndex, userExam)
+    userExam
   }
 
   private def createStepAttempt(attempt: UserExamStepAttempt): UserExamStepAttempt = {
@@ -123,7 +246,7 @@ class ExamService(val db: DatabaseService)
       case ExamStepDataType.Results =>
         null
       case anyOther =>
-        throw new RuntimeException(s"Unhandled ExamStepDataType: $anyOther")
+        throw new IllegalArgumentException(s"Unhandled ExamStepDataType: $anyOther")
     }
   }
 
@@ -135,13 +258,13 @@ class ExamService(val db: DatabaseService)
       throw new RuntimeException(s"TestSetConf with id: ${variantConf.dataSetConfId} not found.")
     )
 
-    val (newTestSet, newTestSetTests) =
-      testSetExamService.createTestSetWithTests(UserExamStepAttemptTestSet(-1, userExam.id, examStepConfId, testSetConf.id))
-
     val newTestSetStepAttempt =
       createStepAttempt(
-        UserExamStepAttempt(-1, userExam.userId, userExam.id, examStepConfId, 0, -1, ExamStepStatus.NotSubmitted, variantConf.id, newTestSet.id)
+        UserExamStepAttempt(-1, userExam.userId, userExam.id, examStepConfId, 0, -1, ExamStepStatus.NotSubmitted, variantConf.id)
       )
+
+    val (newTestSet, newTestSetTests) =
+      testSetExamService.createTestSetWithTests(UserExamStepAttemptTestSet(-1, newTestSetStepAttempt.id, userExam.id, examStepConfId, testSetConf.id))
 
     newTestSetStepAttempt
   }
@@ -149,7 +272,7 @@ class ExamService(val db: DatabaseService)
   private def getAttemptDto(attempt: UserExamStepAttempt, examStepConf: ExamStepConf): Option[UserExamStepAttemptDto] = {
     examStepConf.stepType match {
       case ExamStepDataType.TestSet =>
-        val testSetDto = testSetExamService.getTestSetDto(attempt.dataSetId).getOrElse(
+        val testSetDto = testSetExamService.getTestSetDto(attempt.id).getOrElse(
           throw new RuntimeException(s"Test set data not found. Attempt: $attempt")
         )
         Some(UserExamStepAttemptDto(examStepConf, attempt, testSetDto))
@@ -158,8 +281,7 @@ class ExamService(val db: DatabaseService)
       case ExamStepDataType.Results =>
         Some(UserExamStepAttemptDto(null, null, NI()))
       case anyOther =>
-        logger.error(s"Unhandled ExamStepDataType: $anyOther")
-        None
+        throw new IllegalArgumentException(s"Unhandled ExamStepDataType: $anyOther")
     }
   }
 
@@ -167,10 +289,10 @@ class ExamService(val db: DatabaseService)
     val configuration = examConfs.find(_.id == ue.examConfId).getOrElse(
       throw new RuntimeException(s"Cannot find exam configuration by id: ${ue.examConfId}")
     )
-    val currentStepOpt = examStepConfs.find(_.id == ue.currentStepId).map( cs =>
+    val currentStepOpt = examStepConfs.find(_.id == ue.currentStepConfId).map(cs =>
       UserExamStepPreviewDto(cs.sequence, cs.stepType, cs.name)
     )
-    UserExamDto(ue.id, ue.variant, ue.status, currentStepOpt, configuration)
+    UserExamDto(ue, currentStepOpt, configuration)
   }
 
   private def getStepInfo(userId: Long, stepConf: ExamStepConf): UserExamStepInfoDto = {

@@ -49,9 +49,9 @@ object JsonProtocol {
     }
   }
 
-  implicit val encodeStepData: Encoder[StepData] = new Encoder[StepData] {
+  implicit val encodeStepData: Encoder[StepDataDto] = new Encoder[StepDataDto] {
     import io.circe.generic.auto._
-    override def apply(a: StepData) = a match {
+    override def apply(a: StepDataDto) = a match {
       case tsd: TestSetDto => tsd.asJson
       case ni: NI => ni.asJson
     }
