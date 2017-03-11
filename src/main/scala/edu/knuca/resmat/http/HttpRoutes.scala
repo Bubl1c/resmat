@@ -6,14 +6,14 @@ import edu.knuca.resmat.auth.{AuthRoute, AuthService}
 import edu.knuca.resmat.exam.{ExamRoute, ExamService, TestSetExamRoute, TestSetExamService}
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
+import ch.megard.akka.http.cors.CorsDirectives._
 
 import scala.concurrent.ExecutionContext
 
 class HttpRoutes(usersService: UsersService, val authService: AuthService, val examService: ExamService, val testSetExamService: TestSetExamService)
                 (val dataGenerator: InitialDataGenerator)
                 (implicit executionContext: ExecutionContext)
-  extends CorsSupport
-    with ApiExceptionHandlers
+    extends ApiExceptionHandlers
     with ApiRejectionHandler
     with SecurityDirectives {
 
@@ -25,13 +25,15 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val e
 
   val routes =
     pathPrefix("v1") {
-      (handleExceptions(generalHandler) & handleRejections(generalRejectionHandler)) {
-        corsHandler {
-          authRouter.route ~
-          authenticate { implicit user: AuthenticatedUser =>
-            usersRouter.route ~
-            studentsRouter.route ~
-            examRouter.route
+      handleRejections(corsRejectionHandler) {
+        cors() {
+          (handleExceptions(generalHandler) & handleRejections(generalRejectionHandler)) {
+            authRouter.route ~
+              authenticate { implicit user: AuthenticatedUser =>
+                usersRouter.route ~
+                  studentsRouter.route ~
+                  examRouter.route
+              }
           }
         }
       }

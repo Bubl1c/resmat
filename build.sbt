@@ -38,9 +38,12 @@ val dbDependencies = Seq(
 libraryDependencies ++= {
   val akkaV = "10.0.3"
   val scalaTestV = "3.0.1"
+  val akkaHttpCorsV = "0.1.11"
   Seq(
     "com.typesafe.akka" %% "akka-http-core" % akkaV,
     "com.typesafe.akka" %% "akka-http" % akkaV,
+
+    "ch.megard" %% "akka-http-cors" % akkaHttpCorsV,
 
     "org.scalatest" %% "scalatest" % scalaTestV % "test",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaV % "test"

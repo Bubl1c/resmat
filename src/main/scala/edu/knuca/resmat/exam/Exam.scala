@@ -3,12 +3,18 @@ package edu.knuca.resmat.exam
 import edu.knuca.resmat.utils.PimpedEnumeration
 import org.joda.time.DateTime
 
-object ExamStepDataType extends PimpedEnumeration {
-  type ExamStepDataType = Value
+object TaskFlowStepType extends PimpedEnumeration {
+  type TaskFlowStepType = Value
+  val Test = Value(1, "test")
+  val InputSet = Value(2, "input-set")
+  val Charts = Value(3, "charts")
+}
+
+object ExamStepType extends PimpedEnumeration {
+  type ExamStepType = Value
   val TestSet = Value(1, "test-set")
   val TaskFlow = Value(2, "task-flow")
   val Results = Value(3, "results")
-  val Test = Value(4, "test")
 }
 
 object TaskType extends PimpedEnumeration {
@@ -43,51 +49,56 @@ object TestOptionValueType extends PimpedEnumeration {
   val Text = Value(2, "words")
 }
 
-case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
-case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long)
-case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
-case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId: Long, done: Boolean = false, mistakes: Int = 0)
-
-
-
 case class ExamConf(id: Long, name: String, description: String)
-
 case class ExamStepConf(id: Long,
                         examConfId: Long,
                         sequence: Int,
                         name: String,
-                        stepType: ExamStepDataType.ExamStepDataType,
+                        stepType: ExamStepType.ExamStepType,
                         mistakesPerAttemptLimit: Int,
                         attemptsLimit: Int)
-case class ExamStepVariantConf(id: Long, examStepConfId: Long, examId: Long, dataSetConfId: Long)
+case class ExamStepVariantConf(id: Long, examStepConfId: Long, examConfId: Long, dataSetConfId: Long)
 
+case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
+case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long)
 
-
-//case class TaskFlowConf(id: Long, taskConfId: Long)
-//case class TaskFlowStepConf(id: Long,
-//                            taskFlowConfId: Long,
-//                            name: String,
-//                            sequence: Int,
-//                            stepType: ExamStepDataType.ExamStepDataType,
-//                            dataConfigurationId: Long)
-//
-//case class TaskConf(id: Long, name: String, taskType: TaskType.TaskType, inputData: String) //JSON
-//case class TaskVariant(id: Long, taskConfId: Long, inputData: String) //JSON
-//case class UserTaskVariant(id: Long, userId: Long, taskVariantId: Long)
-
+//====================TestSet====================
 
 case class TestSetConf(id: Long, examConfId: Long, examStepConfId: Long)
 case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupId: Long)
 
 case class TestGroupConf(id: Long, name: String)
-case class TestConf(id: Long, groupId: Long, question: String, testType: TestType.TestType = TestType.Radio, help: Option[String] = None)
-case class TestOptionConf(id: Long, testConfId: Long, sequence: Int, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
+case class TestConf(id: Long, groupId: Long, question: String, options: Seq[TestOptionConf], testType: TestType.TestType = TestType.Radio, help: Option[String] = None)
+case class TestOptionConf(id: Int, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
 
-case class InputSet(id: Long, name: String)
-case class InputSetInput(id: Long,
-                         inputSetId: Long,
+case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
+case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId: Long, done: Boolean = false, mistakes: Int = 0)
+
+//====================TaskFlow====================
+
+case class ProblemConf(id: Long, name: String)
+case class ProblemVariantConf(id: Long, problemConfId: Long, variantSpecificData: Any)
+case class CalculatedProblemVariantConf(id: Long, problemVariantConfId: Long, calculatedData: Any)
+
+case class TaskFlowConf(id: Long, problemVariantConfId: Long)
+case class TaskFlowStepConf(id: Long,
+                            taskFlowConfId: Long,
+                            name: String,
+                            sequence: Int,
+                            stepType: TaskFlowStepType.TaskFlowStepType, stepData: String/*JSON field*/)
+
+case class UserExamStepAttemptTaskFlow(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, taskFlowConfId: Long, currentStepId: Long)
+case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long, taskFlowStepConfId: Long, done: Boolean = false, mistakes: Int = 0)
+
+sealed trait TaskFlowStepData
+
+case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput]) extends TaskFlowStepData
+case class InputSetInput(id: Int, //unique within input set
                          name: String,
                          groupName: String,
                          units: String,
-                         correctValue: Option[String],
+                         correctValueVariableName: String, //to lookup correct value in CalculatedProblemVariantConf
                          description: String)
+
+case class TaskFlowTest(testId: Long) extends TaskFlowStepData
+

@@ -1,5 +1,6 @@
 package edu.knuca.resmat.http
 
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives.RouteDirectives
 import com.typesafe.scalalogging.LazyLogging
@@ -29,6 +30,8 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
     case UnauthenticatedException(m) =>
       logger.warn(s"Authentication failed: ", m)
       completeUnauthorized(m)
+    case e: IllegalStateException =>
+      complete(StatusCodes.Conflict -> ErrorMessage(e.getMessage))
 
     case e =>
       val id = java.util.UUID.randomUUID()

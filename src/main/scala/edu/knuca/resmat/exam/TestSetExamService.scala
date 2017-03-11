@@ -6,8 +6,8 @@ import edu.knuca.resmat.db.DatabaseService
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
-case class TestOptionDto(id: Long, testId: Long, sequence: Int, value: String, valueType: TestOptionValueType.TestOptionValueType) {
-  def this(o: TestOptionConf) = this(o.id, o.testConfId, o.sequence, o.value, o.valueType)
+case class TestOptionDto(id: Int, value: String, valueType: TestOptionValueType.TestOptionValueType) {
+  def this(o: TestOptionConf) = this(o.id, o.value, o.valueType)
 }
 case class TestDto(id: Long, groupId: Long, testType: TestType.TestType, question: String, help: Option[String], options: Seq[TestOptionDto])
 case class TestSetDto(conf: TestSetConf,  tests: Seq[TestDto]) extends StepDataDto
@@ -21,9 +21,9 @@ class TestSetExamService(val db: DatabaseService)
     TestSetConf(1, 1, 1)
   )
   private val testSetConfTestGroups: List[TestSetConfTestGroup] = List(
-    TestSetConfTestGroup(1, 1, 1),
-    TestSetConfTestGroup(2, 1, 2),
-    TestSetConfTestGroup(3, 1, 3)
+//    TestSetConfTestGroup(1, 1, 1),
+    TestSetConfTestGroup(2, 1, 2)
+//    TestSetConfTestGroup(3, 1, 3)
   )
 
   private val testGroupConfs: List[TestGroupConf] = List(
@@ -33,37 +33,37 @@ class TestSetExamService(val db: DatabaseService)
   )
 
   private val testConfs: List[TestConf] = List(
-    TestConf(11, 1, "Test11"),
-    TestConf(12, 1, "Test12"),
-    TestConf(21, 2, "Test21"),
-    TestConf(22, 2, "Test22"),
-    TestConf(31, 3, "Test31"),
-    TestConf(32, 3, "Test32")
-  )
-  private val testOptionConfs: List[TestOptionConf] = List(
-    TestOptionConf(111, 11, 1, "Option1", true),
-    TestOptionConf(112, 11, 2, "Option2", false),
-    TestOptionConf(113, 11, 3, "Option3", false),
-    TestOptionConf(114, 11, 4, "Option4", false),
-    TestOptionConf(121, 12, 1, "Option1", true),
-    TestOptionConf(211, 21, 1, "Option1", true),
-    TestOptionConf(221, 22, 1, "Option1", true),
-    TestOptionConf(311, 31, 1, "Option1", true),
-    TestOptionConf(321, 32, 1, "Option1", true)
+    TestConf(11, 1, "Test11", Seq(
+      TestOptionConf(1, "Option1", true),
+      TestOptionConf(2, "Option2"),
+      TestOptionConf(3, "Option3"),
+      TestOptionConf(4, "Option4")
+    )),
+    TestConf(12, 1, "Test12", Seq(
+      TestOptionConf(1, "Option1", true)
+    )),
+    TestConf(21, 2, "Test21", Seq(
+      TestOptionConf(1, "Option1", true),
+      TestOptionConf(2, "Option2")
+    ), TestType.Checkbox),
+    TestConf(22, 2, "Test22", Seq(
+      TestOptionConf(1, "Option1", true)
+    )),
+    TestConf(31, 3, "Test31", Seq(
+      TestOptionConf(1, "Option1", true)
+    )),
+    TestConf(32, 3, "Test32", Seq(
+      TestOptionConf(1, "Option1", true)
+    ))
   )
 
   //===============================================================
   //                      User specific data
   //===============================================================
 
-  private val userExamStepAttemptTestSets: ListBuffer[UserExamStepAttemptTestSet] = ListBuffer(
-    UserExamStepAttemptTestSet(1, 1, 1, 1, 1)
-  )
-  private val userExamStepAttemptTestSetTests: ListBuffer[UserExamStepAttemptTestSetTest] = ListBuffer(
-    UserExamStepAttemptTestSetTest(1, 11),
-    UserExamStepAttemptTestSetTest(1, 21),
-    UserExamStepAttemptTestSetTest(1, 31)
-  )
+  private val userExamStepAttemptTestSets: ListBuffer[UserExamStepAttemptTestSet] = ListBuffer()
+
+  private val userExamStepAttemptTestSetTests: ListBuffer[UserExamStepAttemptTestSetTest] = ListBuffer()
 
   //===============================================================
   //                      Code
@@ -77,8 +77,6 @@ class TestSetExamService(val db: DatabaseService)
   def getTestConfs(ids: Seq[Long]): Seq[TestConf] = testConfs.filter(t => ids.contains(t.id))
 
   def getTestConfsByGroup(groupId: Long): Seq[TestConf] = testConfs.filter(_.groupId == groupId)
-
-  def getTestOptionConfs(testId: Long): Seq[TestOptionConf] = testOptionConfs.filter(_.testConfId == testId)
 
   def getTestConfsByTestSet(testSetId: Long): Seq[TestConf] = {
     val testSetTests = userExamStepAttemptTestSetTests.filter(_.stepAttemptTestSetId == testSetId)
@@ -145,7 +143,7 @@ class TestSetExamService(val db: DatabaseService)
       throw new RuntimeException(s"Failed to find test with id: $testId for test set id: ${attemptTestSet.id}")
     )
     testConfs.find(_.id == testId).map{ test =>
-      val correctOptions = getTestOptionConfs(test.id).filter(_.correct)
+      val correctOptions = test.options.filter(_.correct)
       //For every correct option, submitted option exists
       var isCorrectAnswer = correctOptions.forall(co => submittedOptions.contains(co.id))
       var mistakesAmount = 0
@@ -178,7 +176,7 @@ class TestSetExamService(val db: DatabaseService)
   }
 
   private def testToDto(t: TestConf): TestDto =
-    TestDto(t.id, t.groupId, t.testType, t.question, t.help, getTestOptionConfs(t.id).map(new TestOptionDto(_)))
+    TestDto(t.id, t.groupId, t.testType, t.question, t.help, t.options.map(new TestOptionDto(_)))
 
 }
 

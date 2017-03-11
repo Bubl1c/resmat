@@ -24,8 +24,8 @@ object JsonProtocol {
   implicit val encodeUserType: Encoder[UserType.UserType] = Encoder.encodeString.contramap[UserType.UserType](_.toString)
   implicit val decodeUserType: Decoder[UserType.UserType] = enumDecoder(UserType)
 
-  implicit val encodeESDT: Encoder[ExamStepDataType.ExamStepDataType] = Encoder.encodeString.contramap[ExamStepDataType.ExamStepDataType](_.toString)
-  implicit val decodeESDT: Decoder[ExamStepDataType.ExamStepDataType] = enumDecoder(ExamStepDataType)
+  implicit val encodeESDT: Encoder[ExamStepType.ExamStepType] = Encoder.encodeString.contramap[ExamStepType.ExamStepType](_.toString)
+  implicit val decodeESDT: Decoder[ExamStepType.ExamStepType] = enumDecoder(ExamStepType)
 
   implicit val encodeTaskType: Encoder[TaskType.TaskType] = Encoder.encodeString.contramap[TaskType.TaskType](_.toString)
   implicit val decodeTaskType: Decoder[TaskType.TaskType] = enumDecoder(TaskType)
