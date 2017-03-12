@@ -3,7 +3,7 @@ package edu.knuca.resmat.http
 import akka.http.scaladsl.server.Directives._
 import edu.knuca.resmat.InitialDataGenerator
 import edu.knuca.resmat.auth.{AuthRoute, AuthService}
-import edu.knuca.resmat.exam.{ExamRoute, ExamService, TestSetExamRoute, TestSetExamService}
+import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
 import ch.megard.akka.http.cors.CorsDirectives._
@@ -21,7 +21,8 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val e
   val authRouter = new AuthRoute(authService, usersService, dataGenerator)
   val studentsRouter = new StudentsRoute(usersService)
   val testSetExamRouter = new TestSetExamRoute(examService)
-  val examRouter = new ExamRoute(examService, testSetExamRouter)
+  val taskFlowExamRouter = new TaskFlowExamRoute(examService)
+  val examRouter = new ExamRoute(examService, testSetExamRouter, taskFlowExamRouter)
 
   val routes =
     pathPrefix("v1") {

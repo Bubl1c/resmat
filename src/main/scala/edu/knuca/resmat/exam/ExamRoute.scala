@@ -10,7 +10,7 @@ import edu.knuca.resmat.user.AuthenticatedUser
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExamRoute(examService: ExamService, testSetExamRoute: TestSetExamRoute)
+class ExamRoute(examService: ExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute)
                (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
@@ -86,7 +86,8 @@ class ExamRoute(examService: ExamService, testSetExamRoute: TestSetExamRoute)
               }
             } ~
             pathPrefix(LongNumber) { attemptId =>
-              testSetExamRoute.route(userExamId, stepSequence, attemptId)
+              testSetExamRoute.route(userExamId, stepSequence, attemptId) ~
+              taskFlowExamRoute.route(userExamId, stepSequence, attemptId)
             }
           }
         }

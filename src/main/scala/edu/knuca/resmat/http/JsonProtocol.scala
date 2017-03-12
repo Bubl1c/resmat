@@ -42,6 +42,9 @@ object JsonProtocol {
   implicit val encodeTOVT: Encoder[TestOptionValueType.TestOptionValueType] = Encoder.encodeString.contramap[TestOptionValueType.TestOptionValueType](_.toString)
   implicit val decodeTOVT: Decoder[TestOptionValueType.TestOptionValueType] = enumDecoder(TestOptionValueType)
 
+  implicit val encodeTFST: Encoder[TaskFlowStepType.TaskFlowStepType] = Encoder.encodeString.contramap[TaskFlowStepType.TaskFlowStepType](_.toString)
+  implicit val decodeTFST: Decoder[TaskFlowStepType.TaskFlowStepType] = enumDecoder(TaskFlowStepType)
+
   def enumDecoder(en: Enumeration) = Decoder.decodeString.emap { str =>
     Try(en.withName(str)) match {
       case scala.util.Success(ut) => Right(ut)
@@ -53,6 +56,7 @@ object JsonProtocol {
     import io.circe.generic.auto._
     override def apply(a: StepDataDto) = a match {
       case tsd: TestSetDto => tsd.asJson
+      case tfd: TaskFlowDto => tfd.asJson
       case ni: NI => ni.asJson
     }
   }

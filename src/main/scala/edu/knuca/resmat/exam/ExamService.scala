@@ -18,7 +18,7 @@ case class UserExamStepAttemptDto(stepConf: ExamStepConf, attempt: UserExamStepA
 case class NI(data: String = "not implemented") extends StepDataDto
 
 class ExamService(val db: DatabaseService)
-                 (testSetExamService: TestSetExamService)
+                 (testSetExamService: TestSetExamService, taskFlowExamService: TaskFlowExamService)
                  (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   private val examConfs: List[ExamConf] = List(
@@ -31,8 +31,8 @@ class ExamService(val db: DatabaseService)
   )
   private val examStepVariantConfs: List[ExamStepVariantConf] = List( //figure out variants
     ExamStepVariantConf(1, 1, 1, 1),
-    ExamStepVariantConf(2, 2, 1, 2),
-    ExamStepVariantConf(3, 3, 1, 3)
+    ExamStepVariantConf(2, 2, 1, 1),
+    ExamStepVariantConf(3, 3, 1, 1)
   )
 
   //===============================================================
@@ -179,13 +179,10 @@ class ExamService(val db: DatabaseService)
           throw new RuntimeException(s"Test set for step attempt with id: ${stepAttempt.id} not found!")
         )
         val notCompletedTestConfs = testSetExamService.getNotCompletedTestConfsInTestSet(stepAttemptTestSet.id)
-        if(notCompletedTestConfs.isEmpty) {
-          true
-        } else {
-          false
-        }
+        notCompletedTestConfs.isEmpty
       case ExamStepType.TaskFlow =>
-        true
+        val notCompletedTaskFlowSteps = taskFlowExamService.getNotCompletedTaskFlowSteps(stepAttempt.id)
+        notCompletedTaskFlowSteps.isEmpty
       case ExamStepType.Results =>
         true
       case anyOther =>
@@ -212,21 +209,52 @@ class ExamService(val db: DatabaseService)
       throw new RuntimeException(s"Test set for step attempt with id: ${currentStepAttempt.id} not found!")
     )
 
-    testSetExamService.verifyTestAnswer(stepAttemptTestSet.id, testId, submittedOptions).map{ verifiedTestAnswer =>
-      val updatedMistakesAmount = currentStepAttempt.mistakesAmount + verifiedTestAnswer.mistakesAmount
+    testSetExamService.verifyTestSetTestAnswer(stepAttemptTestSet.id, TestAnswerDto(testId, submittedOptions)).map{ va =>
+      updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
+      va
+    }
+  }
 
-      //If mistakes limit exceeded - mark attempt as failed
-      if(updatedMistakesAmount > examStepConf.mistakesPerAttemptLimit) {
-        updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount, status = ExamStepStatus.Failed))
-        //If step attempts limit exceeded - mark exam as failed
-        if(allStepAttempts.size == examStepConf.attemptsLimit) {
-          updateUserExam(userExam.copy(status = ExamStatus.Failed))
-        }
-      } else if(updatedMistakesAmount > currentStepAttempt.mistakesAmount){
-        updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount))
+  def verifyTaskFlowStepAnswer(userExamId: Long,
+                               stepSequence: Int,
+                               stepAttemptId: Long,
+                               taskFlowId: Long,
+                               taskFlowStepId: Long,
+                               answer: String): Option[VerifiedTaskFlowStepAnswer] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
+    )
+    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
+      throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
+    )
+
+    taskFlowExamService.verifyTaskFlowStepAnswer(taskFlowStepId, answer).map { va =>
+      updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
+      va
+    }
+  }
+
+  def updateAttemptData(userExam: UserExam,
+                        examStepConf: ExamStepConf,
+                        currentStepAttempt: UserExamStepAttempt,
+                        allStepAttempts: Seq[UserExamStepAttempt],
+                        mistakesAmount: Int,
+                        isCorrectAnswer: Boolean) = {
+    val updatedMistakesAmount = currentStepAttempt.mistakesAmount + mistakesAmount
+
+    //If mistakes limit exceeded - mark attempt as failed. -1 means infinite amount
+    if(updatedMistakesAmount > examStepConf.mistakesPerAttemptLimit && examStepConf.mistakesPerAttemptLimit != -1) {
+      updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount, status = ExamStepStatus.Failed))
+      //If step attempts limit exceeded - mark exam as failed. -1 means infinite amount
+      if(allStepAttempts.size == examStepConf.attemptsLimit && examStepConf.attemptsLimit != -1) {
+        updateUserExam(userExam.copy(status = ExamStatus.Failed))
       }
-
-      verifiedTestAnswer
+    } else if(updatedMistakesAmount > currentStepAttempt.mistakesAmount){
+      updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount))
     }
   }
 
@@ -264,11 +292,12 @@ class ExamService(val db: DatabaseService)
         UserExamStepAttempt(-1, userExam.userId, userExam.id, examStepConf.id, 0, -1, ExamStepStatus.NotSubmitted, variantConf.id)
       )
 
+    //todo handle case when data set is not created - rollback attempt creation
     examStepConf.stepType match {
       case ExamStepType.TestSet =>
         createNewTestSetForAttempt(userExam, newAttempt, variantConf)
       case ExamStepType.TaskFlow =>
-        null
+        createTaskFlowForAttempt(userExam, newAttempt, variantConf)
       case ExamStepType.Results =>
         null
       case anyOther =>
@@ -293,9 +322,21 @@ class ExamService(val db: DatabaseService)
     )
 
     val (newTestSet, newTestSetTests) =
-      testSetExamService.createTestSetWithTests(UserExamStepAttemptTestSet(-1, attempt.id, userExam.id, attempt.examStepConfId, testSetConf.id))
+      testSetExamService.createTestSetWithTests(
+        UserExamStepAttemptTestSet(-1, attempt.id, userExam.id, attempt.examStepConfId, testSetConf.id)
+      )
 
     newTestSet
+  }
+
+  private def createTaskFlowForAttempt(userExam: UserExam,
+                                       attempt: UserExamStepAttempt,
+                                       variantConf: ExamStepVariantConf): UserExamStepAttemptTaskFlow = {
+    val (newTaskFlow, newTaskFlowSteps) =
+      taskFlowExamService
+        .createTaskFlowWithSteps(attempt.id, userExam.id, attempt.examStepConfId, variantConf.dataSetConfId)
+
+    newTaskFlow
   }
 
   private def getAttemptDto(attempt: UserExamStepAttempt, examStepConf: ExamStepConf): Option[UserExamStepAttemptDto] = {
@@ -306,7 +347,10 @@ class ExamService(val db: DatabaseService)
         )
         Some(UserExamStepAttemptDto(examStepConf, attempt, testSetDto))
       case ExamStepType.TaskFlow =>
-        Some(UserExamStepAttemptDto(examStepConf, attempt, NI()))
+        val taskFlowDto = taskFlowExamService.getTaskFlowDto(attempt.id).getOrElse(
+          throw new RuntimeException(s"Task flow data not found. Attempt: $attempt")
+        )
+        Some(UserExamStepAttemptDto(examStepConf, attempt, taskFlowDto))
       case ExamStepType.Results =>
         Some(UserExamStepAttemptDto(examStepConf, attempt, NI()))
       case anyOther =>

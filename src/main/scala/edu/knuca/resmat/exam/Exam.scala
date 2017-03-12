@@ -77,28 +77,30 @@ case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId
 //====================TaskFlow====================
 
 case class ProblemConf(id: Long, name: String)
-case class ProblemVariantConf(id: Long, problemConfId: Long, variantSpecificData: Any)
-case class CalculatedProblemVariantConf(id: Long, problemVariantConfId: Long, calculatedData: Any)
+case class ProblemVariantConf(id: Long, problemConfId: Long, variantSpecificData: String)
+case class CalculatedProblemVariantConf(id: Long, problemVariantConfId: Long, calculatedData: String)
 
-case class TaskFlowConf(id: Long, problemVariantConfId: Long)
+case class TaskFlowConf(id: Long, problemConfId: Long)
 case class TaskFlowStepConf(id: Long,
                             taskFlowConfId: Long,
                             name: String,
                             sequence: Int,
                             stepType: TaskFlowStepType.TaskFlowStepType, stepData: String/*JSON field*/)
 
-case class UserExamStepAttemptTaskFlow(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, taskFlowConfId: Long, currentStepId: Long)
+case class TaskFlowConfProblemVariantConf(id: Long, taskFlowConfId: Long, problemVariantConfId: Long)
+
+case class UserExamStepAttemptTaskFlow(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, taskFlowConfId: Long, problemVariantConfId: Long, currentStepId: Long)
 case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long, taskFlowStepConfId: Long, done: Boolean = false, mistakes: Int = 0)
 
 sealed trait TaskFlowStepData
 
-case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput]) extends TaskFlowStepData
+case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput], answer: InputSetAnswerDto) extends TaskFlowStepData
 case class InputSetInput(id: Int, //unique within input set
                          name: String,
                          groupName: String,
                          units: String,
-                         correctValueVariableName: String, //to lookup correct value in CalculatedProblemVariantConf
-                         description: String)
+                         correctValueVariableName: String = "", //to lookup correct value in CalculatedProblemVariantConf
+                         description: String = "")
 
 case class TaskFlowTest(testId: Long) extends TaskFlowStepData
 

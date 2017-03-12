@@ -12,6 +12,7 @@ case class TestOptionDto(id: Int, value: String, valueType: TestOptionValueType.
 case class TestDto(id: Long, groupId: Long, testType: TestType.TestType, question: String, help: Option[String], options: Seq[TestOptionDto])
 case class TestSetDto(conf: TestSetConf,  tests: Seq[TestDto]) extends StepDataDto
 
+case class TestAnswerDto(testId: Long, submittedOptions: Seq[Long])
 case class VerifiedTestAnswerDto(testId: Long, isCorrectAnswer: Boolean, mistakesAmount: Int, answer: Map[Long, Boolean])
 
 class TestSetExamService(val db: DatabaseService)
@@ -54,6 +55,15 @@ class TestSetExamService(val db: DatabaseService)
     )),
     TestConf(32, 3, "Test32", Seq(
       TestOptionConf(1, "Option1", true)
+    )),
+    TestConf(999, 3, "Визначте тип ластини", Seq(
+      TestOptionConf(1, "Тонкі", true),
+      TestOptionConf(2, "Товсті"),
+      TestOptionConf(3, "Мембрани")
+    )),
+    TestConf(1000, 3, "Чи забезпечуться міцність перерізу?", Seq(
+      TestOptionConf(1, "Не забезпечується", true),
+      TestOptionConf(2, "Забезпечується")
     ))
   )
 
@@ -133,22 +143,40 @@ class TestSetExamService(val db: DatabaseService)
     test
   }
 
-  def verifyTestAnswer(stepAttemptTestSetId: Long,
-                       testId: Long,
-                       submittedOptions: Seq[Long]): Option[VerifiedTestAnswerDto] = {
+  def verifyTestSetTestAnswer(stepAttemptTestSetId: Long,
+                              testAnswer: TestAnswerDto): Option[VerifiedTestAnswerDto] = {
+    val testId = testAnswer.testId
     val attemptTestSet = userExamStepAttemptTestSets.find(_.id == stepAttemptTestSetId).getOrElse(
       throw new RuntimeException(s"Failed to find test set with id: $stepAttemptTestSetId")
     )
     val testSetTest = userExamStepAttemptTestSetTests.find(t => t.stepAttemptTestSetId == attemptTestSet.id && t.testConfId == testId).getOrElse(
       throw new RuntimeException(s"Failed to find test with id: $testId for test set id: ${attemptTestSet.id}")
     )
-    testConfs.find(_.id == testId).map{ test =>
+    verifyTestAnswer(testAnswer).map{ verifiedTestAnswer =>
+      //Update information about test submission
+      val testIndex = userExamStepAttemptTestSetTests.indexWhere(t =>
+        t.stepAttemptTestSetId == testSetTest.stepAttemptTestSetId && t.testConfId == testSetTest.testConfId
+      )
+      if(verifiedTestAnswer.isCorrectAnswer) {
+        userExamStepAttemptTestSetTests.update(testIndex, testSetTest.copy(done = true))
+      } else {
+        userExamStepAttemptTestSetTests.update(
+          testIndex,
+          testSetTest.copy(mistakes = testSetTest.mistakes + verifiedTestAnswer.mistakesAmount)
+        )
+      }
+      verifiedTestAnswer
+    }
+  }
+
+  def verifyTestAnswer(testAnswer: TestAnswerDto): Option[VerifiedTestAnswerDto] = {
+    testConfs.find(_.id == testAnswer.testId).map{ test =>
       val correctOptions = test.options.filter(_.correct)
       //For every correct option, submitted option exists
-      var isCorrectAnswer = correctOptions.forall(co => submittedOptions.contains(co.id))
+      var isCorrectAnswer = correctOptions.forall(co => testAnswer.submittedOptions.contains(co.id))
       var mistakesAmount = 0
       //For every submitted option, correct option exists
-      val verifiedOptions = submittedOptions.map { so: Long =>
+      val verifiedOptions = testAnswer.submittedOptions.map { so: Long =>
         val correct = correctOptions.exists(_.id == so)
         if(!correct) {
           isCorrectAnswer = false
@@ -157,15 +185,7 @@ class TestSetExamService(val db: DatabaseService)
         (so, correct)
       }
 
-      //Update information about test submission
-      val testIndex = userExamStepAttemptTestSetTests.indexWhere(t => t.stepAttemptTestSetId == testSetTest.stepAttemptTestSetId && t.testConfId == testSetTest.testConfId)
-      if(isCorrectAnswer) {
-        userExamStepAttemptTestSetTests.update(testIndex, testSetTest.copy(done = true))
-      } else {
-        userExamStepAttemptTestSetTests.update(testIndex, testSetTest.copy(mistakes = testSetTest.mistakes + mistakesAmount))
-      }
-
-      VerifiedTestAnswerDto(testId, isCorrectAnswer, mistakesAmount, verifiedOptions.toMap)
+      VerifiedTestAnswerDto(testAnswer.testId, isCorrectAnswer, mistakesAmount, verifiedOptions.toMap)
     }
   }
 
