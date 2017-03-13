@@ -50,7 +50,7 @@ class ExamService(val db: DatabaseService)
   )
 
   //===============================================================
-  //                      Code
+  //                      User - exam
   //===============================================================
 
   def getUserExamById(userExamId: Long): Option[UserExamDto] = userExams.find(_.id == userExamId).map(mapToDto)
@@ -69,6 +69,26 @@ class ExamService(val db: DatabaseService)
       Some(mapToDto(ue))
     }
   }
+
+  def updateUserExam(userExam: UserExam): UserExam = {
+    val userExamIndex = userExams.indexWhere(_.id == userExam.id)
+    userExams.update(userExamIndex, userExam)
+    userExam
+  }
+
+  private def mapToDto(ue: UserExam): UserExamDto = {
+    val configuration = examConfs.find(_.id == ue.examConfId).getOrElse(
+      throw new RuntimeException(s"Cannot find exam configuration by id: ${ue.examConfId}")
+    )
+    val currentStepOpt = examStepConfs.find(_.id == ue.currentStepConfId).map(cs =>
+      UserExamStepPreviewDto(cs.sequence, cs.stepType, cs.name)
+    )
+    UserExamDto(ue, currentStepOpt, configuration)
+  }
+
+  //===============================================================
+  //                      User - exam - step
+  //===============================================================
 
   def getUserExamCurrentStepWithAttemptData(userExamId: Long): Option[UserExamStepAttemptDto] = {
     val userExam = userExams.find(_.id == userExamId).getOrElse(
@@ -97,46 +117,6 @@ class ExamService(val db: DatabaseService)
   def getUserExamStepInfo(userExamId: Long, sequence: Int): Option[UserExamStepInfoDto] = {
     val steps = getUserExamStepInfos(userExamId)
     steps.find(_.stepConf.sequence == sequence)
-  }
-
-  def getUserExamStepAttempts(userExamId: Long, sequence: Int): Seq[UserExamStepAttemptDto] = {
-    val userExam = userExams.find(_.id == userExamId).getOrElse(
-      throw new RuntimeException(s"Exam with id: $userExamId not found.")
-    )
-    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == sequence).getOrElse(
-      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $sequence not found.")
-    )
-
-    val attempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
-
-    attempts.flatMap(getAttemptDto(_, examStepConf))
-  }
-
-  def getUserExamStepCurrentAttempt(userExamId: Long, stepSequence: Int): Option[UserExamStepAttemptDto] = {
-    val userExam = userExams.find(_.id == userExamId).getOrElse(
-      throw new RuntimeException(s"Exam with id: $userExamId not found.")
-    )
-    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
-      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
-    )
-
-    if(userExam.status == ExamStatus.Success || userExam.status == ExamStatus.Failed) {
-      throw new IllegalStateException(s"Exam has been already finished with status: ${userExam.status}")
-    }
-
-    val existingAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
-
-    val successAttemptOpt = existingAttempts.find(_.status == ExamStepStatus.Success)
-    if(successAttemptOpt.isDefined) {
-      None
-    } else {
-      existingAttempts.find(_.status == ExamStepStatus.NotSubmitted).fold{
-        val newAttempt = createAttempt(userExam, examStepConf)
-        getAttemptDto(newAttempt, examStepConf)
-      }{ notSubmittedAttempt =>
-        getAttemptDto(notSubmittedAttempt, examStepConf)
-      }
-    }
   }
 
   //todo make this method return uncompleted parts
@@ -190,51 +170,59 @@ class ExamService(val db: DatabaseService)
     }
   }
 
-  def verifyTestSetAnswer(userExamId: Long,
-                          stepSequence: Int,
-                          stepAttemptId: Long,
-                          testId: Long,
-                          submittedOptions: Seq[Long]): Option[VerifiedTestAnswerDto] = {
-    val userExam = userExams.find(_.id == userExamId).getOrElse(
-      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+  private def chooseAvailableVariant(examStepConfId: Long): ExamStepVariantConf = {
+    val variantConf = examStepVariantConfs.find(_.examStepConfId == examStepConfId).getOrElse( //todo Consider to choose unused variant. If all used - not like at previous attempt
+      throw new RuntimeException(s"No variants found for step conf id: $examStepConfId")
     )
-    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
-      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
-    )
-    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
-    val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
-      throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
-    )
-    val stepAttemptTestSet = testSetExamService.getTestSetByAttemptId(currentStepAttempt.id).getOrElse(
-      throw new RuntimeException(s"Test set for step attempt with id: ${currentStepAttempt.id} not found!")
-    )
-
-    testSetExamService.verifyTestSetTestAnswer(stepAttemptTestSet.id, TestAnswerDto(testId, submittedOptions)).map{ va =>
-      updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
-      va
-    }
+    variantConf
   }
 
-  def verifyTaskFlowStepAnswer(userExamId: Long,
-                               stepSequence: Int,
-                               stepAttemptId: Long,
-                               taskFlowId: Long,
-                               taskFlowStepId: Long,
-                               answer: String): Option[VerifiedTaskFlowStepAnswer] = {
+  private def getStepInfo(userId: Long, stepConf: ExamStepConf): UserExamStepInfoDto = {
+    val stepAttempts = userExamStepAttempts.filter(ues => ues.userId == userId && ues.examStepConfId == stepConf.id)
+    UserExamStepInfoDto(stepConf, stepAttempts)
+  }
+
+  //===============================================================
+  //                      User - exam - step  - attempt
+  //===============================================================
+
+  def getUserExamStepAttempts(userExamId: Long, sequence: Int): Seq[UserExamStepAttemptDto] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == sequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $sequence not found.")
+    )
+
+    val attempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+
+    attempts.flatMap(getAttemptDto(_, examStepConf))
+  }
+
+  def getUserExamStepCurrentAttempt(userExamId: Long, stepSequence: Int): Option[UserExamStepAttemptDto] = {
     val userExam = userExams.find(_.id == userExamId).getOrElse(
       throw new RuntimeException(s"Exam with id: $userExamId not found.")
     )
     val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
       throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
     )
-    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
-    val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
-      throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
-    )
 
-    taskFlowExamService.verifyTaskFlowStepAnswer(taskFlowStepId, answer).map { va =>
-      updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
-      va
+    if(userExam.status == ExamStatus.Success || userExam.status == ExamStatus.Failed) {
+      throw new IllegalStateException(s"Exam has been already finished with status: ${userExam.status}")
+    }
+
+    val existingAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+
+    val successAttemptOpt = existingAttempts.find(_.status == ExamStepStatus.Success)
+    if(successAttemptOpt.isDefined) {
+      None
+    } else {
+      existingAttempts.find(_.status == ExamStepStatus.NotSubmitted).fold{
+        val newAttempt = createAttempt(userExam, examStepConf)
+        getAttemptDto(newAttempt, examStepConf)
+      }{ notSubmittedAttempt =>
+        getAttemptDto(notSubmittedAttempt, examStepConf)
+      }
     }
   }
 
@@ -265,12 +253,6 @@ class ExamService(val db: DatabaseService)
       stepAttempt
     )
     stepAttempt
-  }
-
-  def updateUserExam(userExam: UserExam): UserExam = {
-    val userExamIndex = userExams.indexWhere(_.id == userExam.id)
-    userExams.update(userExamIndex, userExam)
-    userExam
   }
 
   private def createStepAttempt(attempt: UserExamStepAttempt): UserExamStepAttempt = {
@@ -307,38 +289,6 @@ class ExamService(val db: DatabaseService)
     newAttempt
   }
 
-  private def chooseAvailableVariant(examStepConfId: Long): ExamStepVariantConf = {
-    val variantConf = examStepVariantConfs.find(_.examStepConfId == examStepConfId).getOrElse( //todo Consider to choose unused variant. If all used - not like at previous attempt
-      throw new RuntimeException(s"No variants found for step conf id: $examStepConfId")
-    )
-    variantConf
-  }
-
-  private def createNewTestSetForAttempt(userExam: UserExam,
-                                         attempt: UserExamStepAttempt,
-                                         variantConf: ExamStepVariantConf): UserExamStepAttemptTestSet = {
-    val testSetConf = testSetExamService.getTestSetConf(variantConf.dataSetConfId).getOrElse(
-      throw new RuntimeException(s"TestSetConf with id: ${variantConf.dataSetConfId} not found.")
-    )
-
-    val (newTestSet, newTestSetTests) =
-      testSetExamService.createTestSetWithTests(
-        UserExamStepAttemptTestSet(-1, attempt.id, userExam.id, attempt.examStepConfId, testSetConf.id)
-      )
-
-    newTestSet
-  }
-
-  private def createTaskFlowForAttempt(userExam: UserExam,
-                                       attempt: UserExamStepAttempt,
-                                       variantConf: ExamStepVariantConf): UserExamStepAttemptTaskFlow = {
-    val (newTaskFlow, newTaskFlowSteps) =
-      taskFlowExamService
-        .createTaskFlowWithSteps(attempt.id, userExam.id, attempt.examStepConfId, variantConf.dataSetConfId)
-
-    newTaskFlow
-  }
-
   private def getAttemptDto(attempt: UserExamStepAttempt, examStepConf: ExamStepConf): Option[UserExamStepAttemptDto] = {
     examStepConf.stepType match {
       case ExamStepType.TestSet =>
@@ -358,19 +308,89 @@ class ExamService(val db: DatabaseService)
     }
   }
 
-  private def mapToDto(ue: UserExam): UserExamDto = {
-    val configuration = examConfs.find(_.id == ue.examConfId).getOrElse(
-      throw new RuntimeException(s"Cannot find exam configuration by id: ${ue.examConfId}")
+  //===============================================================
+  //                      Test - set
+  //===============================================================
+
+  def verifyTestSetAnswer(userExamId: Long,
+                          stepSequence: Int,
+                          stepAttemptId: Long,
+                          testId: Long,
+                          submittedOptions: Seq[Long]): Option[VerifiedTestAnswerDto] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
     )
-    val currentStepOpt = examStepConfs.find(_.id == ue.currentStepConfId).map(cs =>
-      UserExamStepPreviewDto(cs.sequence, cs.stepType, cs.name)
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
     )
-    UserExamDto(ue, currentStepOpt, configuration)
+    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
+      throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
+    )
+    val stepAttemptTestSet = testSetExamService.getTestSetByAttemptId(currentStepAttempt.id).getOrElse(
+      throw new RuntimeException(s"Test set for step attempt with id: ${currentStepAttempt.id} not found!")
+    )
+
+    testSetExamService.verifyTestSetTestAnswer(stepAttemptTestSet.id, TestAnswerDto(testId, submittedOptions)).map{ va =>
+      updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
+      va
+    }
   }
 
-  private def getStepInfo(userId: Long, stepConf: ExamStepConf): UserExamStepInfoDto = {
-    val stepAttempts = userExamStepAttempts.filter(ues => ues.userId == userId && ues.examStepConfId == stepConf.id)
-    UserExamStepInfoDto(stepConf, stepAttempts)
+  private def createNewTestSetForAttempt(userExam: UserExam,
+                                         attempt: UserExamStepAttempt,
+                                         variantConf: ExamStepVariantConf): UserExamStepAttemptTestSet = {
+    val testSetConf = testSetExamService.getTestSetConf(variantConf.dataSetConfId).getOrElse(
+      throw new RuntimeException(s"TestSetConf with id: ${variantConf.dataSetConfId} not found.")
+    )
+
+    val (newTestSet, newTestSetTests) =
+      testSetExamService.createTestSetWithTests(
+        UserExamStepAttemptTestSet(-1, attempt.id, userExam.id, attempt.examStepConfId, testSetConf.id)
+      )
+
+    newTestSet
+  }
+
+  //===============================================================
+  //                      Task - flow
+  //===============================================================
+
+  private def createTaskFlowForAttempt(userExam: UserExam,
+                                       attempt: UserExamStepAttempt,
+                                       variantConf: ExamStepVariantConf): UserExamStepAttemptTaskFlow = {
+    val (newTaskFlow, newTaskFlowSteps) =
+      taskFlowExamService
+        .createTaskFlowWithSteps(attempt.id, userExam.id, attempt.examStepConfId, variantConf.dataSetConfId)
+
+    newTaskFlow
+  }
+
+  def verifyTaskFlowStepAnswer(userExamId: Long,
+                               stepSequence: Int,
+                               stepAttemptId: Long,
+                               taskFlowId: Long,
+                               taskFlowStepId: Long,
+                               answer: String): Option[VerifiedTaskFlowStepAnswer] = {
+    val userExam = userExams.find(_.id == userExamId).getOrElse(
+      throw new RuntimeException(s"Exam with id: $userExamId not found.")
+    )
+    val examStepConf = examStepConfs.find(esc => esc.examConfId == userExam.examConfId && esc.sequence == stepSequence).getOrElse(
+      throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
+    )
+    val allStepAttempts = getUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
+      throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
+    )
+
+    taskFlowExamService.verifyTaskFlowStepAnswer(taskFlowStepId, answer).map { va =>
+      updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
+      va
+    }
+  }
+
+  def getCurrentTaskFlowStepDto(taskFlowId: Long): Option[TaskFlowStepDto] = {
+    taskFlowExamService.getCurrentTaskFlowStep(taskFlowId)
   }
 
 }

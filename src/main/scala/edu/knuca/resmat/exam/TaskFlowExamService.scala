@@ -6,6 +6,9 @@ import edu.knuca.resmat.db.DatabaseService
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
+import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf}
+import edu.knuca.resmat.exam.{ProblemInputVariableValue => VarVal}
+
 import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -31,11 +34,83 @@ class TaskFlowExamService(val db: DatabaseService)
 
   import edu.knuca.resmat.http.JsonProtocol._
 
+  val chartXData = Array(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1)
+
+  val chartYData = Array(
+    Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
+    Array(-5.280, -5.795, -7.301, -8.959, -10.567, -12.031, -13.286, -14.280, -14.965, -15.298, -15.233),
+    Array(0.000, 1.721, 1.960, 1.942, 1.822, 1.636, 1.398, 1.113, 0.784, 0.413, 0.000),
+    Array(4.685, 2.915, 2.551, 2.376, 2.240, 2.106, 1.964, 1.807, 1.632, 1.440, 1.229),
+    Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
+  )
+
+  val task_flow_charts = Seq(
+    ChartData("W Прогин (1/1000 м)",
+      chartXData,
+      Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
+      true
+    ),
+    ChartData("{phi}{ Кут повороту (1/1000 рад)}",
+      chartXData,
+      Array(-5.280, -5.795, -7.301, -8.959, -10.567, -12.031, -13.286, -14.280, -14.965, -15.298, -15.233)
+    ),
+    ChartData("Mr Радіальний момент (кН)",
+      chartXData,
+      Array(0.000, 1.721, 1.960, 1.942, 1.822, 1.636, 1.398, 1.113, 0.784, 0.413, 0.000),
+      true
+    ),
+    ChartData("{M}{theta}{ Коловий момент (кН)}",
+      chartXData,
+      Array(4.685, 2.915, 2.551, 2.376, 2.240, 2.106, 1.964, 1.807, 1.632, 1.440, 1.229),
+      true
+    ),
+    ChartData("Qr Поперечна сила (кН/м)",
+      chartXData,
+      Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
+    )
+  )
+
   val problemConfs: List[ProblemConf] = List(
-    ProblemConf(1, "Кільцева пластина")
+    ProblemConf(1, "Кільцева пластина", Seq(
+      VarConf(2, "Fa", "кН/м"),
+      VarConf(3, "Ma", "кНм/м"),
+      VarConf(4, "wa", "м"),
+      VarConf(5, "{phi}{a}", "рад"),
+    
+      VarConf(6, "E", "МПа"),
+      VarConf(7, "{mu}"),
+      VarConf(8, "q", "кН/м^2"),
+    
+      VarConf(9, "Fb", "кН/м"),
+      VarConf(10, "Mb", "кНм/м"),
+      VarConf(11, "wb", "м"),
+      VarConf(12, "{phi}{b}", "рад"),
+    
+      VarConf(13, "a", "м"),
+      VarConf(14, "b", "м"),
+      VarConf(15, "t", "мм")
+    ))
   )
   val problemVariantConfs: List[ProblemVariantConf] = List(
-    ProblemVariantConf(1, 1, "Дані по варіанту")
+    ProblemVariantConf(1, 1, "img/tasks/9.png", Seq(
+      VarVal(2, 0),
+      VarVal(3, 0),
+      VarVal(4, 0),
+      VarVal(5, 0),
+
+      VarVal(6, 100000),
+      VarVal(7, 0.2),
+      VarVal(8, 10),
+
+      VarVal(9, 0),
+      VarVal(10, 0),
+      VarVal(11, 0),
+      VarVal(12, 0),
+
+      VarVal(13, 0.1),
+      VarVal(14, 1.1),
+      VarVal(15, 22)
+    ))
   )
   val calculatedProblemVariantConfs: List[CalculatedProblemVariantConf] = List(
     CalculatedProblemVariantConf(1, 1, "Обраховані дані по варіанту для перевірки студента")
@@ -67,6 +142,7 @@ class TaskFlowExamService(val db: DatabaseService)
         InputSetInputAnswer(8)
       ))).asJson.toString()
     ),
+    TaskFlowStepConf(3, 1, "Епюри", 3, TaskFlowStepType.Charts, task_flow_charts.asJson.toString()),
     TaskFlowStepConf(3, 1, "Чи забезпечується міцність перерізу?", 3, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString())
   )
 
@@ -101,9 +177,9 @@ class TaskFlowExamService(val db: DatabaseService)
     Some(TaskFlowDto(taskFlowConf, problemConf, problemVariantConf, taskFlow))
   }
 
-  def getCurrentTaskFlowStep(stepAttemptId: Long): Option[TaskFlowStepDto] = {
-    val taskFlow = stepAttemptTaskFlows.find(_.stepAttemptId == stepAttemptId).getOrElse(
-      throw new IllegalArgumentException(s"Task flow for attempt id: $stepAttemptId not found!")
+  def getCurrentTaskFlowStep(taskFlowId: Long): Option[TaskFlowStepDto] = {
+    val taskFlow = stepAttemptTaskFlows.find(_.id == taskFlowId).getOrElse(
+      throw new IllegalArgumentException(s"Task flow with id: $taskFlowId not found!")
     )
     getTaskFlowStep(taskFlow.id, taskFlow.currentStepId)
   }

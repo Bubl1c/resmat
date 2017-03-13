@@ -11,17 +11,24 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class TaskFlowExamRoute(examService: ExamService) extends CirceSupport {
 
+  import edu.knuca.resmat.http.JsonProtocol._
+
   def route(userExamId: Long, stepSequence: Int, attemptId: Long)
            (implicit user: AuthenticatedUser, ec: ExecutionContext): Route =
-    pathPrefix("task-flows" / LongNumber) { taskFlowIdId =>
-      pathPrefix("steps" / LongNumber) { taskFlowStepId =>
-        pathPrefix("verify") {
-          pathEndOrSingleSlash {
-            (post & entity(as[String])) { answer =>
-              complete(Future(
-                examService.verifyTaskFlowStepAnswer(
-                  userExamId, stepSequence, attemptId, taskFlowIdId, taskFlowStepId, answer)
-              ))
+    pathPrefix("task-flows" / LongNumber) { taskFlowId =>
+      pathPrefix("steps") {
+        pathPrefix("current") {
+          complete(Future(examService.getCurrentTaskFlowStepDto(taskFlowId)))
+        } ~
+        pathPrefix(LongNumber) { taskFlowStepId =>
+          pathPrefix("verify") {
+            pathEndOrSingleSlash {
+              (post & entity(as[String])) { answer =>
+                complete(Future(
+                  examService.verifyTaskFlowStepAnswer(
+                    userExamId, stepSequence, attemptId, taskFlowId, taskFlowStepId, answer)
+                ))
+              }
             }
           }
         }

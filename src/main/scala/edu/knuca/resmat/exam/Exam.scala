@@ -76,8 +76,10 @@ case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId
 
 //====================TaskFlow====================
 
-case class ProblemConf(id: Long, name: String)
-case class ProblemVariantConf(id: Long, problemConfId: Long, variantSpecificData: String)
+case class ProblemConf(id: Long, name: String, inputVariableConfs: Seq[ProblemInputVariableConf])
+case class ProblemInputVariableConf(id: Int, name: String, units: String = "")
+case class ProblemInputVariableValue(id: Int, value: Double)
+case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue])
 case class CalculatedProblemVariantConf(id: Long, problemVariantConfId: Long, calculatedData: String)
 
 case class TaskFlowConf(id: Long, problemConfId: Long)
@@ -103,4 +105,6 @@ case class InputSetInput(id: Int, //unique within input set
                          description: String = "")
 
 case class TaskFlowTest(testId: Long) extends TaskFlowStepData
+
+case class ChartData(title: String, x: Array[Double], y: Array[Double], bottom: Boolean = false, positive: Boolean = true) extends TaskFlowStepData
 
