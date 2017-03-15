@@ -87,7 +87,7 @@ case class TaskFlowStepConf(id: Long,
                             taskFlowConfId: Long,
                             name: String,
                             sequence: Int,
-                            stepType: TaskFlowStepType.TaskFlowStepType, stepData: String/*JSON field*/)
+                            stepType: TaskFlowStepType.TaskFlowStepType, stepData: String/*JSON field*/, helpData: Boolean = false)
 
 case class TaskFlowConfProblemVariantConf(id: Long, taskFlowConfId: Long, problemVariantConfId: Long)
 

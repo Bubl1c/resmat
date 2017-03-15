@@ -40,7 +40,7 @@ class ExamService(val db: DatabaseService)
   //===============================================================
 
   private val userExams: ListBuffer[UserExam] = ListBuffer(
-    UserExam(1, 1, 1, 1, ExamStatus.InProgress, None, None),
+    UserExam(1, 1, 1, 2, ExamStatus.InProgress, None, None),
     UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
   )
   private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer(
