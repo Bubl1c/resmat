@@ -40,13 +40,17 @@ class ExamService(val db: DatabaseService)
   //===============================================================
 
   private val userExams: ListBuffer[UserExam] = ListBuffer(
-    UserExam(1, 1, 1, 2, ExamStatus.InProgress, None, None),
+    UserExam(1, 1, 1, 3, ExamStatus.InProgress, None, None),
     UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
   )
   private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer(
 //    UserExamStepAttempt(1, 1, 1, 1, 0, 1, ExamStepStatus.Failed, 1),
 //    UserExamStepAttempt(2, 1, 1, 2, 3, 1, ExamStepStatus.NotSubmitted, 2),
 //    UserExamStepAttempt(3, 1, 1, 3, 0, 1, ExamStepStatus.NotSubmitted, 3)
+  )
+
+  private val userExamResults: List[UserExamResult] = List(
+    UserExamResult(1, "Exam1", "Task name", "student name", "student group name", 2, 4, 2, 3463466, 77, 100)
   )
 
   //===============================================================
@@ -302,7 +306,10 @@ class ExamService(val db: DatabaseService)
         )
         Some(UserExamStepAttemptDto(examStepConf, attempt, taskFlowDto))
       case ExamStepType.Results =>
-        Some(UserExamStepAttemptDto(examStepConf, attempt, NI()))
+        val userExamResult = userExamResults.find(_.userExamId == attempt.userExamId).getOrElse(
+          throw new RuntimeException(s"Result for user exam Id: ${attempt.userExamId} not found!")
+        )
+        Some(UserExamStepAttemptDto(examStepConf, attempt, userExamResult))
       case anyOther =>
         throw new IllegalArgumentException(s"Unhandled ExamStepDataType: $anyOther")
     }

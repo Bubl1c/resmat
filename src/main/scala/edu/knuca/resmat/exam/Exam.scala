@@ -8,6 +8,7 @@ object TaskFlowStepType extends PimpedEnumeration {
   val Test = Value(1, "test")
   val InputSet = Value(2, "input-set")
   val Charts = Value(3, "charts")
+  val Finished = Value(-1, "finished")
 }
 
 object ExamStepType extends PimpedEnumeration {
@@ -61,6 +62,17 @@ case class ExamStepVariantConf(id: Long, examStepConfId: Long, examConfId: Long,
 
 case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
 case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long)
+case class UserExamResult(userExamId: Long,
+                          examName: String,
+                          taskName: String,
+                          studentName: String,
+                          studentGroupName: String,
+                          mistakesAmountInTests: Int,
+                          mistakesAmountInTask: Int,
+                          attemptsAmount: Int,
+                          durationMillis: Long,
+                          score: Int,
+                          maxScore: Int) extends StepDataDto
 
 //====================TestSet====================
 
@@ -107,4 +119,4 @@ case class InputSetInput(id: Int, //unique within input set
 case class TaskFlowTest(testId: Long) extends TaskFlowStepData
 
 case class ChartData(title: String, x: Array[Double], y: Array[Double], bottom: Boolean = false, positive: Boolean = true) extends TaskFlowStepData
-
+case class ChartSet(title: String, charts: Seq[ChartData])

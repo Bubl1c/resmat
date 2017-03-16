@@ -57,6 +57,7 @@ object JsonProtocol {
     override def apply(a: StepDataDto) = a match {
       case tsd: TestSetDto => tsd.asJson
       case tfd: TaskFlowDto => tfd.asJson
+      case uer: UserExamResult => uer.asJson
       case ni: NI => ni.asJson
     }
   }

@@ -43,7 +43,7 @@ class TaskFlowExamService(val db: DatabaseService)
     Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
   )
 
-  val task_flow_charts = Seq(
+  val task_flow_charts = ChartSet("Епюри", Seq(
     ChartData("W Прогин (1/1000 м)",
       chartXData,
       Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
@@ -67,7 +67,7 @@ class TaskFlowExamService(val db: DatabaseService)
       chartXData,
       Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
     )
-  )
+  ))
 
   val problemConfs: List[ProblemConf] = List(
     ProblemConf(1, "Кільцева пластина", Seq(
@@ -142,7 +142,8 @@ class TaskFlowExamService(val db: DatabaseService)
       ))).asJson.toString()
     ),
     TaskFlowStepConf(3, 1, "Епюри", 3, TaskFlowStepType.Charts, task_flow_charts.asJson.toString(), true),
-    TaskFlowStepConf(3, 1, "Чи забезпечується міцність перерізу?", 3, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString())
+    TaskFlowStepConf(4, 1, "Чи забезпечується міцність перерізу?", 4, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString()),
+    TaskFlowStepConf(5, 1, "Епюри", 5, TaskFlowStepType.Finished, "")
   )
 
   val taskFlowConfProblemVariantConfs: List[TaskFlowConfProblemVariantConf] = List(
@@ -187,7 +188,10 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlowStepConf = taskFlowStepConfs.find(_.id == taskFlowStep.taskFlowStepConfId).getOrElse(
       throw new RuntimeException(s"Task flow step conf with id not found!")
     )
-
+    if(taskFlowStepConf.helpData) {
+      updateTaskFlowStep(taskFlowStep.copy(done = true))
+      updateTaskFlowCurrentStep(taskFlowId)
+    }
     val taskFlowStepData: String = taskFlowStepConf.stepType match {
       case TaskFlowStepType.Test =>
         val taskFlowTest = decode[TaskFlowTest](taskFlowStepConf.stepData).fold(er => None, test => Some(test)).getOrElse(
@@ -197,13 +201,17 @@ class TaskFlowExamService(val db: DatabaseService)
           throw new RuntimeException(s"Test with id: ${taskFlowTest.testId}")
         )
         testConf.asJson.toString()
-      case TaskFlowStepType.InputSet =>
-        val inputSet = decode[InputSet](taskFlowStepConf.stepData).fold(er => None, is => Some(is)).getOrElse(
-          throw new RuntimeException(s"Failed to parse input set in $taskFlowStepConf")
-        )
-        inputSet.asJson.toString()
-      case TaskFlowStepType.Charts =>
-        "not implemented"
+//      case TaskFlowStepType.InputSet =>
+//        val inputSet = decode[InputSet](taskFlowStepConf.stepData).fold(er => None, is => Some(is)).getOrElse(
+//          throw new RuntimeException(s"Failed to parse input set in $taskFlowStepConf")
+//        )
+//        inputSet.asJson.toString()
+//      case TaskFlowStepType.Charts =>
+//        "not implemented"
+      case TaskFlowStepType.Finished =>
+        updateTaskFlowStep(taskFlowStep.copy(done = true))
+        "Task flow has been finished successfully".asJson.toString()
+      case _ => taskFlowStepConf.stepData
     }
     Some(TaskFlowStepDto(taskFlowStepConf, taskFlowStep, taskFlowStepData))
   }
