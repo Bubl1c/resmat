@@ -29,6 +29,11 @@ class ExamRoute(examService: ExamService, testSetExamRoute: TestSetExamRoute, ta
         Future(getCurrentUserExam(user.id))
       }
     } ~
+    (pathPrefix("results") & parameters("userId".as[Long]) & get) { userId =>
+      complete {
+        Future(getUserExamResults(userId))
+      }
+    } ~
     pathPrefix(LongNumber) { userExamId =>
       (pathEndOrSingleSlash & get) {
         complete {

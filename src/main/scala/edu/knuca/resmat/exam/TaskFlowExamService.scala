@@ -201,13 +201,6 @@ class TaskFlowExamService(val db: DatabaseService)
           throw new RuntimeException(s"Test with id: ${taskFlowTest.testId}")
         )
         testConf.asJson.toString()
-//      case TaskFlowStepType.InputSet =>
-//        val inputSet = decode[InputSet](taskFlowStepConf.stepData).fold(er => None, is => Some(is)).getOrElse(
-//          throw new RuntimeException(s"Failed to parse input set in $taskFlowStepConf")
-//        )
-//        inputSet.asJson.toString()
-//      case TaskFlowStepType.Charts =>
-//        "not implemented"
       case TaskFlowStepType.Finished =>
         updateTaskFlowStep(taskFlowStep.copy(done = true))
         "Task flow has been finished successfully".asJson.toString()

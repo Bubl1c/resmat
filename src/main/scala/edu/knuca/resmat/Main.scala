@@ -35,7 +35,7 @@ object Main extends App with Config {
   val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
   val testSetExamService: TestSetExamService = new TestSetExamService(databaseService)
   val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(testSetExamService)
-  val examService: ExamService = new ExamService(databaseService)(testSetExamService, taskFlowExamService)
+  val examService: ExamService = new ExamService(databaseService)(usersService, testSetExamService, taskFlowExamService)
 
   val dataGenerator = new InitialDataGenerator(databaseService, usersService, authService)
   dataGenerator.generate()

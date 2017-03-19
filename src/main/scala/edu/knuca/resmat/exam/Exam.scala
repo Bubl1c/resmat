@@ -57,22 +57,29 @@ case class ExamStepConf(id: Long,
                         name: String,
                         stepType: ExamStepType.ExamStepType,
                         mistakesPerAttemptLimit: Int,
-                        attemptsLimit: Int)
+                        attemptsLimit: Int,
+                        hasToBeSubmitted: Boolean = true)
 case class ExamStepVariantConf(id: Long, examStepConfId: Long, examConfId: Long, dataSetConfId: Long)
 
 case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
 case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long)
 case class UserExamResult(userExamId: Long,
+                          examConfId: Long,
+                          userId: Long,
                           examName: String,
-                          taskName: String,
                           studentName: String,
-                          studentGroupName: String,
-                          mistakesAmountInTests: Int,
-                          mistakesAmountInTask: Int,
-                          attemptsAmount: Int,
+                          studentGroupName: Option[String],
                           durationMillis: Long,
+                          stepResults: Seq[UserExamStepResult],
                           score: Int,
                           maxScore: Int) extends StepDataDto
+case class UserExamStepResult(userExamId: Long,
+                              stepConfId: Long,
+                              sequence: Int,
+                              name: String,
+                              attemptsAmount: Int,
+                              mistakesAmount: Int,
+                              durationMillis: Long)
 
 //====================TestSet====================
 
