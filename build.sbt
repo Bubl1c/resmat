@@ -34,6 +34,13 @@ val dbDependencies = Seq(
   "com.typesafe.play" %% "anorm" % "2.5.0"
 )
 
+val mathDependencies = {
+  val breezeVersion = "0.12"
+  Seq(
+    "org.scalanlp" %% "breeze" % breezeVersion,
+    "org.scalanlp" %% "breeze-natives" % breezeVersion
+  )
+}
 
 libraryDependencies ++= {
   val akkaV = "10.0.3"
@@ -53,6 +60,8 @@ libraryDependencies ++= {
 libraryDependencies ++=
   jsonDependencies ++
   loggingDependencies ++
-  dbDependencies
+  dbDependencies ++
+  mathDependencies
+
 
     
