@@ -45,46 +45,46 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
   private val modul_E = conf.moduleE
   private val koef_Puas = conf.poissonRatio
 
-  val f_a = a.f
-  val f_b = b.f
-  val m_a = a.m
-  val m_b = b.m
-  val fi_a = a.fi
-  val fi_b = b.fi
-  val w_a = a.w
-  val w_b = b.w
-  val q1 = conf.q1   //todo what is this? q?
+  private val f_a: Double = a.f
+  private val f_b: Double = b.f
+  private val m_a: Double = a.m
+  private val m_b: Double = b.m
+  private val fi_a: Double = a.fi
+  private val fi_b: Double = b.fi
+  private val w_a: Double = a.w
+  private val w_b: Double = b.w
+  private val q1: Double = conf.q1   //todo what is this? q?
 
   // навантаження на внутрішньому
   //та зовнішньому контурі та вимушені переміщення
-  val del_t = (b.length - a.length) / (md - 1)
+  private val del_t: Double = (b.length - a.length) / (md - 1)
   println("del_t = " + del_t)
-  val d_e = pow(height_h, 3) * modul_E / 12d / (1d - pow(koef_Puas, 2))
+  private val d_e: Double = pow(height_h, 3) * modul_E / 12d / (1d - pow(koef_Puas, 2))
   println("d_e = " + d_e)
 
-  val r1Helper = DenseVector.zeros[BigDecimal](m)
+  private val r1Helper = DenseVector.zeros[BigDecimal](m)
   r1Helper(0) = BigDecimal(a.length)
   for(i <- 1 until m) {
     r1Helper(i) = r1Helper(i-1) + BigDecimal(del_t)
   }
   // вектор координат точек
-  val r1: DenseVector[Double] = r1Helper.map(_.toDouble)
+  private val r1: DenseVector[Double] = r1Helper.map(_.toDouble)
   printVector("r1", r1)
 
   // формування системи рівнянь в залежності від гран умов
-  val g1 = DenseMatrix.zeros[Double](4, 5)
-  val b2 = DenseVector.zeros[Double](4)
+  private val g1 = DenseMatrix.zeros[Double](4, 5)
+  private val b2 = DenseVector.zeros[Double](4)
 
   def solve(): RingPlateResult = {
-    matchBindingTypePrepareData
+    matchBindingTypePrepareData()
     val gaussResult = gaussCalculateEquations
     val (shifAndForceResult, extremeStressResult) = calculateShiftAndForceAndExtremeStress
     RingPlateResult(del_t, d_e, r1, gaussResult, shifAndForceResult, extremeStressResult)
   }
 
-  def matchBindingTypePrepareData = {
+  def matchBindingTypePrepareData(): Unit = {
     a.n match {
-      case BindingType.Free => {
+      case BindingType.Free =>
         // перше рівняння системи
         if (w_a == 0d) {
           g1(0, 0) = -4d * d_e / r1(0)
@@ -114,8 +114,8 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
           g1(1, 3) = 0d
           g1(1, 4) = -q1 * pow(r1(0), 3) / 16d / d_e + fi_a
         }
-      }
-      case BindingType.Swivel => {
+
+      case BindingType.Swivel =>
         // перше рівняння системи
         if (fi_a == 0d) {
           g1(0, 0) = -d_e * (2d * (1d + koef_Puas) * log(r1(0)) + 3d + koef_Puas)
@@ -136,8 +136,8 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
         g1(1, 2) = log(r1(0))
         g1(1, 3) = 1d
         g1(1, 4) = -q1 * pow(r1(0), 4) / 64d / d_e + w_a
-      }
-      case BindingType.Hard => {
+
+      case BindingType.Hard =>
         // перше рівняння системи
         g1(0, 0) = pow(r1(0), 2) * log(r1(0))
         g1(0, 1) = pow(r1(0), 2)
@@ -151,12 +151,11 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
         g1(1, 2) = 1d / r1(0)
         g1(1, 3) = 0d
         g1(1, 4) = -q1 * pow(r1(0), 3) / 16d / d_e + fi_a
-      }
 
     }
 
     b.n match {
-      case BindingType.Free => {
+      case BindingType.Free =>
         // третє рівняння системи
         if (w_b == 0d) {
           g1(2, 0) = -4d * d_e / r1(m - 1)
@@ -186,8 +185,8 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
             g1(3, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e + fi_b
           }
         }
-      }
-      case BindingType.Swivel => {
+
+      case BindingType.Swivel =>
         // третє рівняння системи
         if (fi_b == 0d) {
           g1(2, 0) = -d_e * (2d * (1d + koef_Puas) * log(r1(m - 1)) + 3d + koef_Puas)
@@ -209,8 +208,8 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
         g1(3, 2) = log(r1(m - 1))
         g1(3, 3) = 1d
         g1(3, 4) = -q1 * pow(r1(m - 1), 4) / 64d / d_e + w_b
-      }
-      case BindingType.Hard => {
+
+      case BindingType.Hard =>
         // третє рівняння системи
         g1(2, 0) = pow(r1(m - 1), 2) * log(r1(m - 1))
         g1(2, 1) = pow(r1(m - 1), 2)
@@ -224,7 +223,7 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
         g1(3, 2) = 1d / r1(m - 1)
         g1(3, 3) = 0d
         g1(3, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e + fi_b
-      }
+
     }
   }
 
