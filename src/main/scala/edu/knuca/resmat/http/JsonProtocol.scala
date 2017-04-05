@@ -1,5 +1,6 @@
 package edu.knuca.resmat.http
 
+import edu.knuca.resmat.core.BindingType
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.user.UserType
 import io.circe.{Decoder, Encoder, Json}
@@ -27,8 +28,8 @@ object JsonProtocol {
   implicit val encodeESDT: Encoder[ExamStepType.ExamStepType] = Encoder.encodeString.contramap[ExamStepType.ExamStepType](_.toString)
   implicit val decodeESDT: Decoder[ExamStepType.ExamStepType] = enumDecoder(ExamStepType)
 
-  implicit val encodeTaskType: Encoder[TaskType.TaskType] = Encoder.encodeString.contramap[TaskType.TaskType](_.toString)
-  implicit val decodeTaskType: Decoder[TaskType.TaskType] = enumDecoder(TaskType)
+  implicit val encodeTaskType: Encoder[ProblemType.ProblemType] = Encoder.encodeString.contramap[ProblemType.ProblemType](_.toString)
+  implicit val decodeTaskType: Decoder[ProblemType.ProblemType] = enumDecoder(ProblemType)
 
   implicit val encodeTestType: Encoder[TestType.TestType] = Encoder.encodeString.contramap[TestType.TestType](_.toString)
   implicit val decodeTestType: Decoder[TestType.TestType] = enumDecoder(TestType)
@@ -44,6 +45,9 @@ object JsonProtocol {
 
   implicit val encodeTFST: Encoder[TaskFlowStepType.TaskFlowStepType] = Encoder.encodeString.contramap[TaskFlowStepType.TaskFlowStepType](_.toString)
   implicit val decodeTFST: Decoder[TaskFlowStepType.TaskFlowStepType] = enumDecoder(TaskFlowStepType)
+
+  implicit val encodeBindingType: Encoder[BindingType.BindingType] = Encoder.encodeString.contramap[BindingType.BindingType](_.toString)
+  implicit val decodeBindingType: Decoder[BindingType.BindingType] = enumDecoder(BindingType)
 
   def enumDecoder(en: Enumeration) = Decoder.decodeString.emap { str =>
     Try(en.withName(str)) match {

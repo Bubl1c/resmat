@@ -1,14 +1,13 @@
 package edu.knuca.resmat.exam
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.knuca.resmat.core._
 import edu.knuca.resmat.db.DatabaseService
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
-
 import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf}
 import edu.knuca.resmat.exam.{ProblemInputVariableValue => VarVal}
-
 import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -33,86 +32,96 @@ class TaskFlowExamService(val db: DatabaseService)
 
   import edu.knuca.resmat.http.JsonProtocol._
 
-  val chartXData = Array(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1)
-
-  val chartYData = Array(
-    Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
-    Array(-5.280, -5.795, -7.301, -8.959, -10.567, -12.031, -13.286, -14.280, -14.965, -15.298, -15.233),
-    Array(0.000, 1.721, 1.960, 1.942, 1.822, 1.636, 1.398, 1.113, 0.784, 0.413, 0.000),
-    Array(4.685, 2.915, 2.551, 2.376, 2.240, 2.106, 1.964, 1.807, 1.632, 1.440, 1.229),
-    Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
-  )
-
-  val task_flow_charts = ChartSet("Епюри", Seq(
-    ChartData("W Прогин (1/1000 м)",
-      chartXData,
-      Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
-      true
-    ),
-    ChartData("{phi}{ Кут повороту (1/1000 рад)}",
-      chartXData,
-      Array(-5.280, -5.795, -7.301, -8.959, -10.567, -12.031, -13.286, -14.280, -14.965, -15.298, -15.233)
-    ),
-    ChartData("Mr Радіальний момент (кН)",
-      chartXData,
-      Array(0.000, 1.721, 1.960, 1.942, 1.822, 1.636, 1.398, 1.113, 0.784, 0.413, 0.000),
-      true
-    ),
-    ChartData("{M}{theta}{ Коловий момент (кН)}",
-      chartXData,
-      Array(4.685, 2.915, 2.551, 2.376, 2.240, 2.106, 1.964, 1.807, 1.632, 1.440, 1.229),
-      true
-    ),
-    ChartData("Qr Поперечна сила (кН/м)",
-      chartXData,
-      Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
-    )
-  ))
+//  val chartXData = Array(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1)
+//
+//  val task_flow_charts = ChartSet("Епюри", Seq(
+//    ChartData("W Прогин (1/1000 м)",
+//      chartXData,
+//      Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
+//      true
+//    ),
+//    ChartData("{phi}{ Кут повороту (1/1000 рад)}",
+//      chartXData,
+//      Array(-5.280, -5.795, -7.301, -8.959, -10.567, -12.031, -13.286, -14.280, -14.965, -15.298, -15.233)
+//    ),
+//    ChartData("Mr Радіальний момент (кН)",
+//      chartXData,
+//      Array(0.000, 1.721, 1.960, 1.942, 1.822, 1.636, 1.398, 1.113, 0.784, 0.413, 0.000),
+//      true
+//    ),
+//    ChartData("{M}{theta}{ Коловий момент (кН)}",
+//      chartXData,
+//      Array(4.685, 2.915, 2.551, 2.376, 2.240, 2.106, 1.964, 1.807, 1.632, 1.440, 1.229),
+//      true
+//    ),
+//    ChartData("Qr Поперечна сила (кН/м)",
+//      chartXData,
+//      Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
+//    )
+//  ))
 
   val problemConfs: List[ProblemConf] = List(
-    ProblemConf(1, "Кільцева пластина", Seq(
-      VarConf(2, "Fa", "кН/м"),
-      VarConf(3, "Ma", "кНм/м"),
-      VarConf(4, "wa", "м"),
-      VarConf(5, "{phi}{a}", "рад"),
+    ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, Seq(
+      VarConf(2, "Fa", "кН/м", "a.f"),
+      VarConf(3, "Ma", "кНм/м", "a.m"),
+      VarConf(4, "wa", "м", "a.w"),
+      VarConf(5, "{phi}{a}", "рад", "a.fi"),
     
-      VarConf(6, "E", "МПа"),
-      VarConf(7, "{mu}"),
-      VarConf(8, "q", "кН/м^2"),
+      VarConf(6, "E", "МПа", "moduleE"),
+      VarConf(7, "{mu}", "", "poissonRatio"),
+      VarConf(8, "q", "кН/м^2", "q"),
     
-      VarConf(9, "Fb", "кН/м"),
-      VarConf(10, "Mb", "кНм/м"),
-      VarConf(11, "wb", "м"),
-      VarConf(12, "{phi}{b}", "рад"),
+      VarConf(9, "Fb", "кН/м", "b.f"),
+      VarConf(10, "Mb", "кНм/м", "b.m"),
+      VarConf(11, "wb", "м", "b.w"),
+      VarConf(12, "{phi}{b}", "рад", "b.fi"),
     
-      VarConf(13, "a", "м"),
-      VarConf(14, "b", "м"),
-      VarConf(15, "t", "мм")
-    ))
+      VarConf(13, "a", "м", "a.length"),
+      VarConf(14, "b", "м", "b.length"),
+      VarConf(15, "t", "м", "height"),
+
+      VarConf(16, "an", "", "a.n", false),
+      VarConf(17, "bn", "", "b.n", false),
+      VarConf(18, "sigmaAdm", "", "sigmaAdm", false)
+    ).asJson.toString())
   )
+
+  val varVals: List[ProblemInputVariableValue] = List(
+    VarVal(2, 0),
+    VarVal(3, 0),
+    VarVal(4, -0.01),
+    VarVal(5, 0),
+
+    VarVal(6, 200000000.0),
+    VarVal(7, 0.3),
+    VarVal(8, 0d),
+
+    VarVal(9, 0),
+    VarVal(10, 0),
+    VarVal(11, 0),
+    VarVal(12, 0),
+
+    VarVal(13, 0.1),
+    VarVal(14, 1.1),
+    VarVal(15, 0.02),
+
+    VarVal(16, 1),
+    VarVal(17, 2),
+    VarVal(18, 160)
+  )
+
+  val decodedConfs = decode[Seq[VarConf]](problemConfs.find(_.id == 1).get.inputVariableConfs).fold(_ => None, Some(_)).getOrElse(
+    throw new RuntimeException("Shit is happening")
+  )
+  val variant1Input = RingPlateProblemInput(decodedConfs.map(pc => {
+    val varVal = varVals.find(_.variableConfId == pc.id).get
+    (pc, varVal)
+  }))
   val problemVariantConfs: List[ProblemVariantConf] = List(
-    ProblemVariantConf(1, 1, "img/tasks/9.png", Seq(
-      VarVal(2, 0),
-      VarVal(3, 0),
-      VarVal(4, 0),
-      VarVal(5, 0),
-
-      VarVal(6, 100000),
-      VarVal(7, 0.2),
-      VarVal(8, 10),
-
-      VarVal(9, 0),
-      VarVal(10, 0),
-      VarVal(11, 0),
-      VarVal(12, 0),
-
-      VarVal(13, 0.1),
-      VarVal(14, 1.1),
-      VarVal(15, 22)
-    ))
-  )
-  val calculatedProblemVariantConfs: List[CalculatedProblemVariantConf] = List(
-    CalculatedProblemVariantConf(1, 1, "Обраховані дані по варіанту для перевірки студента")
+    ProblemVariantConf(1, 1, "img/tasks/9.png",
+      varVals.asJson.toString(),
+      new RingPlateSolver(variant1Input).solve().asJson.toString()
+    )
   )
 
   val taskFlowConfs: List[TaskFlowConf] = List(
@@ -141,9 +150,26 @@ class TaskFlowExamService(val db: DatabaseService)
         InputSetInputAnswer(8, Some(5))
       ))).asJson.toString()
     ),
-    TaskFlowStepConf(3, 1, "Епюри", 3, TaskFlowStepType.Charts, task_flow_charts.asJson.toString(), true),
-    TaskFlowStepConf(4, 1, "Чи забезпечується міцність перерізу?", 4, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString()),
-    TaskFlowStepConf(5, 1, "Епюри", 5, TaskFlowStepType.Finished, "")
+    TaskFlowStepConf(3, 1, "Введіть пораховані значення невідомих X", 3,
+      TaskFlowStepType.InputSet, InputSet(2, "InputSetName", Seq(
+        InputSetInput(1, "X1", "", "м"),
+        InputSetInput(2, "X2", "", "рад"),
+        InputSetInput(3, "X3", "", "кНм/м"),
+        InputSetInput(4, "X4", "", "кН/м")
+      ), InputSetAnswerDto(2, Seq())).asJson.toString()
+    ),
+    TaskFlowStepConf(4, 1, "Епюри", 4, TaskFlowStepType.Charts, "will be retrieved from calc data", true),
+    TaskFlowStepConf(5, 1, "Введіть пораховані значення", 5,
+      TaskFlowStepType.InputSet, InputSet(3, "InputSetName", Seq(
+        InputSetInput(1, "r", "Координати небезпечного перерізу", "м"),
+        InputSetInput(2, "{sigma}{r}", "Радіального нормального напруження", "МПа"),
+        InputSetInput(3, "{sigma}{theta}", "Колового нормального напруження", "МПа"),
+        InputSetInput(4, "{sigma}{екв}", "Еквівалентного нормального напруження", "МПа"),
+        InputSetInput(5, "{tau}{max}", "Максимальних дотичних напружень", "МПа")
+      ), InputSetAnswerDto(3, Seq())).asJson.toString()
+    ),
+    TaskFlowStepConf(6, 1, "Чи забезпечується міцність перерізу?", 6, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString()),
+    TaskFlowStepConf(7, 1, "Кінець", 7, TaskFlowStepType.Finished, "")
   )
 
   val taskFlowConfProblemVariantConfs: List[TaskFlowConfProblemVariantConf] = List(
@@ -201,6 +227,42 @@ class TaskFlowExamService(val db: DatabaseService)
           throw new RuntimeException(s"Test with id: ${taskFlowTest.testId}")
         )
         testConf.asJson.toString()
+      case TaskFlowStepType.Charts =>
+        val taskFlow = stepAttemptTaskFlows.find(_.id == taskFlowStep.stepAttemptTaskFlowId).getOrElse(
+          throw new IllegalArgumentException(s"Task flow with id: ${taskFlowStep.stepAttemptTaskFlowId} not found!")
+        )
+        val problemVariantConf = problemVariantConfs.find(_.id == taskFlow.problemVariantConfId).getOrElse(
+          throw new RuntimeException(s"Problem variant conf with id: ${taskFlow.problemVariantConfId} not found!")
+        )
+        //todo problem dependent - make independent
+        val calcData = decode[RingPlateProblemResult](problemVariantConf.calculatedData).fold(_ => None, Some(_)).getOrElse(
+          throw new RuntimeException(s"Failed to parse RingPlateProblemResult in ${problemVariantConf.calculatedData}")
+        )
+        ChartSet("Епюри", Seq(
+          ChartData("W Прогин (1/1000 м)",
+            calcData.r1,
+            calcData.shiftAndForce.w_1,
+            true
+          ),
+          ChartData("{phi}{ Кут повороту (1/1000 рад)}",
+            calcData.r1,
+            calcData.shiftAndForce.fi_1
+          ),
+          ChartData("Mr Радіальний момент (кН)",
+            calcData.r1,
+            calcData.shiftAndForce.mr_1,
+            true
+          ),
+          ChartData("{M}{theta}{ Коловий момент (кН)}",
+            calcData.r1,
+            calcData.shiftAndForce.mt_1,
+            true
+          ),
+          ChartData("Qr Поперечна сила (кН/м)",
+            calcData.r1,
+            calcData.shiftAndForce.qr_1
+          )
+        )).asJson.toString()
       case TaskFlowStepType.Finished =>
         updateTaskFlowStep(taskFlowStep.copy(done = true))
         "Task flow has been finished successfully".asJson.toString()
@@ -225,27 +287,37 @@ class TaskFlowExamService(val db: DatabaseService)
         val testAnswer = decode[TestAnswerDto](answer).fold(er => None, test => Some(test)).getOrElse(
           throw new RuntimeException(s"Failed to parse test answer in $answer")
         )
-        val verifiedAnswer = testSetExamService.verifyTestAnswer(testAnswer)
-        verifiedAnswer.map{ va =>
-          updateTaskFlowStep(taskFlowStep, va.isCorrectAnswer, va.mistakesAmount)
-          if(va.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
-          VerifiedTaskFlowStepAnswer(va.isCorrectAnswer, va.mistakesAmount, va.answer.asJson.toString())
-        }
+        val correctAnswer = decode[Seq[Long]](taskFlowStep.answer).fold(er => None, test => Some(test)).getOrElse(
+          throw new RuntimeException(s"Failed to parse test answer in $answer")
+        )
+        val verifiedAnswer = testSetExamService.verifyTestAnswer(testAnswer, correctAnswer)
+        updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
+        if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
+        Some(
+          VerifiedTaskFlowStepAnswer(
+            verifiedAnswer.isCorrectAnswer,
+            verifiedAnswer.mistakesAmount,
+            verifiedAnswer.answer.asJson.toString()
+          )
+        )
       case TaskFlowStepType.InputSet =>
         val inputSetAnswer = decode[InputSetAnswerDto](answer).fold(er => None, is => Some(is)).getOrElse(
           throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
         )
-        val inputSet = decode[InputSet](taskFlowStepConf.stepData).fold(er => None, is => Some(is)).getOrElse(
-          throw new RuntimeException(s"Failed to parse input set in $taskFlowStepConf")
+        val correctAnswer = decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(er => None, test => Some(test)).getOrElse(
+          throw new RuntimeException(s"Failed to parse test answer in $answer")
         )
-        val verifiedAnswer = verifyInputSet(taskFlow.problemVariantConfId, inputSetAnswer, inputSet)
-        verifiedAnswer.map{ va =>
-          updateTaskFlowStep(taskFlowStep, va.isCorrectAnswer, va.mistakesAmount)
-          if(va.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
-          VerifiedTaskFlowStepAnswer(va.isCorrectAnswer, va.mistakesAmount, va.answer.asJson.toString())
-        }
-      case TaskFlowStepType.Charts =>
-        Some(VerifiedTaskFlowStepAnswer(true, 0, "not implemented"))
+        val verifiedAnswer = verifyInputSet(inputSetAnswer, correctAnswer)
+        updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
+        if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
+        Some(
+          VerifiedTaskFlowStepAnswer(
+            verifiedAnswer.isCorrectAnswer,
+            verifiedAnswer.mistakesAmount,
+            verifiedAnswer.answer.asJson.toString()
+          )
+        )
+      case _ => throw new IllegalArgumentException(s"Unsupported task flow step to verify: ${taskFlowStepConf.stepType}")
     }
   }
 
@@ -281,21 +353,18 @@ class TaskFlowExamService(val db: DatabaseService)
     taskFlowStep
   }
 
-  def verifyInputSet(problemVariantConfId: Long, inputSetAnswer: InputSetAnswerDto, inputSet: InputSet): Option[VerifiedInputSetAnswer] = {
-//    calculatedProblemVariantConfs.find(_.problemVariantConfId == problemVariantConfId).map( cpvc =>
-      //todo Verify based on calculated data
-//    )
+  def verifyInputSet(submittedAnswer: InputSetAnswerDto, correctAnswer: Seq[InputSetInputAnswer]): VerifiedInputSetAnswer = {
     var isCorrectAnswer = true
     var mistakesAmount = 0
-    val verifiedAnswers: Map[Int, Boolean] = inputSet.answer.inputAnswers.map{ correctAnswer =>
-      inputSetAnswer.inputAnswers.find(_.id == correctAnswer.id) match {
-        case Some(inputSetInputAnswer) =>
-          val areEqual = inputSetInputAnswer.value match {
-            case Some(isa) => correctAnswer.value match {
-              case Some(ca) => areAlmostEqual(ca, isa)
+    val verifiedAnswers: Map[Int, Boolean] = correctAnswer.map{ correctAnswer =>
+      submittedAnswer.inputAnswers.find(_.id == correctAnswer.id) match {
+        case Some(submittedInputAnswer) =>
+          val areEqual = submittedInputAnswer.value match {
+            case Some(sia) => correctAnswer.value match {
+              case Some(ca) => areAlmostEqual(ca, sia)
               case None => false
             }
-            case None => inputSetInputAnswer.value match {
+            case None => correctAnswer.value match {
               case Some(ca) => false
               case None => true
             }
@@ -313,10 +382,17 @@ class TaskFlowExamService(val db: DatabaseService)
           (correctAnswer.id, false)
       }
     }.toMap
-    Some(VerifiedInputSetAnswer(inputSetAnswer.inputSetId, isCorrectAnswer, mistakesAmount, verifiedAnswers))
+    VerifiedInputSetAnswer(submittedAnswer.inputSetId, isCorrectAnswer, mistakesAmount, verifiedAnswers)
   }
 
-  def areAlmostEqual(d1: Double, d2: Double, precision: Double = 0.0001): Boolean = (d1 - d2).abs <= precision
+  def areAlmostEqual(ethalon: Double, d2: Double, precision: Double = 0.05): Boolean = {
+    val diff = (ethalon - d2).abs
+    if(ethalon == 0.0) {
+      ethalon == d2
+    } else {
+      (diff / ethalon).abs <= precision
+    }
+  }
 
   def getNotCompletedTaskFlowSteps(stepAttemptId: Long): Seq[UserExamStepAttemptTaskFlowStep] = {
     val taskFlow = stepAttemptTaskFlows.find(_.stepAttemptId == stepAttemptId).getOrElse(
@@ -331,6 +407,12 @@ class TaskFlowExamService(val db: DatabaseService)
                               taskFlowConfProblemVariantConfId: Long): (UserExamStepAttemptTaskFlow, Seq[UserExamStepAttemptTaskFlowStep]) = {
     val taskFlowConfProblemVariantConf = taskFlowConfProblemVariantConfs.find(_.id == taskFlowConfProblemVariantConfId).getOrElse(
       throw new RuntimeException(s"Task flow conf problem variant conf with id: $taskFlowConfProblemVariantConfId not found!")
+    )
+    val problemVariantConf = problemVariantConfs.find(_.id == taskFlowConfProblemVariantConf.problemVariantConfId).getOrElse(
+      throw new RuntimeException(s"Problem variant conf with id: ${taskFlowConfProblemVariantConf.problemVariantConfId} not found!")
+    )
+    val cd = decode[RingPlateProblemResult](problemVariantConf.calculatedData).fold(_ => None, Some(_)).getOrElse(
+      throw new RuntimeException(s"Failed to parse RingPlateProblemResult from calculated variant data ${problemVariantConf.calculatedData}")
     )
     val stepConfs = taskFlowStepConfs.filter(_.taskFlowConfId == taskFlowConfProblemVariantConf.taskFlowConfId)
 
@@ -347,11 +429,97 @@ class TaskFlowExamService(val db: DatabaseService)
     )
 
     val taskFlowSteps = stepConfs.map{ sc =>
-      createTaskFlowStep(UserExamStepAttemptTaskFlowStep(-1, taskFlow.id, sc.id))
+      def checkType(actual: TaskFlowStepType.TaskFlowStepType, required: TaskFlowStepType.TaskFlowStepType) =
+        if(actual != required) throw new RuntimeException(s"Invalid task flow step type $actual, required $required")
+
+      val stepAnswer: String = sc.id match {
+        case 1 =>
+          checkType(sc.stepType, TaskFlowStepType.Test)
+          Seq(1).asJson.toString()
+        case 2 =>
+          checkType(sc.stepType, TaskFlowStepType.InputSet)
+          Seq(
+            InputSetInputAnswer(1, cd.extremeConditions.a.w),
+            InputSetInputAnswer(2, cd.extremeConditions.a.fi),
+            InputSetInputAnswer(3, cd.extremeConditions.a.mr),
+            InputSetInputAnswer(4, cd.extremeConditions.a.qr),
+            InputSetInputAnswer(5, cd.extremeConditions.b.w),
+            InputSetInputAnswer(6, cd.extremeConditions.b.fi),
+            InputSetInputAnswer(7, cd.extremeConditions.b.mr),
+            InputSetInputAnswer(8, cd.extremeConditions.b.qr)
+          ).asJson.toString()
+        case 3 =>
+          checkType(sc.stepType, TaskFlowStepType.InputSet)
+          cd.gauss.b2.zipWithIndex.map{ case (e, i) => InputSetInputAnswer(i + 1, Some(e))}.asJson.toString()
+        case 4 =>
+          checkType(sc.stepType, TaskFlowStepType.Charts)
+          ChartSet("Епюри", Seq(
+            ChartData("W Прогин (1/1000 м)",
+              cd.r1,
+              cd.shiftAndForce.w_1,
+              true
+            ),
+            ChartData("{phi}{ Кут повороту (1/1000 рад)}",
+              cd.r1,
+              cd.shiftAndForce.fi_1
+            ),
+            ChartData("Mr Радіальний момент (кН)",
+              cd.r1,
+              cd.shiftAndForce.mr_1,
+              true
+            ),
+            ChartData("{M}{theta}{ Коловий момент (кН)}",
+              cd.r1,
+              cd.shiftAndForce.mt_1,
+              true
+            ),
+            ChartData("Qr Поперечна сила (кН/м)",
+              cd.r1,
+              cd.shiftAndForce.qr_1
+            )
+          )).asJson.toString()
+        case 5 =>
+          checkType(sc.stepType, TaskFlowStepType.InputSet)
+          Seq(
+            InputSetInputAnswer(1, Some(cd.coordinateResult.r)),
+            InputSetInputAnswer(2, Some(cd.coordinateResult.qr)),
+            InputSetInputAnswer(3, Some(cd.coordinateResult.qt)),
+            InputSetInputAnswer(4, Some(cd.coordinateResult.qeq)),
+            InputSetInputAnswer(5, Some(cd.coordinateResult.tmax))
+          ).asJson.toString()
+        case 6 =>
+          checkType(sc.stepType, TaskFlowStepType.Test)
+          Seq(if(cd.isStrengthGuaranteed) 2 else 1).asJson.toString()
+        case 7 =>
+          checkType(sc.stepType, TaskFlowStepType.Finished)
+          ""
+      }
+      createTaskFlowStep(UserExamStepAttemptTaskFlowStep(-1, taskFlow.id, sc.id, stepAnswer))
     }
 
     (taskFlow, taskFlowSteps)
   }
+
+//  TaskFlowStepConf(3, 1, "Введіть пораховані значення невідомих X", 3,
+//    TaskFlowStepType.InputSet, InputSet(2, "InputSetName", Seq(
+//      InputSetInput(1, "X1", "На внутрішньому контурі", "м"),
+//      InputSetInput(2, "X2", "На внутрішньому контурі", "рад"),
+//      InputSetInput(3, "X3", "На внутрішньому контурі", "кНм/м"),
+//      InputSetInput(4, "X4", "На внутрішньому контурі", "кН/м")
+//    ), InputSetAnswerDto(2, Seq())).asJson.toString()
+//  ),
+//  TaskFlowStepConf(4, 1, "Епюри", 4, TaskFlowStepType.Charts, "will be retrieved from calc data", true),
+//  TaskFlowStepConf(5, 1, "Введіть пораховані значення", 5,
+//    TaskFlowStepType.InputSet, InputSet(3, "InputSetName", Seq(
+//      InputSetInput(1, "r", "Координати небезпечного перерізу", "м"),
+//      InputSetInput(2, "{sigma}{r}", "Радіального нормального напруження", "МПа"),
+//      InputSetInput(3, "{sigma}{theta}", "Колового нормального напруження", "МПа"),
+//      InputSetInput(4, "{sigma}{екв}", "Еквівалентного нормального напруження", "МПа"),
+//      InputSetInput(5, "{tau}{max}", "Максимальних дотичних напружень", "МПа")
+//    ), InputSetAnswerDto(3, Seq())).asJson.toString()
+//  ),
+//  TaskFlowStepConf(6, 1, "Чи забезпечується міцність перерізу?", 6, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString()),
+//  TaskFlowStepConf(7, 1, "Кінець", 7, TaskFlowStepType.Finished, "")
 
   def createTaskFlow(taskFlow: UserExamStepAttemptTaskFlow): UserExamStepAttemptTaskFlow = {
     val nextId = if(stepAttemptTaskFlows.nonEmpty) stepAttemptTaskFlows.last.id + 1 else 1

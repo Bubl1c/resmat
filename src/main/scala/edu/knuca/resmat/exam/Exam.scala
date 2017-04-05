@@ -18,8 +18,8 @@ object ExamStepType extends PimpedEnumeration {
   val Results = Value(3, "results")
 }
 
-object TaskType extends PimpedEnumeration {
-  type TaskType = Value
+object ProblemType extends PimpedEnumeration {
+  type ProblemType = Value
   val RingPlate = Value(1, "ring-plate")
 }
 
@@ -88,18 +88,17 @@ case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupId: Long
 
 case class TestGroupConf(id: Long, name: String)
 case class TestConf(id: Long, groupId: Long, question: String, options: Seq[TestOptionConf], testType: TestType.TestType = TestType.Radio, help: Option[String] = None)
-case class TestOptionConf(id: Int, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
+case class TestOptionConf(id: Long, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
 
 case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
 case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId: Long, done: Boolean = false, mistakes: Int = 0)
 
 //====================TaskFlow====================
 
-case class ProblemConf(id: Long, name: String, inputVariableConfs: Seq[ProblemInputVariableConf])
-case class ProblemInputVariableConf(id: Int, name: String, units: String = "")
-case class ProblemInputVariableValue(id: Int, value: Double)
-case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue])
-case class CalculatedProblemVariantConf(id: Long, problemVariantConfId: Long, calculatedData: String)
+case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: String/*JSON array*/)
+case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
+case class ProblemInputVariableValue(variableConfId: Long, value: Double)
+case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: String/*JSON array*/, calculatedData: String/*JSON object*/)
 
 case class TaskFlowConf(id: Long, problemConfId: Long)
 case class TaskFlowStepConf(id: Long,
@@ -111,7 +110,7 @@ case class TaskFlowStepConf(id: Long,
 case class TaskFlowConfProblemVariantConf(id: Long, taskFlowConfId: Long, problemVariantConfId: Long)
 
 case class UserExamStepAttemptTaskFlow(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, taskFlowConfId: Long, problemVariantConfId: Long, currentStepId: Long)
-case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long, taskFlowStepConfId: Long, done: Boolean = false, mistakes: Int = 0)
+case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long, taskFlowStepConfId: Long, answer: String/*JSON object*/, done: Boolean = false, mistakes: Int = 0)
 
 sealed trait TaskFlowStepData
 

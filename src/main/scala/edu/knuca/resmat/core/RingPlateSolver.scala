@@ -1,41 +1,24 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.{DenseMatrix, DenseVector}
+import edu.knuca.resmat.exam.{ProblemInputVariableConf, ProblemInputVariableValue}
 
 import scala.math._
 import edu.knuca.resmat.utils.PimpedEnumeration
 
-case class RingPlateResult(del_t: Double,
-                           d_e: Double,
-                           r1: Vector[Double],
-                           gauss: GaussResult,
-                           shiftAndForce: ShiftAndForceResult,
-                           extremeStress: ExtremeStressResult)
-
-case class GaussResult(b2: Vector[Double])
-case class ShiftAndForceResult(w_1: Vector[Double],
-                               fi_1: Vector[Double],
-                               mr_1: Vector[Double],
-                               mt_1: Vector[Double],
-                               qr_1: Vector[Double])
-case class ExtremeStressResult(g_r: Vector[Double], g_t: Vector[Double], t_t: Vector[Double])
-
-
-
-object Main extends App {
-  val conf = RingPlateConf(splittingDotsAmount = 11, height = 0.002, moduleE = 200000000.0, poissonRatio = 0.3, q1 = 0d)
-  val a = RingPlateSideConf(BindingType.Swivel, length = 0.1, f = 0d, m = 0d, fi = 0d, w = 0.01)
+object RingPlateSolver extends App {
+  val conf = RingPlateConf(height = 0.02, moduleE = 200000000.0, poissonRatio = 0.3, q = 1d, sigmaAdm = 160)
+  val a = RingPlateSideConf(BindingType.Hard, length = 0.1, f = 0d, m = 0d, fi = 0d, w = 0d)
   val b = RingPlateSideConf(BindingType.Hard, length = 1.1, f = 0d, m = 0d, fi = 0d, w = 0d)
 
-  val result = new RingPlateSolver(conf, a, b).solve()
+  val result = new RingPlateSolver(RingPlateProblemInput(conf, a, b)).solve()
 }
 
-class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSideConf) {
+class RingPlateSolver(input: RingPlateProblemInput) {
 
-  //todo is `height_h == t (м)`
-  //todo Where is `q (кН/м2)`?
-  //todo Where is `Theta_adm (МПа)`
-
+  val conf = input.conf
+  val a = input.a
+  val b = input.b
 
   // кількість точок розбиття пластини
   private val m = conf.splittingDotsAmount
@@ -53,7 +36,7 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
   private val fi_b: Double = b.fi
   private val w_a: Double = a.w
   private val w_b: Double = b.w
-  private val q1: Double = conf.q1   //todo what is this? q?
+  private val q1: Double = conf.q
 
   // навантаження на внутрішньому
   //та зовнішньому контурі та вимушені переміщення
@@ -75,11 +58,89 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
   private val g1 = DenseMatrix.zeros[Double](4, 5)
   private val b2 = DenseVector.zeros[Double](4)
 
-  def solve(): RingPlateResult = {
+  def solve(): RingPlateProblemResult = {
     matchBindingTypePrepareData()
     val gaussResult = gaussCalculateEquations
     val (shifAndForceResult, extremeStressResult) = calculateShiftAndForceAndExtremeStress
-    RingPlateResult(del_t, d_e, r1, gaussResult, shifAndForceResult, extremeStressResult)
+    val extremeConditionsResult = calculateExtremeConditions
+    println()
+    println(extremeConditionsResult)
+    val (coordinateResult, isStrengthGuaranteed) = calcCoordinates(extremeStressResult)
+    println(coordinateResult)
+    println("Is strength guaranteed: " + isStrengthGuaranteed)
+    RingPlateProblemResult(del_t, d_e, r1, isStrengthGuaranteed,
+      gaussResult, shifAndForceResult, extremeStressResult, extremeConditionsResult, coordinateResult)
+  }
+
+  def calcCoordinates(extremeStressResult: ExtremeStressResult): (CoordinateResult, Boolean) = {
+    val g_r = extremeStressResult.g_r
+    val g_t = extremeStressResult.g_t
+    val t_t = extremeStressResult.t_t
+    val g_eq = DenseVector.zeros[Double](m)
+    for(i <- 0 until m){
+      g_eq(i)=pow((pow(g_r(i)-0d, 2) + pow(g_t(i)-0d, 2) + pow(g_r(i)-g_t(i), 2)) * 1d/2d, 0.5)
+    }
+    var maxi = 0
+    var max = g_eq(maxi)
+    for(i <- 1 until g_eq.iterableSize) {
+      if(g_eq(i) > max) {
+        max = g_eq(i)
+        maxi = i
+      }
+    }
+
+    val t_max = t_t.max
+
+    val isStrengthGuaranteed = g_eq(maxi) <= conf.sigmaAdm && t_max <= conf.sigmaAdm/2
+
+    (CoordinateResult(r = r1(maxi), qr = g_r(maxi), qt = g_t(maxi), qeq = g_eq(maxi), tmax = t_t.max), isStrengthGuaranteed)
+  }
+
+  def calculateExtremeConditions: ExtremeConditionsResult = {
+    def calcSideFree(sideConf: RingPlateSideConf) = {
+      var w: Option[Double] = None
+      var fi: Option[Double] = None
+      var mr: Option[Double] = None
+      var qr: Option[Double] = None
+      if(sideConf.w == 0d){
+        qr = Some(sideConf.f)
+      } else {
+        w = Some(sideConf.w)
+      }
+      if(sideConf.fi == 0d){
+        mr = Some(sideConf.m)
+      } else {
+        fi = Some(sideConf.fi)
+      }
+      ExtremeConditionsSideResult(w, fi, mr, qr)
+    }
+    def calcSideSwivel(sideConf: RingPlateSideConf) = {
+      var w: Option[Double] = None
+      var fi: Option[Double] = None
+      var mr: Option[Double] = None
+      var qr: Option[Double] = None
+      if(sideConf.fi == 0d){
+        mr = Some(sideConf.m)
+      } else {
+        fi = Some(sideConf.fi)
+      }
+      w = Some(sideConf.w)
+      ExtremeConditionsSideResult(w, fi, mr, qr)
+    }
+    def calcSideHard(sideConf: RingPlateSideConf) = {
+      ExtremeConditionsSideResult(Some(sideConf.w), Some(sideConf.fi), None, None)
+    }
+    def calcSide(sideConf: RingPlateSideConf) = {
+      sideConf.n match {
+        case BindingType.Free =>
+          calcSideFree(sideConf)
+        case BindingType.Swivel =>
+          calcSideSwivel(sideConf)
+        case BindingType.Hard =>
+          calcSideHard(sideConf)
+      }
+    }
+    ExtremeConditionsResult(calcSide(a), calcSide(b))
   }
 
   def matchBindingTypePrepareData(): Unit = {
@@ -287,9 +348,9 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
     val t_t = DenseVector.zeros[Double](m)
 
     for (i <- 0 until m) {
-      g_r(i) = 6d * mr_1(i) / pow(height_h, 2)
-      g_t(i) = 6d * mt_1(i) / pow(height_h, 2)
-      t_t(i) = -3d / 2d * qr_1(i) / height_h
+      g_r(i) = 6d * mr_1(i) / pow(height_h, 2) / 1000
+      g_t(i) = 6d * mt_1(i) / pow(height_h, 2) / 1000
+      t_t(i) = -3d / 2d * qr_1(i) / height_h / 1000
     }
 
     printVector("g_r", g_r)
@@ -304,7 +365,7 @@ class RingPlateSolver(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSid
     v.foreach(elem => print(elem + ", "))
   }
 
-  implicit def denseVectorToScalaVector(input: DenseVector[Double]): Vector[Double] = input.toScalaVector()
+  implicit def denseVectorToScalaVector(input: DenseVector[Double]): Array[Double] = input.toArray
 }
 
 object BindingType extends PimpedEnumeration {
@@ -314,6 +375,52 @@ object BindingType extends PimpedEnumeration {
   val Hard = Value(2, "hard")     //жорстке
 }
 
-case class RingPlateConf(splittingDotsAmount: Int, height: Double, moduleE: Double, poissonRatio: Double, q1: Double)
+case class RingPlateConf(height: Double, moduleE: Double, poissonRatio: Double, q: Double, sigmaAdm: Double, splittingDotsAmount: Int = 11)
 
 case class RingPlateSideConf(n: BindingType.BindingType, length: Double, f: Double, m: Double, fi: Double, w: Double)
+
+case class RingPlateProblemInput(conf: RingPlateConf, a: RingPlateSideConf, b: RingPlateSideConf)
+object RingPlateProblemInput {
+  def apply(vars: Seq[(ProblemInputVariableConf, ProblemInputVariableValue)]) = {
+    val m = vars.map{ case (c, v) => c.alias -> v.value }.toMap
+    val ringPlateConf = RingPlateConf(m("height"), m("moduleE"), m("poissonRatio"), m("q"), m("sigmaAdm"))
+    val aSide = RingPlateSideConf(BindingType(m("a.n").toInt), m("a.length"), m("a.f"), m("a.m"), m("a.fi"), m("a.w"))
+    val bSide = RingPlateSideConf(BindingType(m("b.n").toInt), m("b.length"), m("b.f"), m("b.m"), m("b.fi"), m("b.w"))
+    new RingPlateProblemInput(ringPlateConf, aSide, bSide)
+  }
+}
+
+case class RingPlateProblemResult(del_t: Double,
+                                  d_e: Double,
+                                  r1: Array[Double],
+                                  isStrengthGuaranteed: Boolean,
+                                  gauss: GaussResult,
+                                  shiftAndForce: ShiftAndForceResult,
+                                  extremeStress: ExtremeStressResult,
+                                  extremeConditions: ExtremeConditionsResult,
+                                  coordinateResult: CoordinateResult){
+  //todo implement mapping for variable aliases
+//  val mapping: Map[String, Any] = Map(
+//    "x" -> gauss.b2,
+//
+//  )
+}
+
+case class GaussResult(b2: Array[Double])
+case class ShiftAndForceResult(w_1: Array[Double],
+                               fi_1: Array[Double],
+                               mr_1: Array[Double],
+                               mt_1: Array[Double],
+                               qr_1: Array[Double])
+case class ExtremeStressResult(g_r: Array[Double], g_t: Array[Double], t_t: Array[Double])
+
+case class ExtremeConditionsResult(a: ExtremeConditionsSideResult, b: ExtremeConditionsSideResult) {
+  override def toString: String = s"ExtremeConditions: {\n  a: $a \n  b: $b \n}"
+}
+case class ExtremeConditionsSideResult(w: Option[Double], fi: Option[Double], mr: Option[Double], qr: Option[Double]) {
+  override def toString: String = s"w = $w, fi = $fi, mr = $mr, qr = $qr"
+}
+
+case class CoordinateResult(r: Double, qr: Double, qt: Double, qeq: Double, tmax: Double) {
+  override def toString: String = s"CoordinateResult: {\n r = $r, qr = $qr, qt = $qt, qeq = $qeq, tmax = $tmax\n}"
+}

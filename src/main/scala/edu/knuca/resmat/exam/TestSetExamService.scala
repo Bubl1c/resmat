@@ -6,7 +6,7 @@ import edu.knuca.resmat.db.DatabaseService
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
-case class TestOptionDto(id: Int, value: String, valueType: TestOptionValueType.TestOptionValueType) {
+case class TestOptionDto(id: Long, value: String, valueType: TestOptionValueType.TestOptionValueType) {
   def this(o: TestOptionConf) = this(o.id, o.value, o.valueType)
 }
 case class TestDto(id: Long, groupId: Long, testType: TestType.TestType, question: String, help: Option[String], options: Seq[TestOptionDto])
@@ -172,21 +172,25 @@ class TestSetExamService(val db: DatabaseService)
   def verifyTestAnswer(testAnswer: TestAnswerDto): Option[VerifiedTestAnswerDto] = {
     testConfs.find(_.id == testAnswer.testId).map{ test =>
       val correctOptions = test.options.filter(_.correct)
-      //For every correct option, submitted option exists
-      var isCorrectAnswer = correctOptions.forall(co => testAnswer.submittedOptions.contains(co.id))
-      var mistakesAmount = 0
-      //For every submitted option, correct option exists
-      val verifiedOptions = testAnswer.submittedOptions.map { so: Long =>
-        val correct = correctOptions.exists(_.id == so)
-        if(!correct) {
-          isCorrectAnswer = false
-          mistakesAmount = mistakesAmount + 1
-        }
-        (so, correct)
-      }
-
-      VerifiedTestAnswerDto(testAnswer.testId, isCorrectAnswer, mistakesAmount, verifiedOptions.toMap)
+      verifyTestAnswer(testAnswer, correctOptions.map(_.id))
     }
+  }
+
+  def verifyTestAnswer(testAnswer: TestAnswerDto, correctOptionIds: Seq[Long]): VerifiedTestAnswerDto = {
+    //For every correct option, submitted option exists
+    var isCorrectAnswer = correctOptionIds.forall(testAnswer.submittedOptions.contains(_))
+    var mistakesAmount = 0
+    //For every submitted option, correct option exists
+    val verifiedOptions = testAnswer.submittedOptions.map { soId: Long =>
+      val correct = correctOptionIds.contains(soId)
+      if(!correct) {
+        isCorrectAnswer = false
+        mistakesAmount = mistakesAmount + 1
+      }
+      (soId, correct)
+    }
+
+    VerifiedTestAnswerDto(testAnswer.testId, isCorrectAnswer, mistakesAmount, verifiedOptions.toMap)
   }
 
   def getNotCompletedTestConfsInTestSet(testSetId: Long): Seq[TestConf] = {
