@@ -87,7 +87,9 @@ case class TestSetConf(id: Long, examConfId: Long, examStepConfId: Long)
 case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupId: Long)
 
 case class TestGroupConf(id: Long, name: String)
-case class TestConf(id: Long, groupId: Long, question: String, options: Seq[TestOptionConf], testType: TestType.TestType = TestType.Radio, help: Option[String] = None)
+case class TestConf(id: Long, groupId: Long, question: String, options: Seq[TestOptionConf], testType: TestType.TestType = TestType.Radio, help: Option[String] = None) {
+  def getCorrectOptionIds: Seq[Long] = options.filter(_.correct).map(_.id)
+}
 case class TestOptionConf(id: Long, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
 
 case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
@@ -114,15 +116,15 @@ case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long
 
 sealed trait TaskFlowStepData
 
-case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput], answer: InputSetAnswerDto) extends TaskFlowStepData
+case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput]) extends TaskFlowStepData
 case class InputSetInput(id: Int, //unique within input set
                          name: String,
                          groupName: String,
                          units: String,
-                         correctValueVariableName: String = "", //to lookup correct value in CalculatedProblemVariantConf
+                         answerMapping: String,
                          description: String = "")
 
-case class TaskFlowTest(testId: Long) extends TaskFlowStepData
+case class TaskFlowTestConf(test: TestConf, correctOptionIdsMapping: Option[String] = None) extends TaskFlowStepData
 
 case class ChartData(title: String, x: Array[Double], y: Array[Double], bottom: Boolean = false, positive: Boolean = true) extends TaskFlowStepData
 case class ChartSet(title: String, charts: Seq[ChartData])

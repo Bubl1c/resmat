@@ -32,34 +32,6 @@ class TaskFlowExamService(val db: DatabaseService)
 
   import edu.knuca.resmat.http.JsonProtocol._
 
-//  val chartXData = Array(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1)
-//
-//  val task_flow_charts = ChartSet("Епюри", Seq(
-//    ChartData("W Прогин (1/1000 м)",
-//      chartXData,
-//      Array(11.269, 10.733, 10.081, 9.268, 8.291, 7.160, 5.892, 4.511, 3.046, 1.530, 0.000),
-//      true
-//    ),
-//    ChartData("{phi}{ Кут повороту (1/1000 рад)}",
-//      chartXData,
-//      Array(-5.280, -5.795, -7.301, -8.959, -10.567, -12.031, -13.286, -14.280, -14.965, -15.298, -15.233)
-//    ),
-//    ChartData("Mr Радіальний момент (кН)",
-//      chartXData,
-//      Array(0.000, 1.721, 1.960, 1.942, 1.822, 1.636, 1.398, 1.113, 0.784, 0.413, 0.000),
-//      true
-//    ),
-//    ChartData("{M}{theta}{ Коловий момент (кН)}",
-//      chartXData,
-//      Array(4.685, 2.915, 2.551, 2.376, 2.240, 2.106, 1.964, 1.807, 1.632, 1.440, 1.229),
-//      true
-//    ),
-//    ChartData("Qr Поперечна сила (кН/м)",
-//      chartXData,
-//      Array(0.000, -0.750, -1.333, -1.875, -2.400, -2.917, -3.429, -3.938, -4.444, -4.950, -5.455)
-//    )
-//  ))
-
   val problemConfs: List[ProblemConf] = List(
     ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, Seq(
       VarConf(2, "Fa", "кН/м", "a.f"),
@@ -127,48 +99,53 @@ class TaskFlowExamService(val db: DatabaseService)
   val taskFlowConfs: List[TaskFlowConf] = List(
     TaskFlowConf(1, 1)
   )
+
+  import edu.knuca.resmat.core.RingPlateProblemAnswer.{Mapping => M}
+
   val taskFlowStepConfs: List[TaskFlowStepConf] = List(
-    TaskFlowStepConf(1, 1, "Визначення типу пластини", 1, TaskFlowStepType.Test, TaskFlowTest(999).asJson.toString()),
+    TaskFlowStepConf(1, 1, "Визначення типу пластини", 1, TaskFlowStepType.Test,
+      TaskFlowTestConf(TestConf(-1, -1, "Визначте тип ластини", Seq(
+        TestOptionConf(1, "Тонкі", true),
+        TestOptionConf(2, "Товсті"),
+        TestOptionConf(3, "Мембрани")
+      ))).asJson.toString()
+    ),
     TaskFlowStepConf(2, 1, "Введіть значення граничних умов, якщо умова невідома - залиште поле пустим", 2,
       TaskFlowStepType.InputSet, InputSet(1, "InputSetName", Seq(
-        InputSetInput(1, "w(a)", "На внутрішньому контурі", "м"),
-        InputSetInput(2, "{phi}{(a)}", "На внутрішньому контурі", "рад"),
-        InputSetInput(3, "Mr(a)", "На внутрішньому контурі", "кНм/м"),
-        InputSetInput(4, "Qr(a)", "На внутрішньому контурі", "кН/м"),
-        InputSetInput(5, "w(b)", "На зовнішньому контурі", "м"),
-        InputSetInput(6, "{phi}{(b)}", "На зовнішньому контурі", "рад"),
-        InputSetInput(7, "Mr(b)", "На зовнішньому контурі", "кНм/м"),
-        InputSetInput(8, "Qr(b)", "На зовнішньому контурі", "кН/м")
-      ), InputSetAnswerDto(1, Seq(
-        InputSetInputAnswer(1),
-        InputSetInputAnswer(2),
-        InputSetInputAnswer(3),
-        InputSetInputAnswer(4),
-        InputSetInputAnswer(5),
-        InputSetInputAnswer(6),
-        InputSetInputAnswer(7),
-        InputSetInputAnswer(8, Some(5))
-      ))).asJson.toString()
+        InputSetInput(1, "w(a)", "На внутрішньому контурі", "м", M.w_a),
+        InputSetInput(2, "{phi}{(a)}", "На внутрішньому контурі", "рад", M.fi_a),
+        InputSetInput(3, "Mr(a)", "На внутрішньому контурі", "кНм/м", M.mr_a),
+        InputSetInput(4, "Qr(a)", "На внутрішньому контурі", "кН/м", M.qr_a),
+        InputSetInput(5, "w(b)", "На зовнішньому контурі", "м", M.w_b),
+        InputSetInput(6, "{phi}{(b)}", "На зовнішньому контурі", "рад", M.fi_b),
+        InputSetInput(7, "Mr(b)", "На зовнішньому контурі", "кНм/м", M.mr_b),
+        InputSetInput(8, "Qr(b)", "На зовнішньому контурі", "кН/м", M.qr_b)
+      )).asJson.toString()
     ),
     TaskFlowStepConf(3, 1, "Введіть пораховані значення невідомих X", 3,
       TaskFlowStepType.InputSet, InputSet(2, "InputSetName", Seq(
-        InputSetInput(1, "X1", "", "м"),
-        InputSetInput(2, "X2", "", "рад"),
-        InputSetInput(3, "X3", "", "кНм/м"),
-        InputSetInput(4, "X4", "", "кН/м")
-      ), InputSetAnswerDto(2, Seq())).asJson.toString()
+        InputSetInput(1, "X1", "", "м", M.x1),
+        InputSetInput(2, "X2", "", "рад", M.x2),
+        InputSetInput(3, "X3", "", "кНм/м", M.x3),
+        InputSetInput(4, "X4", "", "кН/м", M.x4)
+      )).asJson.toString()
     ),
-    TaskFlowStepConf(4, 1, "Епюри", 4, TaskFlowStepType.Charts, "will be retrieved from calc data", true),
+    TaskFlowStepConf(4, 1, "Епюри", 4, TaskFlowStepType.Charts, M.charts, true),
     TaskFlowStepConf(5, 1, "Введіть пораховані значення", 5,
       TaskFlowStepType.InputSet, InputSet(3, "InputSetName", Seq(
-        InputSetInput(1, "r", "Координати небезпечного перерізу", "м"),
-        InputSetInput(2, "{sigma}{r}", "Радіального нормального напруження", "МПа"),
-        InputSetInput(3, "{sigma}{theta}", "Колового нормального напруження", "МПа"),
-        InputSetInput(4, "{sigma}{екв}", "Еквівалентного нормального напруження", "МПа"),
-        InputSetInput(5, "{tau}{max}", "Максимальних дотичних напружень", "МПа")
-      ), InputSetAnswerDto(3, Seq())).asJson.toString()
+        InputSetInput(1, "r", "Координати небезпечного перерізу", "м", M.r),
+        InputSetInput(2, "{sigma}{r}", "Радіального нормального напруження", "МПа", M.sigma_r),
+        InputSetInput(3, "{sigma}{theta}", "Колового нормального напруження", "МПа", M.sigma_theta),
+        InputSetInput(4, "{sigma}{екв}", "Еквівалентного нормального напруження", "МПа", M.sigma_eq),
+        InputSetInput(5, "{tau}{max}", "Максимальних дотичних напружень", "МПа", M.tau_max)
+      )).asJson.toString()
     ),
-    TaskFlowStepConf(6, 1, "Чи забезпечується міцність перерізу?", 6, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString()),
+    TaskFlowStepConf(6, 1, "Чи забезпечується міцність перерізу?", 6, TaskFlowStepType.Test,
+      TaskFlowTestConf(TestConf(-1, -1, "Чи забезпечуться міцність перерізу?", Seq(
+        TestOptionConf(0, "Не забезпечується"),
+        TestOptionConf(1, "Забезпечується")
+      )), Some(M.isStrengthGuranteed)).asJson.toString()
+    ),
     TaskFlowStepConf(7, 1, "Кінець", 7, TaskFlowStepType.Finished, "")
   )
 
@@ -220,49 +197,12 @@ class TaskFlowExamService(val db: DatabaseService)
     }
     val taskFlowStepData: String = taskFlowStepConf.stepType match {
       case TaskFlowStepType.Test =>
-        val taskFlowTest = decode[TaskFlowTest](taskFlowStepConf.stepData).fold(er => None, test => Some(test)).getOrElse(
+        val taskFlowTest = decode[TaskFlowTestConf](taskFlowStepConf.stepData).fold(er => None, test => Some(test)).getOrElse(
           throw new RuntimeException(s"Failed to parse test in $taskFlowStepConf")
         )
-        val testConf = testSetExamService.getTestConfs(Seq(taskFlowTest.testId)).headOption.getOrElse(
-          throw new RuntimeException(s"Test with id: ${taskFlowTest.testId}")
-        )
-        testConf.asJson.toString()
+        taskFlowTest.test.asJson.toString()
       case TaskFlowStepType.Charts =>
-        val taskFlow = stepAttemptTaskFlows.find(_.id == taskFlowStep.stepAttemptTaskFlowId).getOrElse(
-          throw new IllegalArgumentException(s"Task flow with id: ${taskFlowStep.stepAttemptTaskFlowId} not found!")
-        )
-        val problemVariantConf = problemVariantConfs.find(_.id == taskFlow.problemVariantConfId).getOrElse(
-          throw new RuntimeException(s"Problem variant conf with id: ${taskFlow.problemVariantConfId} not found!")
-        )
-        //todo problem dependent - make independent
-        val calcData = decode[RingPlateProblemResult](problemVariantConf.calculatedData).fold(_ => None, Some(_)).getOrElse(
-          throw new RuntimeException(s"Failed to parse RingPlateProblemResult in ${problemVariantConf.calculatedData}")
-        )
-        ChartSet("Епюри", Seq(
-          ChartData("W Прогин (1/1000 м)",
-            calcData.r1,
-            calcData.shiftAndForce.w_1,
-            true
-          ),
-          ChartData("{phi}{ Кут повороту (1/1000 рад)}",
-            calcData.r1,
-            calcData.shiftAndForce.fi_1
-          ),
-          ChartData("Mr Радіальний момент (кН)",
-            calcData.r1,
-            calcData.shiftAndForce.mr_1,
-            true
-          ),
-          ChartData("{M}{theta}{ Коловий момент (кН)}",
-            calcData.r1,
-            calcData.shiftAndForce.mt_1,
-            true
-          ),
-          ChartData("Qr Поперечна сила (кН/м)",
-            calcData.r1,
-            calcData.shiftAndForce.qr_1
-          )
-        )).asJson.toString()
+        taskFlowStep.answer
       case TaskFlowStepType.Finished =>
         updateTaskFlowStep(taskFlowStep.copy(done = true))
         "Task flow has been finished successfully".asJson.toString()
@@ -411,7 +351,7 @@ class TaskFlowExamService(val db: DatabaseService)
     val problemVariantConf = problemVariantConfs.find(_.id == taskFlowConfProblemVariantConf.problemVariantConfId).getOrElse(
       throw new RuntimeException(s"Problem variant conf with id: ${taskFlowConfProblemVariantConf.problemVariantConfId} not found!")
     )
-    val cd = decode[RingPlateProblemResult](problemVariantConf.calculatedData).fold(_ => None, Some(_)).getOrElse(
+    val cd = decode[RingPlateProblemAnswer](problemVariantConf.calculatedData).fold(_ => None, Some(_)).getOrElse(
       throw new RuntimeException(s"Failed to parse RingPlateProblemResult from calculated variant data ${problemVariantConf.calculatedData}")
     )
     val stepConfs = taskFlowStepConfs.filter(_.taskFlowConfId == taskFlowConfProblemVariantConf.taskFlowConfId)
@@ -429,97 +369,36 @@ class TaskFlowExamService(val db: DatabaseService)
     )
 
     val taskFlowSteps = stepConfs.map{ sc =>
-      def checkType(actual: TaskFlowStepType.TaskFlowStepType, required: TaskFlowStepType.TaskFlowStepType) =
-        if(actual != required) throw new RuntimeException(s"Invalid task flow step type $actual, required $required")
-
-      val stepAnswer: String = sc.id match {
-        case 1 =>
-          checkType(sc.stepType, TaskFlowStepType.Test)
-          Seq(1).asJson.toString()
-        case 2 =>
-          checkType(sc.stepType, TaskFlowStepType.InputSet)
-          Seq(
-            InputSetInputAnswer(1, cd.extremeConditions.a.w),
-            InputSetInputAnswer(2, cd.extremeConditions.a.fi),
-            InputSetInputAnswer(3, cd.extremeConditions.a.mr),
-            InputSetInputAnswer(4, cd.extremeConditions.a.qr),
-            InputSetInputAnswer(5, cd.extremeConditions.b.w),
-            InputSetInputAnswer(6, cd.extremeConditions.b.fi),
-            InputSetInputAnswer(7, cd.extremeConditions.b.mr),
-            InputSetInputAnswer(8, cd.extremeConditions.b.qr)
+      val stepAnswer: String = sc.stepType match {
+        case TaskFlowStepType.Test =>
+          val stepTestConf = decode[TaskFlowTestConf](sc.stepData).fold(_ => None, Some(_)).getOrElse(
+            throw new RuntimeException(s"Failed to parse TaskFlowTestConf from step data ${sc.stepData}")
+          )
+          stepTestConf.correctOptionIdsMapping
+            .fold(stepTestConf.test.getCorrectOptionIds)(mapping =>
+              cd.getString(mapping).split(",").map(_.toLong)
+            ).asJson.toString()
+        case TaskFlowStepType.InputSet =>
+          val stepInputSet = decode[InputSet](sc.stepData).fold(_ => None, Some(_)).getOrElse(
+            throw new RuntimeException(s"Failed to parse InputSet from step data ${sc.stepData}")
+          )
+          stepInputSet.inputs.map(input =>
+            InputSetInputAnswer(input.id, cd.getDoubleOpt(input.answerMapping))
           ).asJson.toString()
-        case 3 =>
-          checkType(sc.stepType, TaskFlowStepType.InputSet)
-          cd.gauss.b2.zipWithIndex.map{ case (e, i) => InputSetInputAnswer(i + 1, Some(e))}.asJson.toString()
-        case 4 =>
-          checkType(sc.stepType, TaskFlowStepType.Charts)
-          ChartSet("Епюри", Seq(
-            ChartData("W Прогин (1/1000 м)",
-              cd.r1,
-              cd.shiftAndForce.w_1,
-              true
-            ),
-            ChartData("{phi}{ Кут повороту (1/1000 рад)}",
-              cd.r1,
-              cd.shiftAndForce.fi_1
-            ),
-            ChartData("Mr Радіальний момент (кН)",
-              cd.r1,
-              cd.shiftAndForce.mr_1,
-              true
-            ),
-            ChartData("{M}{theta}{ Коловий момент (кН)}",
-              cd.r1,
-              cd.shiftAndForce.mt_1,
-              true
-            ),
-            ChartData("Qr Поперечна сила (кН/м)",
-              cd.r1,
-              cd.shiftAndForce.qr_1
-            )
-          )).asJson.toString()
-        case 5 =>
-          checkType(sc.stepType, TaskFlowStepType.InputSet)
-          Seq(
-            InputSetInputAnswer(1, Some(cd.coordinateResult.r)),
-            InputSetInputAnswer(2, Some(cd.coordinateResult.qr)),
-            InputSetInputAnswer(3, Some(cd.coordinateResult.qt)),
-            InputSetInputAnswer(4, Some(cd.coordinateResult.qeq)),
-            InputSetInputAnswer(5, Some(cd.coordinateResult.tmax))
-          ).asJson.toString()
-        case 6 =>
-          checkType(sc.stepType, TaskFlowStepType.Test)
-          Seq(if(cd.isStrengthGuaranteed) 2 else 1).asJson.toString()
-        case 7 =>
-          checkType(sc.stepType, TaskFlowStepType.Finished)
+        case TaskFlowStepType.Charts =>
+          cd.get(sc.stepData) match {
+            case chartSet: ChartSet => chartSet.asJson.toString()
+            case _ => throw new RuntimeException(s"Failed to get ChartSet with key ${sc.stepData}")
+          }
+        case TaskFlowStepType.Finished =>
           ""
+        case st => throw new RuntimeException(s"Unhandled step type: $st")
       }
       createTaskFlowStep(UserExamStepAttemptTaskFlowStep(-1, taskFlow.id, sc.id, stepAnswer))
     }
 
     (taskFlow, taskFlowSteps)
   }
-
-//  TaskFlowStepConf(3, 1, "Введіть пораховані значення невідомих X", 3,
-//    TaskFlowStepType.InputSet, InputSet(2, "InputSetName", Seq(
-//      InputSetInput(1, "X1", "На внутрішньому контурі", "м"),
-//      InputSetInput(2, "X2", "На внутрішньому контурі", "рад"),
-//      InputSetInput(3, "X3", "На внутрішньому контурі", "кНм/м"),
-//      InputSetInput(4, "X4", "На внутрішньому контурі", "кН/м")
-//    ), InputSetAnswerDto(2, Seq())).asJson.toString()
-//  ),
-//  TaskFlowStepConf(4, 1, "Епюри", 4, TaskFlowStepType.Charts, "will be retrieved from calc data", true),
-//  TaskFlowStepConf(5, 1, "Введіть пораховані значення", 5,
-//    TaskFlowStepType.InputSet, InputSet(3, "InputSetName", Seq(
-//      InputSetInput(1, "r", "Координати небезпечного перерізу", "м"),
-//      InputSetInput(2, "{sigma}{r}", "Радіального нормального напруження", "МПа"),
-//      InputSetInput(3, "{sigma}{theta}", "Колового нормального напруження", "МПа"),
-//      InputSetInput(4, "{sigma}{екв}", "Еквівалентного нормального напруження", "МПа"),
-//      InputSetInput(5, "{tau}{max}", "Максимальних дотичних напружень", "МПа")
-//    ), InputSetAnswerDto(3, Seq())).asJson.toString()
-//  ),
-//  TaskFlowStepConf(6, 1, "Чи забезпечується міцність перерізу?", 6, TaskFlowStepType.Test, TaskFlowTest(1000).asJson.toString()),
-//  TaskFlowStepConf(7, 1, "Кінець", 7, TaskFlowStepType.Finished, "")
 
   def createTaskFlow(taskFlow: UserExamStepAttemptTaskFlow): UserExamStepAttemptTaskFlow = {
     val nextId = if(stepAttemptTaskFlows.nonEmpty) stepAttemptTaskFlows.last.id + 1 else 1

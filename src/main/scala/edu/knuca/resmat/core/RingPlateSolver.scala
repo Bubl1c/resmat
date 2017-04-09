@@ -1,7 +1,7 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.{DenseMatrix, DenseVector}
-import edu.knuca.resmat.exam.{ProblemInputVariableConf, ProblemInputVariableValue}
+import edu.knuca.resmat.exam.{ChartData, ChartSet, ProblemInputVariableConf, ProblemInputVariableValue}
 
 import scala.math._
 import edu.knuca.resmat.utils.PimpedEnumeration
@@ -58,7 +58,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
   private val g1 = DenseMatrix.zeros[Double](4, 5)
   private val b2 = DenseVector.zeros[Double](4)
 
-  def solve(): RingPlateProblemResult = {
+  def solve(): RingPlateProblemAnswer = {
     matchBindingTypePrepareData()
     val gaussResult = gaussCalculateEquations
     val (shifAndForceResult, extremeStressResult) = calculateShiftAndForceAndExtremeStress
@@ -68,7 +68,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
     val (coordinateResult, isStrengthGuaranteed) = calcCoordinates(extremeStressResult)
     println(coordinateResult)
     println("Is strength guaranteed: " + isStrengthGuaranteed)
-    RingPlateProblemResult(del_t, d_e, r1, isStrengthGuaranteed,
+    RingPlateProblemAnswer(del_t, d_e, r1, isStrengthGuaranteed,
       gaussResult, shifAndForceResult, extremeStressResult, extremeConditionsResult, coordinateResult)
   }
 
@@ -390,7 +390,7 @@ object RingPlateProblemInput {
   }
 }
 
-case class RingPlateProblemResult(del_t: Double,
+case class RingPlateProblemAnswer(del_t: Double,
                                   d_e: Double,
                                   r1: Array[Double],
                                   isStrengthGuaranteed: Boolean,
@@ -399,11 +399,108 @@ case class RingPlateProblemResult(del_t: Double,
                                   extremeStress: ExtremeStressResult,
                                   extremeConditions: ExtremeConditionsResult,
                                   coordinateResult: CoordinateResult){
-  //todo implement mapping for variable aliases
-//  val mapping: Map[String, Any] = Map(
-//    "x" -> gauss.b2,
-//
-//  )
+
+  import edu.knuca.resmat.core.RingPlateProblemAnswer.{Mapping => M}
+
+  private val mapping: Map[String, Any] = Map(
+    M.w_a -> extremeConditions.a.w,
+    M.fi_a -> extremeConditions.a.fi,
+    M.mr_a -> extremeConditions.a.mr,
+    M.qr_a -> extremeConditions.a.qr,
+    M.w_b -> extremeConditions.b.w,
+    M.fi_b -> extremeConditions.b.fi,
+    M.mr_b -> extremeConditions.b.mr,
+    M.qr_b -> extremeConditions.b.qr,
+
+    M.x1 -> Some(gauss.b2(0)),
+    M.x2 -> Some(gauss.b2(1)),
+    M.x3 -> Some(gauss.b2(2)),
+    M.x4 -> Some(gauss.b2(3)),
+
+    M.charts -> ChartSet("Епюри", Seq(
+      ChartData("W Прогин (1/1000 м)",
+        r1,
+        shiftAndForce.w_1,
+        true
+      ),
+      ChartData("{phi}{ Кут повороту (1/1000 рад)}",
+        r1,
+        shiftAndForce.fi_1
+      ),
+      ChartData("Mr Радіальний момент (кН)",
+        r1,
+        shiftAndForce.mr_1,
+        true
+      ),
+      ChartData("{M}{theta}{ Коловий момент (кН)}",
+        r1,
+        shiftAndForce.mt_1,
+        true
+      ),
+      ChartData("Qr Поперечна сила (кН/м)",
+        r1,
+        shiftAndForce.qr_1
+      )
+    )),
+
+    M.r -> Some(coordinateResult.r),
+    M.sigma_r -> Some(coordinateResult.qr),
+    M.sigma_theta -> Some(coordinateResult.qt),
+    M.sigma_eq -> Some(coordinateResult.qeq),
+    M.tau_max -> Some(coordinateResult.tmax),
+
+    M.isStrengthGuranteed -> (if(isStrengthGuaranteed) 1 else 0).toString
+  )
+
+  def get(key: String): Any = {
+    mapping.get(key) match {
+      case v: Some[Any] => v.get
+      case v => throw new IllegalArgumentException(s"Key {$key} does not exist in RingPlateProblemAnswer")
+    }
+  }
+
+  def getDoubleOpt(key: String): Option[Double] = {
+    mapping.get(key) match {
+      case v: Some[Option[Double]] => v.get
+      case v => throw new IllegalArgumentException(s"{$v} is not an Option[Double] value. Requested from RingPlateProblemAnswer by key {$key}")
+    }
+  }
+
+  def getString(key: String): String = {
+    mapping.get(key) match {
+      case v: Some[String] => v.get
+      case v => throw new IllegalArgumentException(s"{$v} is not a String value. Requested from RingPlateProblemAnswer by key {$key}")
+    }
+  }
+}
+object RingPlateProblemAnswer {
+  object Mapping {
+    val plateType = "plateType"
+    
+    val w_a = "w_a"
+    val fi_a = "fi_a"
+    val mr_a = "mr_a"
+    val qr_a = "qr_a"
+    val w_b = "w_b"
+    val fi_b = "fi_b"
+    val mr_b = "mr_b"
+    val qr_b = "qr_b"
+
+    val x1 = "x1"
+    val x2 = "x2"
+    val x3 = "x3"
+    val x4 = "x4"
+
+    val charts = "charts"
+
+    val r = "r"
+    val sigma_r = "sigma_r"
+    val sigma_theta = "sigma_theta"
+    val sigma_eq = "sigma_eq"
+    val tau_max = "tau_max"
+
+    val isStrengthGuranteed = "isStrengthGuranteed"
+  }
 }
 
 case class GaussResult(b2: Array[Double])
