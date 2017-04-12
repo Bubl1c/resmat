@@ -172,25 +172,8 @@ class TestSetExamService(val db: DatabaseService)
   def verifyTestAnswer(testAnswer: TestAnswerDto): Option[VerifiedTestAnswerDto] = {
     testConfs.find(_.id == testAnswer.testId).map{ test =>
       val correctOptions = test.options.filter(_.correct)
-      verifyTestAnswer(testAnswer, correctOptions.map(_.id))
+      TestUtils.verify(testAnswer, correctOptions.map(_.id))
     }
-  }
-
-  def verifyTestAnswer(testAnswer: TestAnswerDto, correctOptionIds: Seq[Long]): VerifiedTestAnswerDto = {
-    //For every correct option, submitted option exists
-    var isCorrectAnswer = correctOptionIds.forall(testAnswer.submittedOptions.contains(_))
-    var mistakesAmount = 0
-    //For every submitted option, correct option exists
-    val verifiedOptions = testAnswer.submittedOptions.map { soId: Long =>
-      val correct = correctOptionIds.contains(soId)
-      if(!correct) {
-        isCorrectAnswer = false
-        mistakesAmount = mistakesAmount + 1
-      }
-      (soId, correct)
-    }
-
-    VerifiedTestAnswerDto(testAnswer.testId, isCorrectAnswer, mistakesAmount, verifiedOptions.toMap)
   }
 
   def getNotCompletedTestConfsInTestSet(testSetId: Long): Seq[TestConf] = {

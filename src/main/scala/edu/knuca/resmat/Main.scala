@@ -10,7 +10,7 @@ import edu.knuca.resmat.http.HttpRoutes
 import edu.knuca.resmat.user.{DefaultUsersService, UsersService}
 import edu.knuca.resmat.utils.Config
 import akka.http.scaladsl.server.directives.DebuggingDirectives
-import edu.knuca.resmat.exam.{ExamService, TaskFlowExamService, TestSetExamService}
+import edu.knuca.resmat.exam.{ExamService, ProblemService, TaskFlowExamService, TestSetExamService}
 
 import scala.concurrent.ExecutionContext
 
@@ -34,7 +34,8 @@ object Main extends App with Config {
   val usersService: UsersService = new DefaultUsersService(databaseService)
   val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
   val testSetExamService: TestSetExamService = new TestSetExamService(databaseService)
-  val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(testSetExamService)
+  val problemService: ProblemService = new ProblemService(databaseService)
+  val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(problemService)
   val examService: ExamService = new ExamService(databaseService)(usersService, testSetExamService, taskFlowExamService)
 
   val dataGenerator = new InitialDataGenerator(databaseService, usersService, authService)

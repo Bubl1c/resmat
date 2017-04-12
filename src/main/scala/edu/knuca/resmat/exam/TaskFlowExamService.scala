@@ -3,11 +3,10 @@ package edu.knuca.resmat.exam
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.core._
 import edu.knuca.resmat.db.DatabaseService
+import io.circe.{Decoder, Error}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
-import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf}
-import edu.knuca.resmat.exam.{ProblemInputVariableValue => VarVal}
 import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -27,74 +26,10 @@ case class VerifiedTaskFlowStepAnswer(isCorrectAnswer: Boolean, mistakesAmount: 
 case class VerifiedInputSetAnswer(inputSetId: Long, isCorrectAnswer: Boolean, mistakesAmount: Int, answer: Map[Int, Boolean])
 
 class TaskFlowExamService(val db: DatabaseService)
-                         (testSetExamService: TestSetExamService)
+                         (val problemService: ProblemService)
                          (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.http.JsonProtocol._
-
-  val problemConfs: List[ProblemConf] = List(
-    ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, Seq(
-      VarConf(2, "Fa", "кН/м", "a.f"),
-      VarConf(3, "Ma", "кНм/м", "a.m"),
-      VarConf(4, "wa", "м", "a.w"),
-      VarConf(5, "{phi}{a}", "рад", "a.fi"),
-    
-      VarConf(6, "E", "МПа", "moduleE"),
-      VarConf(7, "{mu}", "", "poissonRatio"),
-      VarConf(8, "q", "кН/м^2", "q"),
-    
-      VarConf(9, "Fb", "кН/м", "b.f"),
-      VarConf(10, "Mb", "кНм/м", "b.m"),
-      VarConf(11, "wb", "м", "b.w"),
-      VarConf(12, "{phi}{b}", "рад", "b.fi"),
-    
-      VarConf(13, "a", "м", "a.length"),
-      VarConf(14, "b", "м", "b.length"),
-      VarConf(15, "t", "м", "height"),
-
-      VarConf(16, "an", "", "a.n", false),
-      VarConf(17, "bn", "", "b.n", false),
-      VarConf(18, "sigmaAdm", "", "sigmaAdm", false)
-    ).asJson.toString())
-  )
-
-  val varVals: List[ProblemInputVariableValue] = List(
-    VarVal(2, 0),
-    VarVal(3, 0),
-    VarVal(4, -0.01),
-    VarVal(5, 0),
-
-    VarVal(6, 200000000.0),
-    VarVal(7, 0.3),
-    VarVal(8, 0d),
-
-    VarVal(9, 0),
-    VarVal(10, 0),
-    VarVal(11, 0),
-    VarVal(12, 0),
-
-    VarVal(13, 0.1),
-    VarVal(14, 1.1),
-    VarVal(15, 0.02),
-
-    VarVal(16, 1),
-    VarVal(17, 2),
-    VarVal(18, 160)
-  )
-
-  val decodedConfs = decode[Seq[VarConf]](problemConfs.find(_.id == 1).get.inputVariableConfs).fold(_ => None, Some(_)).getOrElse(
-    throw new RuntimeException("Shit is happening")
-  )
-  val variant1Input = RingPlateProblemInput(decodedConfs.map(pc => {
-    val varVal = varVals.find(_.variableConfId == pc.id).get
-    (pc, varVal)
-  }))
-  val problemVariantConfs: List[ProblemVariantConf] = List(
-    ProblemVariantConf(1, 1, "img/tasks/9.png",
-      varVals.asJson.toString(),
-      new RingPlateSolver(variant1Input).solve().asJson.toString()
-    )
-  )
 
   val taskFlowConfs: List[TaskFlowConf] = List(
     TaskFlowConf(1, 1)
@@ -164,101 +99,51 @@ class TaskFlowExamService(val db: DatabaseService)
   //                      Code
   //===============================================================
 
-  def getTaskFlowDto(stepAttemptId: Long): Option[TaskFlowDto] = {
-    val taskFlow = stepAttemptTaskFlows.find(_.stepAttemptId == stepAttemptId).getOrElse(
-      throw new IllegalArgumentException(s"Task flow for attempt id: $stepAttemptId not found!")
-    )
-    val problemVariantConf = problemVariantConfs.find(_.id == taskFlow.problemVariantConfId).getOrElse(
-      throw new RuntimeException(s"Problem variant conf with id: ${taskFlow.problemVariantConfId} not found!")
-    )
-    val problemConf = problemConfs.find(_.id == problemVariantConf.problemConfId).getOrElse(
-      throw new RuntimeException(s"Problem conf with id: ${problemVariantConf.problemConfId} not found!")
-    )
-    Some(TaskFlowDto(problemConf, problemVariantConf, taskFlow))
+  case class ResourceNotFoundException(message: String) extends IllegalArgumentException {
+    override def getMessage: String = super.getMessage + " " + message
   }
 
-  def getCurrentTaskFlowStep(taskFlowId: Long): Option[TaskFlowStepDto] = {
-    val taskFlow = stepAttemptTaskFlows.find(_.id == taskFlowId).getOrElse(
-      throw new IllegalArgumentException(s"Task flow with id: $taskFlowId not found!")
+  def getTaskFlowById(id: Long): UserExamStepAttemptTaskFlow =
+    stepAttemptTaskFlows.find(_.id == id).getOrElse(
+      throw ResourceNotFoundException(s"Task flow for with id: $id not found!")
     )
-    getTaskFlowStep(taskFlow.id, taskFlow.currentStepId)
+
+  def getTaskFlowByStepAttemptId(stepAttemptId: Long): UserExamStepAttemptTaskFlow =
+    stepAttemptTaskFlows.find(_.stepAttemptId == stepAttemptId).getOrElse(
+      throw ResourceNotFoundException(s"Task flow for step attempt id: $stepAttemptId not found!")
+    )
+
+  def getTaskFlowStepConfById(id: Long): TaskFlowStepConf = taskFlowStepConfs.find(_.id == id).getOrElse(
+    throw new RuntimeException(s"Task flow step conf with id: $id not found!")
+  )
+
+  def getTaskFlowStepById(id: Long): UserExamStepAttemptTaskFlowStep =
+    stepAttemptTaskFlowSteps.find(_.id == id).getOrElse(
+      throw new RuntimeException(s"Task flow step with id: $id not found!")
+    )
+
+  def getTaskFlowConfProblemVariantConfById(id: Long): TaskFlowConfProblemVariantConf = {
+    taskFlowConfProblemVariantConfs.find(_.id == id).getOrElse(
+      throw new RuntimeException(s"Task flow conf problem variant conf with id: $id not found!")
+    )
   }
 
-  def getTaskFlowStep(taskFlowId: Long, taskFlowStepId: Long): Option[TaskFlowStepDto] = {
-    val taskFlowStep = stepAttemptTaskFlowSteps.find(_.id == taskFlowStepId).getOrElse(
-      throw new RuntimeException(s"Task flow step with id: $taskFlowStepId not found!")
-    )
-    val taskFlowStepConf = taskFlowStepConfs.find(_.id == taskFlowStep.taskFlowStepConfId).getOrElse(
-      throw new RuntimeException(s"Task flow step conf with id not found!")
-    )
-    if(taskFlowStepConf.helpData) {
-      updateTaskFlowStep(taskFlowStep.copy(done = true))
-      updateTaskFlowCurrentStep(taskFlowId)
-    }
-    val taskFlowStepData: String = taskFlowStepConf.stepType match {
-      case TaskFlowStepType.Test =>
-        val taskFlowTest = decode[TaskFlowTestConf](taskFlowStepConf.stepData).fold(er => None, test => Some(test)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test in $taskFlowStepConf")
-        )
-        taskFlowTest.test.asJson.toString()
-      case TaskFlowStepType.Charts =>
-        taskFlowStep.answer
-      case TaskFlowStepType.Finished =>
-        updateTaskFlowStep(taskFlowStep.copy(done = true))
-        "Task flow has been finished successfully".asJson.toString()
-      case _ => taskFlowStepConf.stepData
-    }
-    Some(TaskFlowStepDto(taskFlowStepConf, taskFlowStep, taskFlowStepData))
+  def getTaskFlowStepConfsByTaskFlowConfId(taskFlowConfId: Long): Seq[TaskFlowStepConf] = {
+    taskFlowStepConfs.filter(_.taskFlowConfId == taskFlowConfId)
   }
 
-  def verifyTaskFlowStepAnswer(taskFlowStepId: Long, answer: String): Option[VerifiedTaskFlowStepAnswer] = {
+  def createTaskFlow(taskFlow: UserExamStepAttemptTaskFlow): UserExamStepAttemptTaskFlow = {
+    val nextId = if(stepAttemptTaskFlows.nonEmpty) stepAttemptTaskFlows.last.id + 1 else 1
+    val withId = taskFlow.copy(id = nextId)
+    stepAttemptTaskFlows += withId
+    withId
+  }
 
-    val taskFlowStep = stepAttemptTaskFlowSteps.find(s => s.id == taskFlowStepId).getOrElse(
-      throw new RuntimeException(s"Task flow step with id: $taskFlowStepId not found!")
-    )
-    val taskFlow = stepAttemptTaskFlows.find(_.id == taskFlowStep.stepAttemptTaskFlowId).getOrElse(
-      throw new RuntimeException(s"TaskFlow with id: ${taskFlowStep.stepAttemptTaskFlowId} not found!")
-    )
-    val taskFlowStepConf = taskFlowStepConfs.find(sc => sc.id == taskFlowStep.taskFlowStepConfId).getOrElse(
-      throw new RuntimeException(s"Task flow step conf with id: ${taskFlowStep.taskFlowStepConfId} not found!")
-    )
-    taskFlowStepConf.stepType match {
-      case TaskFlowStepType.Test =>
-        val testAnswer = decode[TestAnswerDto](answer).fold(er => None, test => Some(test)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test answer in $answer")
-        )
-        val correctAnswer = decode[Seq[Long]](taskFlowStep.answer).fold(er => None, test => Some(test)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test answer in $answer")
-        )
-        val verifiedAnswer = testSetExamService.verifyTestAnswer(testAnswer, correctAnswer)
-        updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
-        if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
-        Some(
-          VerifiedTaskFlowStepAnswer(
-            verifiedAnswer.isCorrectAnswer,
-            verifiedAnswer.mistakesAmount,
-            verifiedAnswer.answer.asJson.toString()
-          )
-        )
-      case TaskFlowStepType.InputSet =>
-        val inputSetAnswer = decode[InputSetAnswerDto](answer).fold(er => None, is => Some(is)).getOrElse(
-          throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
-        )
-        val correctAnswer = decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(er => None, test => Some(test)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test answer in $answer")
-        )
-        val verifiedAnswer = verifyInputSet(inputSetAnswer, correctAnswer)
-        updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
-        if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
-        Some(
-          VerifiedTaskFlowStepAnswer(
-            verifiedAnswer.isCorrectAnswer,
-            verifiedAnswer.mistakesAmount,
-            verifiedAnswer.answer.asJson.toString()
-          )
-        )
-      case _ => throw new IllegalArgumentException(s"Unsupported task flow step to verify: ${taskFlowStepConf.stepType}")
-    }
+  def createTaskFlowStep(taskFlowStep: UserExamStepAttemptTaskFlowStep): UserExamStepAttemptTaskFlowStep = {
+    val nextId = if(stepAttemptTaskFlowSteps.nonEmpty) stepAttemptTaskFlowSteps.last.id + 1 else 1
+    val withId = taskFlowStep.copy(id = nextId)
+    stepAttemptTaskFlowSteps += withId
+    withId
   }
 
   def updateTaskFlowCurrentStep(taskFlowId: Long): UserExamStepAttemptTaskFlow = {
@@ -277,6 +162,95 @@ class TaskFlowExamService(val db: DatabaseService)
     taskFlow
   }
 
+  def updateTaskFlowStep(taskFlowStep: UserExamStepAttemptTaskFlowStep): UserExamStepAttemptTaskFlowStep = {
+    val index = stepAttemptTaskFlowSteps.indexWhere(_.id == taskFlowStep.id)
+    stepAttemptTaskFlowSteps.update(index, taskFlowStep)
+    taskFlowStep
+  }
+
+  def getNotCompletedTaskFlowSteps(stepAttemptId: Long): Seq[UserExamStepAttemptTaskFlowStep] = {
+    val taskFlow = getTaskFlowByStepAttemptId(stepAttemptId)
+    stepAttemptTaskFlowSteps.filter(s => s.stepAttemptTaskFlowId == taskFlow.id && !s.done)
+  }
+
+  def getTaskFlowDto(stepAttemptId: Long): Option[TaskFlowDto] = {
+    val taskFlow = getTaskFlowByStepAttemptId(stepAttemptId)
+    val problemVariantConf = problemService.getProblemVariantConfById(taskFlow.problemVariantConfId)
+    val problemConf = problemService.getProblemConfById(problemVariantConf.problemConfId)
+    Some(TaskFlowDto(problemConf, problemVariantConf, taskFlow))
+  }
+
+  def getCurrentTaskFlowStep(taskFlowId: Long): Option[TaskFlowStepDto] = {
+    val taskFlow = getTaskFlowById(taskFlowId)
+    getTaskFlowStep(taskFlow.id, taskFlow.currentStepId)
+  }
+
+  def getTaskFlowStep(taskFlowId: Long, taskFlowStepId: Long): Option[TaskFlowStepDto] = {
+    val taskFlowStep = getTaskFlowStepById(taskFlowStepId)
+    val taskFlowStepConf = getTaskFlowStepConfById(taskFlowStep.taskFlowStepConfId)
+    if(taskFlowStepConf.helpData) {
+      updateTaskFlowStep(taskFlowStep.copy(done = true))
+      updateTaskFlowCurrentStep(taskFlowId)
+    }
+    val taskFlowStepData: String = taskFlowStepConf.stepType match {
+      case TaskFlowStepType.Test =>
+        val taskFlowTest = decodeOrElse[TaskFlowTestConf](taskFlowStepConf.stepData)(
+          throw new RuntimeException(s"Failed to parse test in $taskFlowStepConf")
+        )
+        taskFlowTest.test.asJson.toString()
+      case TaskFlowStepType.Charts =>
+        taskFlowStep.answer
+      case TaskFlowStepType.Finished =>
+        updateTaskFlowStep(taskFlowStep.copy(done = true))
+        "Task flow has been finished successfully".asJson.toString()
+      case _ => taskFlowStepConf.stepData
+    }
+    Some(TaskFlowStepDto(taskFlowStepConf, taskFlowStep, taskFlowStepData))
+  }
+
+  def verifyTaskFlowStepAnswer(taskFlowStepId: Long, answer: String): Option[VerifiedTaskFlowStepAnswer] = {
+    val taskFlowStep = getTaskFlowStepById(taskFlowStepId)
+    val taskFlow = getTaskFlowById(taskFlowStep.stepAttemptTaskFlowId)
+    val taskFlowStepConf = getTaskFlowStepConfById(taskFlowStep.taskFlowStepConfId)
+    taskFlowStepConf.stepType match {
+      case TaskFlowStepType.Test =>
+        val testAnswer = decodeOrElse[TestAnswerDto](answer)(
+          throw new RuntimeException(s"Failed to parse test answer in $answer")
+        )
+        val correctAnswer = decodeOrElse[Seq[Long]](taskFlowStep.answer)(
+          throw new RuntimeException(s"Failed to parse test answer in $answer")
+        )
+        val verifiedAnswer = TestUtils.verify(testAnswer, correctAnswer)
+        updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
+        if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
+        Some(
+          VerifiedTaskFlowStepAnswer(
+            verifiedAnswer.isCorrectAnswer,
+            verifiedAnswer.mistakesAmount,
+            verifiedAnswer.answer.asJson.toString()
+          )
+        )
+      case TaskFlowStepType.InputSet =>
+        val inputSetAnswer = decodeOrElse[InputSetAnswerDto](answer)(
+          throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
+        )
+        val correctAnswer = decodeOrElse[Seq[InputSetInputAnswer]](taskFlowStep.answer)(
+          throw new RuntimeException(s"Failed to parse test answer in $answer")
+        )
+        val verifiedAnswer = InputSetUtils.verify(inputSetAnswer, correctAnswer)
+        updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
+        if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
+        Some(
+          VerifiedTaskFlowStepAnswer(
+            verifiedAnswer.isCorrectAnswer,
+            verifiedAnswer.mistakesAmount,
+            verifiedAnswer.answer.asJson.toString()
+          )
+        )
+      case _ => throw new IllegalArgumentException(s"Unsupported task flow step to verify: ${taskFlowStepConf.stepType}")
+    }
+  }
+
   def updateTaskFlowStep(taskFlowStep: UserExamStepAttemptTaskFlowStep,
                          isCorrectAnswer: Boolean,
                          mistakesAmount: Int): UserExamStepAttemptTaskFlowStep = {
@@ -287,74 +261,16 @@ class TaskFlowExamService(val db: DatabaseService)
     }
   }
 
-  def updateTaskFlowStep(taskFlowStep: UserExamStepAttemptTaskFlowStep): UserExamStepAttemptTaskFlowStep = {
-    val index = stepAttemptTaskFlowSteps.indexWhere(_.id == taskFlowStep.id)
-    stepAttemptTaskFlowSteps.update(index, taskFlowStep)
-    taskFlowStep
-  }
-
-  def verifyInputSet(submittedAnswer: InputSetAnswerDto, correctAnswer: Seq[InputSetInputAnswer]): VerifiedInputSetAnswer = {
-    var isCorrectAnswer = true
-    var mistakesAmount = 0
-    val verifiedAnswers: Map[Int, Boolean] = correctAnswer.map{ correctAnswer =>
-      submittedAnswer.inputAnswers.find(_.id == correctAnswer.id) match {
-        case Some(submittedInputAnswer) =>
-          val areEqual = submittedInputAnswer.value match {
-            case Some(sia) => correctAnswer.value match {
-              case Some(ca) => areAlmostEqual(ca, sia)
-              case None => false
-            }
-            case None => correctAnswer.value match {
-              case Some(ca) => false
-              case None => true
-            }
-          }
-          if(areEqual) {
-            (correctAnswer.id, true)
-          } else {
-            isCorrectAnswer = false
-            mistakesAmount = mistakesAmount + 1
-            (correctAnswer.id, false)
-          }
-        case None =>
-          isCorrectAnswer = false
-          mistakesAmount = mistakesAmount + 1
-          (correctAnswer.id, false)
-      }
-    }.toMap
-    VerifiedInputSetAnswer(submittedAnswer.inputSetId, isCorrectAnswer, mistakesAmount, verifiedAnswers)
-  }
-
-  def areAlmostEqual(ethalon: Double, d2: Double, precision: Double = 0.05): Boolean = {
-    val diff = (ethalon - d2).abs
-    if(ethalon == 0.0) {
-      ethalon == d2
-    } else {
-      (diff / ethalon).abs <= precision
-    }
-  }
-
-  def getNotCompletedTaskFlowSteps(stepAttemptId: Long): Seq[UserExamStepAttemptTaskFlowStep] = {
-    val taskFlow = stepAttemptTaskFlows.find(_.stepAttemptId == stepAttemptId).getOrElse(
-      throw new IllegalArgumentException(s"Task flow for attempt id: $stepAttemptId not found!")
-    )
-    stepAttemptTaskFlowSteps.filter(s => s.stepAttemptTaskFlowId == taskFlow.id && !s.done)
-  }
-
   def createTaskFlowWithSteps(stepAttemptId: Long,
                               userExamId: Long,
                               examStepConfId: Long,
                               taskFlowConfProblemVariantConfId: Long): (UserExamStepAttemptTaskFlow, Seq[UserExamStepAttemptTaskFlowStep]) = {
-    val taskFlowConfProblemVariantConf = taskFlowConfProblemVariantConfs.find(_.id == taskFlowConfProblemVariantConfId).getOrElse(
-      throw new RuntimeException(s"Task flow conf problem variant conf with id: $taskFlowConfProblemVariantConfId not found!")
-    )
-    val problemVariantConf = problemVariantConfs.find(_.id == taskFlowConfProblemVariantConf.problemVariantConfId).getOrElse(
-      throw new RuntimeException(s"Problem variant conf with id: ${taskFlowConfProblemVariantConf.problemVariantConfId} not found!")
-    )
-    val cd = decode[RingPlateProblemAnswer](problemVariantConf.calculatedData).fold(_ => None, Some(_)).getOrElse(
+    val taskFlowConfProblemVariantConf = getTaskFlowConfProblemVariantConfById(taskFlowConfProblemVariantConfId)
+    val problemVariantConf = problemService.getProblemVariantConfById(taskFlowConfProblemVariantConf.problemVariantConfId)
+    val cd = decodeOrElse[RingPlateProblemAnswer](problemVariantConf.calculatedData)(
       throw new RuntimeException(s"Failed to parse RingPlateProblemResult from calculated variant data ${problemVariantConf.calculatedData}")
     )
-    val stepConfs = taskFlowStepConfs.filter(_.taskFlowConfId == taskFlowConfProblemVariantConf.taskFlowConfId)
+    val stepConfs = getTaskFlowStepConfsByTaskFlowConfId(taskFlowConfProblemVariantConf.taskFlowConfId)
 
     val taskFlow = createTaskFlow(
       UserExamStepAttemptTaskFlow(
@@ -371,7 +287,7 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlowSteps = stepConfs.map{ sc =>
       val stepAnswer: String = sc.stepType match {
         case TaskFlowStepType.Test =>
-          val stepTestConf = decode[TaskFlowTestConf](sc.stepData).fold(_ => None, Some(_)).getOrElse(
+          val stepTestConf = decodeOrElse[TaskFlowTestConf](sc.stepData)(
             throw new RuntimeException(s"Failed to parse TaskFlowTestConf from step data ${sc.stepData}")
           )
           stepTestConf.correctOptionIdsMapping
@@ -379,7 +295,7 @@ class TaskFlowExamService(val db: DatabaseService)
               cd.getString(mapping).split(",").map(_.toLong)
             ).asJson.toString()
         case TaskFlowStepType.InputSet =>
-          val stepInputSet = decode[InputSet](sc.stepData).fold(_ => None, Some(_)).getOrElse(
+          val stepInputSet = decodeOrElse[InputSet](sc.stepData)(
             throw new RuntimeException(s"Failed to parse InputSet from step data ${sc.stepData}")
           )
           stepInputSet.inputs.map(input =>
@@ -400,17 +316,6 @@ class TaskFlowExamService(val db: DatabaseService)
     (taskFlow, taskFlowSteps)
   }
 
-  def createTaskFlow(taskFlow: UserExamStepAttemptTaskFlow): UserExamStepAttemptTaskFlow = {
-    val nextId = if(stepAttemptTaskFlows.nonEmpty) stepAttemptTaskFlows.last.id + 1 else 1
-    val withId = taskFlow.copy(id = nextId)
-    stepAttemptTaskFlows += withId
-    withId
-  }
-
-  def createTaskFlowStep(taskFlowStep: UserExamStepAttemptTaskFlowStep): UserExamStepAttemptTaskFlowStep = {
-    val nextId = if(stepAttemptTaskFlowSteps.nonEmpty) stepAttemptTaskFlowSteps.last.id + 1 else 1
-    val withId = taskFlowStep.copy(id = nextId)
-    stepAttemptTaskFlowSteps += withId
-    withId
-  }
+  private def decodeOrElse[A: Decoder](input: String)(default: () => A): A =
+    decode[A](input).fold(_ => None, Some(_)).getOrElse(default())
 }
