@@ -2,6 +2,8 @@ package edu.knuca.resmat.http
 
 import edu.knuca.resmat.core.BindingType
 import edu.knuca.resmat.exam._
+import edu.knuca.resmat.exam.taskflow.TaskFlowDto
+import edu.knuca.resmat.exam.testset.TestSetDto
 import edu.knuca.resmat.user.UserType
 import io.circe.{Decoder, Encoder, Json}
 import io.circe.syntax._

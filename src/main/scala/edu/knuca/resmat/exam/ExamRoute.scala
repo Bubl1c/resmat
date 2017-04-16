@@ -6,11 +6,13 @@ import akka.http.scaladsl.server.Route
 import io.circe.generic.auto._
 import io.circe.syntax._
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
+import edu.knuca.resmat.exam.testset.TestSetExamRoute
 import edu.knuca.resmat.user.AuthenticatedUser
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExamRoute(examService: ExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute)
+class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute)
                (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
@@ -37,7 +39,7 @@ class ExamRoute(examService: ExamService, testSetExamRoute: TestSetExamRoute, ta
     pathPrefix(LongNumber) { userExamId =>
       (pathEndOrSingleSlash & get) {
         complete {
-          Future(getUserExamById(userExamId))
+          Future(getUserExamDtoById(userExamId))
         }
       } ~
       pathPrefix("steps") {

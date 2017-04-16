@@ -1,15 +1,16 @@
-package edu.knuca.resmat.exam
+package edu.knuca.resmat.exam.testset
 
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.PathMatchers.LongNumber
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.Directives._
-import io.circe.generic.auto._
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import edu.knuca.resmat.exam.UserExamService
 import edu.knuca.resmat.user.AuthenticatedUser
+import io.circe.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class TestSetExamRoute(examService: ExamService) extends CirceSupport {
+class TestSetExamRoute(examService: UserExamService) extends CirceSupport {
 
   def route(userExamId: Long, stepSequence: Int, attemptId: Long)
            (implicit user: AuthenticatedUser, ec: ExecutionContext): Route =

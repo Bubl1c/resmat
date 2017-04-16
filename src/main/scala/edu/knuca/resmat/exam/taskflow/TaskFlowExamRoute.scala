@@ -1,15 +1,16 @@
-package edu.knuca.resmat.exam
+package edu.knuca.resmat.exam.taskflow
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.PathMatchers.LongNumber
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import edu.knuca.resmat.exam.UserExamService
 import edu.knuca.resmat.user.AuthenticatedUser
 import io.circe.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class TaskFlowExamRoute(examService: ExamService) extends CirceSupport {
+class TaskFlowExamRoute(examService: UserExamService) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
 

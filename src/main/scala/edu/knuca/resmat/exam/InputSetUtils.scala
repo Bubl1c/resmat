@@ -1,5 +1,7 @@
 package edu.knuca.resmat.exam
 
+import edu.knuca.resmat.exam.taskflow.{InputSetAnswerDto, InputSetInputAnswer, VerifiedInputSetAnswer}
+
 object InputSetUtils {
 
   def verify(submittedAnswer: InputSetAnswerDto, correctAnswer: Seq[InputSetInputAnswer]): VerifiedInputSetAnswer = {

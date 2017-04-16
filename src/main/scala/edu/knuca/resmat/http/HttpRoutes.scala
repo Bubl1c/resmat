@@ -7,10 +7,12 @@ import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
 import ch.megard.akka.http.cors.CorsDirectives._
+import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
+import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 
 import scala.concurrent.ExecutionContext
 
-class HttpRoutes(usersService: UsersService, val authService: AuthService, val examService: ExamService, val testSetExamService: TestSetExamService)
+class HttpRoutes(usersService: UsersService, val authService: AuthService, val examService: UserExamService, val testSetExamService: TestSetExamService)
                 (val dataGenerator: InitialDataGenerator)
                 (implicit executionContext: ExecutionContext)
     extends ApiExceptionHandlers

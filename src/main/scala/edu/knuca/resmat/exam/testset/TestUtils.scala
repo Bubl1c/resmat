@@ -1,4 +1,4 @@
-package edu.knuca.resmat.exam
+package edu.knuca.resmat.exam.testset
 
 object TestUtils {
 

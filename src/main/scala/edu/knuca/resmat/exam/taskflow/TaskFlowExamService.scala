@@ -1,15 +1,17 @@
-package edu.knuca.resmat.exam
+package edu.knuca.resmat.exam.taskflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.core._
 import edu.knuca.resmat.db.DatabaseService
-import io.circe.{Decoder, Error}
+import edu.knuca.resmat.exam._
+import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestUtils}
+import io.circe.Decoder
+import io.circe.generic.auto._
+import io.circe.parser._
+import io.circe.syntax._
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
-import io.circe.parser._
-import io.circe.syntax._
-import io.circe.generic.auto._
 
 case class TaskFlowDto(problemConf: ProblemConf,
                        problemVariantConf: ProblemVariantConf,
@@ -194,7 +196,7 @@ class TaskFlowExamService(val db: DatabaseService)
     }
     val taskFlowStepData: String = taskFlowStepConf.stepType match {
       case TaskFlowStepType.Test =>
-        val taskFlowTest = decodeOrElse[TaskFlowTestConf](taskFlowStepConf.stepData)(
+        val taskFlowTest = decode[TaskFlowTestConf](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse test in $taskFlowStepConf")
         )
         taskFlowTest.test.asJson.toString()
@@ -214,10 +216,10 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlowStepConf = getTaskFlowStepConfById(taskFlowStep.taskFlowStepConfId)
     taskFlowStepConf.stepType match {
       case TaskFlowStepType.Test =>
-        val testAnswer = decodeOrElse[TestAnswerDto](answer)(
+        val testAnswer = decode[TestAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse test answer in $answer")
         )
-        val correctAnswer = decodeOrElse[Seq[Long]](taskFlowStep.answer)(
+        val correctAnswer = decode[Seq[Long]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse test answer in $answer")
         )
         val verifiedAnswer = TestUtils.verify(testAnswer, correctAnswer)
@@ -231,10 +233,10 @@ class TaskFlowExamService(val db: DatabaseService)
           )
         )
       case TaskFlowStepType.InputSet =>
-        val inputSetAnswer = decodeOrElse[InputSetAnswerDto](answer)(
+        val inputSetAnswer = decode[InputSetAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
         )
-        val correctAnswer = decodeOrElse[Seq[InputSetInputAnswer]](taskFlowStep.answer)(
+        val correctAnswer = decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse test answer in $answer")
         )
         val verifiedAnswer = InputSetUtils.verify(inputSetAnswer, correctAnswer)
@@ -267,7 +269,7 @@ class TaskFlowExamService(val db: DatabaseService)
                               taskFlowConfProblemVariantConfId: Long): (UserExamStepAttemptTaskFlow, Seq[UserExamStepAttemptTaskFlowStep]) = {
     val taskFlowConfProblemVariantConf = getTaskFlowConfProblemVariantConfById(taskFlowConfProblemVariantConfId)
     val problemVariantConf = problemService.getProblemVariantConfById(taskFlowConfProblemVariantConf.problemVariantConfId)
-    val cd = decodeOrElse[RingPlateProblemAnswer](problemVariantConf.calculatedData)(
+    val cd = decode[RingPlateProblemAnswer](problemVariantConf.calculatedData).fold(_=>None,Some(_)).getOrElse(
       throw new RuntimeException(s"Failed to parse RingPlateProblemResult from calculated variant data ${problemVariantConf.calculatedData}")
     )
     val stepConfs = getTaskFlowStepConfsByTaskFlowConfId(taskFlowConfProblemVariantConf.taskFlowConfId)
@@ -287,7 +289,7 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlowSteps = stepConfs.map{ sc =>
       val stepAnswer: String = sc.stepType match {
         case TaskFlowStepType.Test =>
-          val stepTestConf = decodeOrElse[TaskFlowTestConf](sc.stepData)(
+          val stepTestConf = decode[TaskFlowTestConf](sc.stepData).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse TaskFlowTestConf from step data ${sc.stepData}")
           )
           stepTestConf.correctOptionIdsMapping
@@ -295,7 +297,7 @@ class TaskFlowExamService(val db: DatabaseService)
               cd.getString(mapping).split(",").map(_.toLong)
             ).asJson.toString()
         case TaskFlowStepType.InputSet =>
-          val stepInputSet = decodeOrElse[InputSet](sc.stepData)(
+          val stepInputSet = decode[InputSet](sc.stepData).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse InputSet from step data ${sc.stepData}")
           )
           stepInputSet.inputs.map(input =>
@@ -316,6 +318,12 @@ class TaskFlowExamService(val db: DatabaseService)
     (taskFlow, taskFlowSteps)
   }
 
-  private def decodeOrElse[A: Decoder](input: String)(default: () => A): A =
-    decode[A](input).fold(_ => None, Some(_)).getOrElse(default())
+  private def decodeOrElse[A: Decoder](input: String, default: () => A): A = {
+    decode[A](input).fold(_ => {
+      println("====================================== none")
+      None
+    }, {
+      Some(_)
+    }).getOrElse(default())
+  }
 }

@@ -10,7 +10,9 @@ import edu.knuca.resmat.http.HttpRoutes
 import edu.knuca.resmat.user.{DefaultUsersService, UsersService}
 import edu.knuca.resmat.utils.Config
 import akka.http.scaladsl.server.directives.DebuggingDirectives
-import edu.knuca.resmat.exam.{ExamService, ProblemService, TaskFlowExamService, TestSetExamService}
+import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
+import edu.knuca.resmat.exam.testset.TestSetExamService
+import edu.knuca.resmat.exam.{ExamService, ProblemService, UserExamService}
 
 import scala.concurrent.ExecutionContext
 
@@ -36,12 +38,13 @@ object Main extends App with Config {
   val testSetExamService: TestSetExamService = new TestSetExamService(databaseService)
   val problemService: ProblemService = new ProblemService(databaseService)
   val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(problemService)
-  val examService: ExamService = new ExamService(databaseService)(usersService, testSetExamService, taskFlowExamService)
+  val examService: ExamService = new ExamService(databaseService)
+  val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testSetExamService, taskFlowExamService)
 
-  val dataGenerator = new InitialDataGenerator(databaseService, usersService, authService)
+  val dataGenerator = new InitialDataGenerator(databaseService, usersService, authService, examService)
   dataGenerator.generate()
 
-  val httpRoutes = new HttpRoutes(usersService, authService, examService, testSetExamService)(dataGenerator)
+  val httpRoutes = new HttpRoutes(usersService, authService, userExamService, testSetExamService)(dataGenerator)
   val httpRouteLogged = DebuggingDirectives.logRequestResult("Resmat REST API", Logging.WarningLevel)(httpRoutes.routes)
 
   Http().bindAndHandle(httpRouteLogged, httpHost, httpPort)

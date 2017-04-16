@@ -1,7 +1,8 @@
-package edu.knuca.resmat.exam
+package edu.knuca.resmat.exam.testset
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
+import edu.knuca.resmat.exam._
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
@@ -84,7 +85,17 @@ class TestSetExamService(val db: DatabaseService)
   def getTestSetConfGroups(testSetConfId: Long): Seq[TestSetConfTestGroup] =
     testSetConfTestGroups.filter(_.testSetConfId == testSetConfId)
 
+  def getTestConf(id: Long): TestConf = testConfs.find(_.id == id).getOrElse(
+    throw new RuntimeException(s"Test conf with id $id not found")
+  )
+
   def getTestConfs(ids: Seq[Long]): Seq[TestConf] = testConfs.filter(t => ids.contains(t.id))
+
+  def getNotCompletedTestConfsInTestSet(testSetId: Long): Seq[TestConf] = {
+    val testSetTests = userExamStepAttemptTestSetTests.filter(_.stepAttemptTestSetId == testSetId)
+    val notCompletedTestConfIds = testSetTests.filter(!_.done).map(_.testConfId)
+    getTestConfs(notCompletedTestConfIds)
+  }
 
   def getTestConfsByGroup(groupId: Long): Seq[TestConf] = testConfs.filter(_.groupId == groupId)
 
@@ -101,11 +112,42 @@ class TestSetExamService(val db: DatabaseService)
   def takeTestConfsFromGroups(groupIds: Seq[Long], testsAmount: Int): Seq[TestConf] =
     groupIds.flatMap(getTestConfsByGroup(_).take(testsAmount))  //todo reorder tests
 
+  def createTestSet(testSet: UserExamStepAttemptTestSet): UserExamStepAttemptTestSet = {
+    val userExamStepAttemptTestSetNextId = if(userExamStepAttemptTestSets.nonEmpty) userExamStepAttemptTestSets.last.id + 1 else 1
+    val withId = testSet.copy(id = userExamStepAttemptTestSetNextId)
+    userExamStepAttemptTestSets += withId
+    withId
+  }
+
   def getTestSet(id: Long): Option[UserExamStepAttemptTestSet] =
     userExamStepAttemptTestSets.find(_.id == id)
 
   def getTestSetByAttemptId(stepAttemptId: Long): Option[UserExamStepAttemptTestSet] =
     userExamStepAttemptTestSets.find(_.stepAttemptId == stepAttemptId)
+
+  def createTestSetTest(test: UserExamStepAttemptTestSetTest): UserExamStepAttemptTestSetTest = {
+    userExamStepAttemptTestSetTests += test
+    test
+  }
+
+  def getTestSetTest(testSetId: Long, testConfId: Long): UserExamStepAttemptTestSetTest = {
+    val testSet = userExamStepAttemptTestSets.find(_.id == testSetId).getOrElse(
+      throw new RuntimeException(s"Failed to find step attempt test set with id: $testSetId")
+    )
+    userExamStepAttemptTestSetTests
+      .find(t => t.stepAttemptTestSetId == testSet.id && t.testConfId == testConfId)
+      .getOrElse(
+      throw new RuntimeException(s"Failed to find test with id: $testConfId for test set id: ${testSet.id}")
+    )
+  }
+
+  def updateTestSetTest(test: UserExamStepAttemptTestSetTest): UserExamStepAttemptTestSetTest = {
+    val testIndex = userExamStepAttemptTestSetTests.indexWhere(t =>
+      t.stepAttemptTestSetId == test.stepAttemptTestSetId && t.testConfId == test.testConfId
+    )
+    userExamStepAttemptTestSetTests.update(testIndex, test)
+    test
+  }
 
   def getTestSetDto(stepAttemptId: Long): Option[TestSetDto] = {
     getTestSetByAttemptId(stepAttemptId).flatMap{ testSet =>
@@ -131,55 +173,24 @@ class TestSetExamService(val db: DatabaseService)
     (newTestSet, testSetTestsFromGroups)
   }
 
-  def createTestSet(testSet: UserExamStepAttemptTestSet): UserExamStepAttemptTestSet = {
-    val userExamStepAttemptTestSetNextId = if(userExamStepAttemptTestSets.nonEmpty) userExamStepAttemptTestSets.last.id + 1 else 1
-    val withId = testSet.copy(id = userExamStepAttemptTestSetNextId)
-    userExamStepAttemptTestSets += withId
-    withId
-  }
-
-  def createTestSetTest(test: UserExamStepAttemptTestSetTest): UserExamStepAttemptTestSetTest = {
-    userExamStepAttemptTestSetTests += test
-    test
-  }
-
   def verifyTestSetTestAnswer(stepAttemptTestSetId: Long,
-                              testAnswer: TestAnswerDto): Option[VerifiedTestAnswerDto] = {
+                              testAnswer: TestAnswerDto): VerifiedTestAnswerDto = {
     val testId = testAnswer.testId
-    val attemptTestSet = userExamStepAttemptTestSets.find(_.id == stepAttemptTestSetId).getOrElse(
-      throw new RuntimeException(s"Failed to find test set with id: $stepAttemptTestSetId")
-    )
-    val testSetTest = userExamStepAttemptTestSetTests.find(t => t.stepAttemptTestSetId == attemptTestSet.id && t.testConfId == testId).getOrElse(
-      throw new RuntimeException(s"Failed to find test with id: $testId for test set id: ${attemptTestSet.id}")
-    )
-    verifyTestAnswer(testAnswer).map{ verifiedTestAnswer =>
-      //Update information about test submission
-      val testIndex = userExamStepAttemptTestSetTests.indexWhere(t =>
-        t.stepAttemptTestSetId == testSetTest.stepAttemptTestSetId && t.testConfId == testSetTest.testConfId
-      )
-      if(verifiedTestAnswer.isCorrectAnswer) {
-        userExamStepAttemptTestSetTests.update(testIndex, testSetTest.copy(done = true))
-      } else {
-        userExamStepAttemptTestSetTests.update(
-          testIndex,
-          testSetTest.copy(mistakes = testSetTest.mistakes + verifiedTestAnswer.mistakesAmount)
-        )
-      }
-      verifiedTestAnswer
+    val testSetTest = getTestSetTest(stepAttemptTestSetId, testId)
+    val verifiedTestAnswer = verifyTestAnswer(testAnswer)
+    //Update information about test submission
+    if(verifiedTestAnswer.isCorrectAnswer) {
+      updateTestSetTest(testSetTest.copy(done = true))
+    } else {
+      updateTestSetTest(testSetTest.copy(mistakes = testSetTest.mistakes + verifiedTestAnswer.mistakesAmount))
     }
+    verifiedTestAnswer
   }
 
-  def verifyTestAnswer(testAnswer: TestAnswerDto): Option[VerifiedTestAnswerDto] = {
-    testConfs.find(_.id == testAnswer.testId).map{ test =>
-      val correctOptions = test.options.filter(_.correct)
-      TestUtils.verify(testAnswer, correctOptions.map(_.id))
-    }
-  }
-
-  def getNotCompletedTestConfsInTestSet(testSetId: Long): Seq[TestConf] = {
-    val testSetTests = userExamStepAttemptTestSetTests.filter(_.stepAttemptTestSetId == testSetId)
-    val notCompletedTestConfIds = testSetTests.filter(!_.done).map(_.testConfId)
-    getTestConfs(notCompletedTestConfIds)
+  def verifyTestAnswer(testAnswer: TestAnswerDto): VerifiedTestAnswerDto = {
+    val testConf = getTestConf(testAnswer.testId)
+    val correctOptions = testConf.options.filter(_.correct)
+    TestUtils.verify(testAnswer, correctOptions.map(_.id))
   }
 
   private def testToDto(t: TestConf): TestDto =
