@@ -1,6 +1,8 @@
 package edu.knuca.resmat.exam
 
+import edu.knuca.resmat.core.RingPlateProblemAnswer
 import edu.knuca.resmat.utils.PimpedEnumeration
+import io.circe.generic.JsonCodec
 import org.joda.time.DateTime
 
 object TaskFlowStepType extends PimpedEnumeration {
@@ -58,11 +60,16 @@ case class ExamStepConf(id: Long,
                         stepType: ExamStepType.ExamStepType,
                         mistakesPerAttemptLimit: Int,
                         attemptsLimit: Int,
+                        dataSet: ExamStepConfDataSet,
                         hasToBeSubmitted: Boolean = true)
-case class ExamStepVariantConf(id: Long, examStepConfId: Long, examConfId: Long, dataSetConfId: Long)
+@JsonCodec sealed trait ExamStepConfDataSet
+case class ExamStepTestSetDataSet(testSetConfId: Long) extends ExamStepConfDataSet
+case class ExamStepTaskFlowDataSet(taskFlowConfId: Long, problemConfId: Long) extends ExamStepConfDataSet
+case object ExamStepResultsDataSet extends ExamStepConfDataSet
+object ExamStepConfDataSet
 
 case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
-case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus, stepVariantConfId: Long)
+case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus)
 case class UserExamResult(userExamId: Long,
                           examConfId: Long,
                           userId: Long,
@@ -97,10 +104,11 @@ case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId
 
 //====================TaskFlow====================
 
-case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: String/*JSON array*/)
+case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf])
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
 case class ProblemInputVariableValue(variableConfId: Long, value: Double)
-case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: String/*JSON array*/, calculatedData: String/*JSON object*/)
+//todo switch calculatedData to interface to allow to work with different problems
+case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue], calculatedData: RingPlateProblemAnswer)
 
 case class TaskFlowConf(id: Long, problemConfId: Long)
 case class TaskFlowStepConf(id: Long,
@@ -108,8 +116,6 @@ case class TaskFlowStepConf(id: Long,
                             name: String,
                             sequence: Int,
                             stepType: TaskFlowStepType.TaskFlowStepType, stepData: String/*JSON field*/, helpData: Boolean = false)
-
-case class TaskFlowConfProblemVariantConf(id: Long, taskFlowConfId: Long, problemVariantConfId: Long)
 
 case class UserExamStepAttemptTaskFlow(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, taskFlowConfId: Long, problemVariantConfId: Long, currentStepId: Long)
 case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long, taskFlowStepConfId: Long, answer: String/*JSON object*/, done: Boolean = false, mistakes: Int = 0)

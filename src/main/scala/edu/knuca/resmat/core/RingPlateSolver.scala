@@ -16,6 +16,15 @@ object RingPlateSolver extends App {
 
 class RingPlateSolver(input: RingPlateProblemInput) {
 
+  def this(variableConfs: Seq[ProblemInputVariableConf], variableValues: Seq[ProblemInputVariableValue]) = {
+    this(RingPlateProblemInput(
+      variableConfs.map(pc => {
+        val varVal = variableValues.find(_.variableConfId == pc.id).get
+        (pc, varVal)
+      })
+    ))
+  }
+
   val conf = input.conf
   val a = input.a
   val b = input.b

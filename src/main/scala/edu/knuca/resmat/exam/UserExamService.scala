@@ -214,12 +214,6 @@ class UserExamService(val db: DatabaseService)
     stepConfs.filter(_.hasToBeSubmitted).sortBy(_.sequence).last.sequence == stepSequence
   }
 
-  //todo Consider to choose unused variant. If all used - not like at previous attempt
-  private def chooseAvailableVariant(examStepConfId: Long): ExamStepVariantConf = {
-    val variantConf = examService.getExamStepVariantConfByExamStepConfId(examStepConfId)
-    variantConf
-  }
-
   private def getStepInfo(userId: Long, stepConf: ExamStepConf): UserExamStepInfoDto = {
     val stepAttempts = findUserExamStepAttempts(userId, stepConf.id)
     UserExamStepInfoDto(stepConf, stepAttempts)
@@ -275,21 +269,20 @@ class UserExamService(val db: DatabaseService)
   }
 
   private def createAttempt(userExam: UserExam, examStepConf: ExamStepConf): UserExamStepAttempt = {
-    val variantConf = chooseAvailableVariant(examStepConf.id)
-
     val newAttempt =
       createStepAttempt(
-        UserExamStepAttempt(-1, userExam.userId, userExam.id, examStepConf.id, 0, -1, ExamStepStatus.NotSubmitted, variantConf.id)
+        UserExamStepAttempt(-1, userExam.userId, userExam.id, examStepConf.id, 0, -1, ExamStepStatus.NotSubmitted)
       )
 
     //todo handle case when data set is not created - rollback attempt creation
     examStepConf.stepType match {
       case ExamStepType.TestSet =>
-        createNewTestSetForAttempt(userExam, newAttempt, variantConf)
+        val dataSet = examStepConf.dataSet.asInstanceOf[ExamStepTestSetDataSet]
+        createNewTestSetForAttempt(newAttempt, userExam.id, dataSet.testSetConfId)
       case ExamStepType.TaskFlow =>
-        createTaskFlowForAttempt(userExam, newAttempt, variantConf)
-      case ExamStepType.Results =>
-        null
+        val dataSet = examStepConf.dataSet.asInstanceOf[ExamStepTaskFlowDataSet]
+        createTaskFlowForAttempt(newAttempt, userExam.id, dataSet.taskFlowConfId, dataSet.problemConfId)
+      case ExamStepType.Results => ()
       case anyOther =>
         throw new IllegalArgumentException(s"Unhandled ExamStepDataType: $anyOther")
     }
@@ -341,16 +334,16 @@ class UserExamService(val db: DatabaseService)
     va
   }
 
-  private def createNewTestSetForAttempt(userExam: UserExam,
-                                         attempt: UserExamStepAttempt,
-                                         variantConf: ExamStepVariantConf): UserExamStepAttemptTestSet = {
-    val testSetConf = testSetExamService.getTestSetConf(variantConf.dataSetConfId).getOrElse(
-      throw new RuntimeException(s"TestSetConf with id: ${variantConf.dataSetConfId} not found.")
+  private def createNewTestSetForAttempt(attempt: UserExamStepAttempt,
+                                         userExamId: Long,
+                                         testSetConfId: Long): UserExamStepAttemptTestSet = {
+    val testSetConf = testSetExamService.getTestSetConf(testSetConfId).getOrElse(
+      throw new RuntimeException(s"TestSetConf with id: $testSetConfId not found.")
     )
 
     val (newTestSet, newTestSetTests) =
       testSetExamService.createTestSetWithTests(
-        UserExamStepAttemptTestSet(-1, attempt.id, userExam.id, attempt.examStepConfId, testSetConf.id)
+        UserExamStepAttemptTestSet(-1, attempt.id, userExamId, attempt.examStepConfId, testSetConf.id)
       )
 
     newTestSet
@@ -360,12 +353,13 @@ class UserExamService(val db: DatabaseService)
   //                      Task - flow
   //===============================================================
 
-  private def createTaskFlowForAttempt(userExam: UserExam,
-                                       attempt: UserExamStepAttempt,
-                                       variantConf: ExamStepVariantConf): UserExamStepAttemptTaskFlow = {
+  private def createTaskFlowForAttempt(attempt: UserExamStepAttempt,
+                                       userExamId: Long,
+                                       taskFlowConfId: Long,
+                                       problemConfId: Long): UserExamStepAttemptTaskFlow = {
     val (newTaskFlow, newTaskFlowSteps) =
       taskFlowExamService
-        .createTaskFlowWithSteps(attempt.id, userExam.id, attempt.examStepConfId, variantConf.dataSetConfId)
+        .createTaskFlowWithSteps(attempt.id, userExamId, attempt.examStepConfId, taskFlowConfId, problemConfId)
 
     newTaskFlow
   }

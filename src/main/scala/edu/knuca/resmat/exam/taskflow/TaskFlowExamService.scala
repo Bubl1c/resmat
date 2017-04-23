@@ -86,10 +86,6 @@ class TaskFlowExamService(val db: DatabaseService)
     TaskFlowStepConf(7, 1, "Кінець", 7, TaskFlowStepType.Finished, "")
   )
 
-  val taskFlowConfProblemVariantConfs: List[TaskFlowConfProblemVariantConf] = List(
-    TaskFlowConfProblemVariantConf(1, 1, 1)
-  )
-
   //===============================================================
   //                      User specific data
   //===============================================================
@@ -123,12 +119,6 @@ class TaskFlowExamService(val db: DatabaseService)
     stepAttemptTaskFlowSteps.find(_.id == id).getOrElse(
       throw new RuntimeException(s"Task flow step with id: $id not found!")
     )
-
-  def getTaskFlowConfProblemVariantConfById(id: Long): TaskFlowConfProblemVariantConf = {
-    taskFlowConfProblemVariantConfs.find(_.id == id).getOrElse(
-      throw new RuntimeException(s"Task flow conf problem variant conf with id: $id not found!")
-    )
-  }
 
   def getTaskFlowStepConfsByTaskFlowConfId(taskFlowConfId: Long): Seq[TaskFlowStepConf] = {
     taskFlowStepConfs.filter(_.taskFlowConfId == taskFlowConfId)
@@ -263,16 +253,20 @@ class TaskFlowExamService(val db: DatabaseService)
     }
   }
 
+  //todo Implement variant selection logic
+  def getAvailableProblemVariantConf(problemConfId: Long): ProblemVariantConf = {
+    val allProblemVariantConfs = problemService.findProblemVariantConfsByProblemConfId(problemConfId)
+    allProblemVariantConfs.head
+  }
+
   def createTaskFlowWithSteps(stepAttemptId: Long,
                               userExamId: Long,
                               examStepConfId: Long,
-                              taskFlowConfProblemVariantConfId: Long): (UserExamStepAttemptTaskFlow, Seq[UserExamStepAttemptTaskFlowStep]) = {
-    val taskFlowConfProblemVariantConf = getTaskFlowConfProblemVariantConfById(taskFlowConfProblemVariantConfId)
-    val problemVariantConf = problemService.getProblemVariantConfById(taskFlowConfProblemVariantConf.problemVariantConfId)
-    val cd = decode[RingPlateProblemAnswer](problemVariantConf.calculatedData).fold(_=>None,Some(_)).getOrElse(
-      throw new RuntimeException(s"Failed to parse RingPlateProblemResult from calculated variant data ${problemVariantConf.calculatedData}")
-    )
-    val stepConfs = getTaskFlowStepConfsByTaskFlowConfId(taskFlowConfProblemVariantConf.taskFlowConfId)
+                              taskFlowConfId: Long,
+                              problemConfId: Long): (UserExamStepAttemptTaskFlow, Seq[UserExamStepAttemptTaskFlowStep]) = {
+    val problemVariantConf = getAvailableProblemVariantConf(problemConfId)
+    val cd = problemVariantConf.calculatedData
+    val stepConfs = getTaskFlowStepConfsByTaskFlowConfId(taskFlowConfId)
 
     val taskFlow = createTaskFlow(
       UserExamStepAttemptTaskFlow(
@@ -280,8 +274,8 @@ class TaskFlowExamService(val db: DatabaseService)
         stepAttemptId,
         userExamId,
         examStepConfId,
-        taskFlowConfProblemVariantConf.taskFlowConfId,
-        taskFlowConfProblemVariantConf.problemVariantConfId,
+        taskFlowConfId,
+        problemVariantConf.id,
         1
       )
     )
@@ -316,14 +310,5 @@ class TaskFlowExamService(val db: DatabaseService)
     }
 
     (taskFlow, taskFlowSteps)
-  }
-
-  private def decodeOrElse[A: Decoder](input: String, default: () => A): A = {
-    decode[A](input).fold(_ => {
-      println("====================================== none")
-      None
-    }, {
-      Some(_)
-    }).getOrElse(default())
   }
 }

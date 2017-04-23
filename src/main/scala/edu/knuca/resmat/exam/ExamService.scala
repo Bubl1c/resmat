@@ -5,6 +5,9 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 
 import scala.concurrent.ExecutionContext
+import io.circe.parser._
+import io.circe.syntax._
+import io.circe.generic.auto._
 
 class ExamService(val db: DatabaseService)(implicit val executionContext: ExecutionContext) extends LazyLogging {
 
@@ -26,14 +29,6 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
     getExamStepConf(insertedId)
   }
 
-  def createExamStepVariantConf(esvc: ExamStepVariantConf): ExamStepVariantConf = db.run{ implicit c =>
-    val insertedIdOpt: Option[Long] = Q.createExamStepVariantConf(esvc).executeInsert()
-    val insertedId = insertedIdOpt.getOrElse(
-      throw new RuntimeException(s"Failed to insert exam step variant conf: $esvc")
-    )
-    getExamStepVariantConf(insertedId)
-  }
-
   def getExamConf(id: Long): ExamConf = db.run{ implicit c =>
     Q.getExamConf(id).as(Q.examConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Cannot find exam conf by id: $id")
@@ -43,12 +38,6 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
   def getExamStepConf(id: Long): ExamStepConf = db.run { implicit c =>
     Q.getExamStepConf(id).as(Q.examStepConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Exam step conf with id: $id not found.")
-    )
-  }
-
-  def getExamStepVariantConf(id: Long): ExamStepVariantConf = db.run { implicit c =>
-    Q.getExamStepVariantConf(id).as(Q.examStepVariantConfParser.singleOpt).getOrElse(
-      throw new RuntimeException(s"ExamStepVariantConf with id: $id not found")
     )
   }
 
@@ -63,12 +52,6 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
   def getExamStepConfByExamConfIdAndSequence(examConfId: Long, stepSequence: Int): ExamStepConf = db.run{ implicit c =>
     Q.getExamStepConfByExamConfIdAndSequence(examConfId, stepSequence).as(Q.examStepConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Exam step conf for exam conf id: $examConfId, with sequence: $stepSequence not found.")
-    )
-  }
-
-  def getExamStepVariantConfByExamStepConfId(examStepConfId: Long): ExamStepVariantConf = db.run{ implicit c =>
-    Q.getExamStepVariantConfByExamStepConfId(examStepConfId).as(Q.examStepVariantConfParser.singleOpt).getOrElse(
-      throw new RuntimeException(s"No variants found for step conf id: $examStepConfId")
     )
   }
 
@@ -94,6 +77,7 @@ object ExamQueries {
     val mistakesPerAttemptLimit = "mistakes_per_attempt_limit"
     val attemptsLimit = "attempts_limit"
     val hasToBeSubmitted = "has_to_be_submitted"
+    val dataSet = "data_set"
   }
   
   object ESV {
@@ -118,16 +102,17 @@ object ExamQueries {
     stepType <- int(ES.stepType)
     mistakesPerAttemptLimit <- int(ES.mistakesPerAttemptLimit)
     attemptsLimit <- int(ES.attemptsLimit)
+    dataSet <- str(ES.dataSet)
     hasToBeSubmitted <- bool(ES.hasToBeSubmitted)
-  } yield ExamStepConf(id, examConfId, sequence, name, ExamStepType(stepType), mistakesPerAttemptLimit, attemptsLimit, hasToBeSubmitted)
+  } yield ExamStepConf(
+    id, examConfId, sequence, name, ExamStepType(stepType), mistakesPerAttemptLimit, attemptsLimit, decodeDataSet(dataSet), hasToBeSubmitted)
 
-  val examStepVariantConfParser = for {
-    id <- long(ESV.id)
-    examConfId <- long(ESV.examConfId)
-    examStepConfId <- long(ESV.examStepConfId)
-    dataSetConfId <- long(ESV.dataSetConfId)
-  } yield ExamStepVariantConf(id, examStepConfId, examConfId, dataSetConfId)
-
+  def decodeDataSet(examStepConfDataSet: String): ExamStepConfDataSet = {
+    decode[ExamStepConfDataSet](examStepConfDataSet).fold( e =>
+      throw new RuntimeException(s"Failed to decode ExamStepConfDataSet: $examStepConfDataSet", e),
+      r => r
+    )
+  }
 
   def createExamConf(ec: ExamConf) =
     SQL(s"INSERT INTO ${E.table} (${E.name}, ${E.description}) VALUES ({name}, {description})")
@@ -143,6 +128,7 @@ object ExamQueries {
          |${ES.stepType},
          |${ES.mistakesPerAttemptLimit},
          |${ES.attemptsLimit},
+         |${ES.dataSet},
          |${ES.hasToBeSubmitted}
          |)
          |VALUES (
@@ -152,6 +138,7 @@ object ExamQueries {
          |{stepType},
          |{mistakesPerAttemptLimit},
          |{attemptsLimit},
+         |{dataSet},
          |{hasToBeSubmitted}
          |)
        """.stripMargin)
@@ -161,17 +148,8 @@ object ExamQueries {
       .on("stepType" -> esc.stepType.id)
       .on("mistakesPerAttemptLimit" -> esc.mistakesPerAttemptLimit)
       .on("attemptsLimit" -> esc.attemptsLimit)
+      .on("dataSet" -> esc.dataSet.asJson.noSpaces)
       .on("hasToBeSubmitted" -> esc.hasToBeSubmitted)
-
-  def createExamStepVariantConf(esvc: ExamStepVariantConf) =
-    SQL(
-      s"""INSERT INTO ${ESV.table}
-         |(${ESV.examConfId}, ${ESV.examStepConfId}, ${ESV.dataSetConfId})
-         |VALUES ({examConfId}, {examStepConfId}, {dataSetConfId})
-       """.stripMargin)
-      .on("examConfId" -> esvc.examConfId)
-      .on("examStepConfId" -> esvc.examStepConfId)
-      .on("dataSetConfId" -> esvc.dataSetConfId)
 
   def getExamConf(id: Long) = SQL(s"SELECT * FROM ${E.table} WHERE ${E.id} = {id}").on("id" -> id)
 
@@ -191,9 +169,5 @@ object ExamQueries {
     SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.examConfId} = {examConfId} AND ${ES.sequence} = {sequence}")
       .on("examConfId" -> examConfId)
       .on("sequence" -> stepSequence)
-
-  def getExamStepVariantConfByExamStepConfId(examStepConfId: Long) =
-    SQL(s"SELECT * FROM ${ESV.table} WHERE ${ESV.examStepConfId} = {examStepConfId}")
-      .on("examStepConfId" -> examStepConfId)
   
 }
