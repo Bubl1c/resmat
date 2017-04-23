@@ -412,8 +412,7 @@ class UserExamService(val db: DatabaseService)
 
     val stepResults = calculateStepResults(userExam, examConf)
 
-    val maxScore = 100
-    val score = calculateScore(examConf, stepResults, maxScore)
+    val score = calculateScore(examConf, stepResults)
 
     UserExamResult(
       userExam.id,
@@ -423,23 +422,27 @@ class UserExamService(val db: DatabaseService)
       user.firstName + " " + user.lastName,
       studentGroup.map(_.name),
       duration,
-      stepResults,
+      stepResults.map(_._1),
       score,
-      maxScore
+      examConf.maxScore
     )
   }
 
-  def calculateScore(examConf: ExamConf, stepResults: Seq[UserExamStepResult], maxScore: Int): Int = {
-    val overAttempts = stepResults.map(_.attemptsAmount - 1).sum
-    val mistakesAmount = stepResults.map(_.mistakesAmount).sum
+  def calculateScore(examConf: ExamConf, stepResults: Seq[(UserExamStepResult, ExamStepConf)]): Int = {
 
-    val reduceMaxScoreOverAttempts: Double = (overAttempts * 5) / 100.0
-    val reduceMaxScoreMistakesAmount: Double = mistakesAmount / 100.0
+    def calculateReduceForStep(tuple: (UserExamStepResult, ExamStepConf)): Int = {
+      val res: UserExamStepResult = tuple._1
+      val conf: ExamStepConf = tuple._2
+      val overAttempts = res.attemptsAmount - 1
+      val reduceMaxScoreOverAttempts: Double = (overAttempts * conf.attemptValuePercents) / 100.0
+      val reduceMaxScoreMistakesAmount: Double = (res.mistakesAmount * conf.mistakeValuePercents) / 100.0
+      (Math.round(conf.maxScore * reduceMaxScoreOverAttempts) + Math.round(conf.maxScore * reduceMaxScoreMistakesAmount)).toInt
+    }
 
-    maxScore - (maxScore * reduceMaxScoreOverAttempts).toInt - (maxScore * reduceMaxScoreMistakesAmount).toInt
+    examConf.maxScore - stepResults.map(calculateReduceForStep).sum
   }
 
-  def calculateStepResults(userExam: UserExam, examConf: ExamConf): Seq[UserExamStepResult] = {
+  def calculateStepResults(userExam: UserExam, examConf: ExamConf): Seq[(UserExamStepResult, ExamStepConf)] = {
     val submittableStepConfs = examService.findSubmittableExamStepConf(userExam.examConfId)
     val stepAttempts = findUserExamStepAttempts(userExam.id)
     submittableStepConfs.map { stepConf =>
@@ -448,7 +451,10 @@ class UserExamService(val db: DatabaseService)
         throw new IllegalStateException(s"$stepConf has no attempts for user exam with id: ${userExam.id}")
       }
       val mistakesAmount = currentStepConfAttempts.map(_.mistakesAmount).sum
-      UserExamStepResult(userExam.id, stepConf.id, stepConf.sequence, stepConf.name, currentStepConfAttempts.size, mistakesAmount, -1)
+      (
+        UserExamStepResult(userExam.id, stepConf.id, stepConf.sequence, stepConf.name, currentStepConfAttempts.size, mistakesAmount, -1),
+        stepConf
+      )
     }
   }
 

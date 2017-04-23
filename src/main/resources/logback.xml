@@ -9,7 +9,7 @@
 
   <logger name="com.zaxxer.hikari" level="error"/>
 
-  <root level="ALL">
+  <root level="TRACE">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>

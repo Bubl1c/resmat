@@ -65,6 +65,7 @@ object ExamQueries {
     val id = "id"
     val name = "name"
     val description = "description"
+    val maxScore = "max_score"
   }
   
   object ES {
@@ -75,24 +76,20 @@ object ExamQueries {
     val name = "name"
     val stepType = "step_type"
     val mistakesPerAttemptLimit = "mistakes_per_attempt_limit"
+    val mistakeValuePercents = "mistake_value_percents"
     val attemptsLimit = "attempts_limit"
+    val attemptValuePercents = "attempt_value_percents"
+    val maxScore = "max_score"
     val hasToBeSubmitted = "has_to_be_submitted"
     val dataSet = "data_set"
-  }
-  
-  object ESV {
-    val table = "exam_step_variant_confs"
-    val id = "id"
-    val examConfId = "exam_conf_id"
-    val examStepConfId = "exam_step_conf_id"
-    val dataSetConfId = "data_set_conf_id"
   }
 
   val examConfParser  = for {
     id <- long(E.id)
     name <- str(E.name)
     description <- str(E.description)
-  } yield ExamConf(id, name, description)
+    maxScore <- int(E.maxScore)
+  } yield ExamConf(id, name, description, maxScore)
 
   val examStepConfParser = for {
     id <- long(ES.id)
@@ -101,11 +98,26 @@ object ExamQueries {
     name <- str(ES.name)
     stepType <- int(ES.stepType)
     mistakesPerAttemptLimit <- int(ES.mistakesPerAttemptLimit)
+    mistakeValue <- int(ES.mistakeValuePercents)
     attemptsLimit <- int(ES.attemptsLimit)
+    attemptValue <- int(ES.attemptValuePercents)
+    maxScore <- int(ES.maxScore)
     dataSet <- str(ES.dataSet)
     hasToBeSubmitted <- bool(ES.hasToBeSubmitted)
   } yield ExamStepConf(
-    id, examConfId, sequence, name, ExamStepType(stepType), mistakesPerAttemptLimit, attemptsLimit, decodeDataSet(dataSet), hasToBeSubmitted)
+    id,
+    examConfId,
+    sequence,
+    name,
+    ExamStepType(stepType),
+    mistakesPerAttemptLimit,
+    mistakeValue,
+    attemptsLimit,
+    attemptValue,
+    maxScore,
+    decodeDataSet(dataSet),
+    hasToBeSubmitted
+  )
 
   def decodeDataSet(examStepConfDataSet: String): ExamStepConfDataSet = {
     decode[ExamStepConfDataSet](examStepConfDataSet).fold( e =>
@@ -115,9 +127,10 @@ object ExamQueries {
   }
 
   def createExamConf(ec: ExamConf) =
-    SQL(s"INSERT INTO ${E.table} (${E.name}, ${E.description}) VALUES ({name}, {description})")
+    SQL(s"INSERT INTO ${E.table} (${E.name}, ${E.description}, ${E.maxScore}) VALUES ({name}, {description}, {maxScore})")
       .on("name" -> ec.name)
       .on("description" -> ec.description)
+      .on("maxScore" -> ec.maxScore)
 
   def createExamStepConf(esc: ExamStepConf) =
     SQL(
@@ -127,7 +140,10 @@ object ExamQueries {
          |${ES.name},
          |${ES.stepType},
          |${ES.mistakesPerAttemptLimit},
+         |${ES.mistakeValuePercents},
          |${ES.attemptsLimit},
+         |${ES.attemptValuePercents},
+         |${ES.maxScore},
          |${ES.dataSet},
          |${ES.hasToBeSubmitted}
          |)
@@ -137,7 +153,10 @@ object ExamQueries {
          |{name},
          |{stepType},
          |{mistakesPerAttemptLimit},
+         |{mistakeValuePercents},
          |{attemptsLimit},
+         |{attemptValuePercents},
+         |{maxScore},
          |{dataSet},
          |{hasToBeSubmitted}
          |)
@@ -147,15 +166,16 @@ object ExamQueries {
       .on("name" -> esc.name)
       .on("stepType" -> esc.stepType.id)
       .on("mistakesPerAttemptLimit" -> esc.mistakesPerAttemptLimit)
+      .on("mistakeValuePercents" -> esc.mistakeValuePercents)
       .on("attemptsLimit" -> esc.attemptsLimit)
+      .on("attemptValuePercents" -> esc.attemptValuePercents)
+      .on("maxScore" -> esc.maxScore)
       .on("dataSet" -> esc.dataSet.asJson.noSpaces)
       .on("hasToBeSubmitted" -> esc.hasToBeSubmitted)
 
   def getExamConf(id: Long) = SQL(s"SELECT * FROM ${E.table} WHERE ${E.id} = {id}").on("id" -> id)
 
   def getExamStepConf(id: Long) = SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.id} = {id}").on("id" -> id)
-
-  def getExamStepVariantConf(id: Long) = SQL(s"SELECT * FROM ${ESV.table} WHERE ${ESV.id} = {id}").on("id" -> id)
 
   def findExamStepConfsByExamConfId(examConfId: Long) =
     SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.examConfId} = {examConfId}")

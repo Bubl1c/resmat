@@ -28,10 +28,10 @@ object Data {
     UserEntity(None, username, "root", name.split(" ")(0), name.split(" ")(1), s"$username@email.com", UserType.Student, accessKey, Some(goupId))
 
   val examConfs: Seq[(ExamConf, Seq[ExamStepConf])] = Seq(
-    (ExamConf(1, "Exam1", "Exam1 description"), Seq(
-      ExamStepConf(-1, -1, 1, "Exam1 Step1 Test Set", ExamStepType.TestSet, 5, 3, ExamStepTestSetDataSet(1)),
-      ExamStepConf(-1, -1, 2, "Exam1 Step2 Task Flow", ExamStepType.TaskFlow, -1, -1, ExamStepTaskFlowDataSet(1, 1)),
-      ExamStepConf(-1, -1, 3, "Exam1 Step3 Results", ExamStepType.Results, -1, -1, ExamStepResultsDataSet, false)
+    (ExamConf(1, "Exam1", "Exam1 description", 100), Seq(
+      ExamStepConf(-1, -1, 1, "Exam1 Step1 Test Set", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(1)),
+      ExamStepConf(-1, -1, 2, "Exam1 Step2 Task Flow", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1)),
+      ExamStepConf(-1, -1, 3, "Exam1 Step3 Results", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
     ))
   )
 

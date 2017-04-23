@@ -21,3 +21,5 @@ g(UserType.Admin)
 val i = Option("str")
 
 i.map(str => null)
+
+Math.round(5.6).toInt

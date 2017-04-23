@@ -52,14 +52,17 @@ object TestOptionValueType extends PimpedEnumeration {
   val Text = Value(2, "words")
 }
 
-case class ExamConf(id: Long, name: String, description: String)
+case class ExamConf(id: Long, name: String, description: String, maxScore: Int)
 case class ExamStepConf(id: Long,
                         examConfId: Long,
                         sequence: Int,
                         name: String,
                         stepType: ExamStepType.ExamStepType,
                         mistakesPerAttemptLimit: Int,
+                        mistakeValuePercents: Int, //influence to result
                         attemptsLimit: Int,
+                        attemptValuePercents: Int, //influence to result
+                        maxScore: Int, //should be within ExamConf.maxScore
                         dataSet: ExamStepConfDataSet,
                         hasToBeSubmitted: Boolean = true)
 @JsonCodec sealed trait ExamStepConfDataSet
@@ -68,8 +71,20 @@ case class ExamStepTaskFlowDataSet(taskFlowConfId: Long, problemConfId: Long) ex
 case object ExamStepResultsDataSet extends ExamStepConfDataSet
 object ExamStepConfDataSet
 
-case class UserExam(id: Long, userId: Long, examConfId: Long, currentStepConfId: Long, status: ExamStatus.ExamStatus, started: Option[DateTime], finished: Option[DateTime])
-case class UserExamStepAttempt(id: Long, userId: Long, userExamId: Long, examStepConfId: Long, mistakesAmount: Int, attemptNumber: Int/*Starts with 1*/, status: ExamStepStatus.ExamStepStatus)
+case class UserExam(id: Long,
+                    userId: Long,
+                    examConfId: Long,
+                    currentStepConfId: Long,
+                    status: ExamStatus.ExamStatus,
+                    started: Option[DateTime],
+                    finished: Option[DateTime])
+case class UserExamStepAttempt(id: Long,
+                               userId: Long,
+                               userExamId: Long,
+                               examStepConfId: Long,
+                               mistakesAmount: Int,
+                               attemptNumber: Int/*Starts with 1*/,
+                               status: ExamStepStatus.ExamStepStatus)
 case class UserExamResult(userExamId: Long,
                           examConfId: Long,
                           userId: Long,
