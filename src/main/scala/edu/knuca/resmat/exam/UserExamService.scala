@@ -33,11 +33,7 @@ class UserExamService(val db: DatabaseService)
     UserExam(1, 1, 1, 1, ExamStatus.InProgress, started = Some(DateTime.now), None),
     UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
   )
-  private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer(
-//    UserExamStepAttempt(1, 1, 1, 1, 0, 1, ExamStepStatus.Failed, 1),
-//    UserExamStepAttempt(2, 1, 1, 2, 3, 1, ExamStepStatus.NotSubmitted, 2),
-//    UserExamStepAttempt(3, 1, 1, 3, 0, 1, ExamStepStatus.NotSubmitted, 3)
-  )
+  private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer()
 
   private val userExamResults: ListBuffer[UserExamResult] = ListBuffer()
 
@@ -80,8 +76,8 @@ class UserExamService(val db: DatabaseService)
     userExamStepAttempts.filter(_.userExamId == userExamId)
   }
 
-  def findUserExamStepAttempts(userId: Long, examStepConfId: Long): Seq[UserExamStepAttempt] = {
-    userExamStepAttempts.filter(ues => ues.userId == userId && ues.examStepConfId == examStepConfId)
+  def findUserExamStepAttempts(userExamId: Long, examStepConfId: Long): Seq[UserExamStepAttempt] = {
+    userExamStepAttempts.filter(ues => ues.userExamId == userExamId && ues.examStepConfId == examStepConfId)
   }
 
   private def mapToDto(ue: UserExam): UserExamDto = {
@@ -109,7 +105,7 @@ class UserExamService(val db: DatabaseService)
   }
 
   private def createStepAttempt(attempt: UserExamStepAttempt): UserExamStepAttempt = {
-    val existingAttempts = findUserExamStepAttempts(attempt.userId, attempt.examStepConfId)
+    val existingAttempts = findUserExamStepAttempts(attempt.userExamId, attempt.examStepConfId)
     val nextStepAttemptId = if(userExamStepAttempts.nonEmpty) userExamStepAttempts.last.id + 1 else 1
     val withId = attempt.copy(id = nextStepAttemptId, attemptNumber = existingAttempts.size + 1)
     userExamStepAttempts += withId
@@ -129,7 +125,7 @@ class UserExamService(val db: DatabaseService)
   def getUserExamStepInfos(userExamId: Long): Seq[UserExamStepInfoDto] = {
     val userExam = getUserExamById(userExamId)
     val stepConfs = examService.findExamStepConfsByExamConfId(userExam.examConfId)
-    stepConfs.map(getStepInfo(userExam.userId, _))
+    stepConfs.map(getStepInfo(userExam.id, _))
   }
 
   def getUserExamStepInfo(userExamId: Long, sequence: Int): Option[UserExamStepInfoDto] = {
@@ -145,13 +141,13 @@ class UserExamService(val db: DatabaseService)
       throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
     )
 
-    val previousNotSubmittedSteps = getPreviousNotSubmittedSteps(stepConfs, stepSequence, userExam.userId)
+    val previousNotSubmittedSteps = getPreviousNotSubmittedSteps(stepConfs, stepSequence, userExam.id)
     if(previousNotSubmittedSteps.nonEmpty) {
       throw new IllegalStateException(s"Failed to submit user exam id: [$userExamId] step with sequence: [$stepSequence]. " +
         s"Next previous steps are not submitted yet: $previousNotSubmittedSteps")
     }
 
-    val allStepAttempts = findUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val allStepAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
 
     val notSubmittedAttempts = allStepAttempts.filter(_.status == ExamStepStatus.NotSubmitted)
     val successAttempts = allStepAttempts.filter(_.status == ExamStepStatus.Success)
@@ -182,10 +178,10 @@ class UserExamService(val db: DatabaseService)
     }
   }
 
-  def getPreviousNotSubmittedSteps(stepConfs: Seq[ExamStepConf], stepSequence: Int, userId: Long): Seq[ExamStepConf] = {
+  def getPreviousNotSubmittedSteps(stepConfs: Seq[ExamStepConf], stepSequence: Int, userExamId: Long): Seq[ExamStepConf] = {
     val previousSteps = stepConfs.filter(_.sequence < stepSequence)
     previousSteps.filter{ stepConf =>
-      !findUserExamStepAttempts(userId, stepConf.id).exists(_.status == ExamStepStatus.Success)
+      !findUserExamStepAttempts(userExamId, stepConf.id).exists(_.status == ExamStepStatus.Success)
     }
   }
 
@@ -214,8 +210,8 @@ class UserExamService(val db: DatabaseService)
     stepConfs.filter(_.hasToBeSubmitted).sortBy(_.sequence).last.sequence == stepSequence
   }
 
-  private def getStepInfo(userId: Long, stepConf: ExamStepConf): UserExamStepInfoDto = {
-    val stepAttempts = findUserExamStepAttempts(userId, stepConf.id)
+  private def getStepInfo(userExamId: Long, stepConf: ExamStepConf): UserExamStepInfoDto = {
+    val stepAttempts = findUserExamStepAttempts(userExamId, stepConf.id)
     UserExamStepInfoDto(stepConf, stepAttempts)
   }
 
@@ -226,14 +222,14 @@ class UserExamService(val db: DatabaseService)
   def getUserExamStepAttempts(userExamId: Long, sequence: Int): Seq[UserExamStepAttemptDto] = {
     val userExam = getUserExamById(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, sequence)
-    val attempts = findUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val attempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
     attempts.flatMap(getAttemptDto(_, examStepConf))
   }
 
   def getUserExamStepCurrentAttempt(userExamId: Long, stepSequence: Int): Option[UserExamStepAttemptDto] = {
     val userExam = getUserExamById(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
-    val existingAttempts = findUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val existingAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
 
     val successAttemptOpt = existingAttempts.find(_.status == ExamStepStatus.Success)
     if(successAttemptOpt.isDefined) {
@@ -271,7 +267,7 @@ class UserExamService(val db: DatabaseService)
   private def createAttempt(userExam: UserExam, examStepConf: ExamStepConf): UserExamStepAttempt = {
     val newAttempt =
       createStepAttempt(
-        UserExamStepAttempt(-1, userExam.userId, userExam.id, examStepConf.id, 0, -1, ExamStepStatus.NotSubmitted)
+        UserExamStepAttempt(-1, userExam.id, examStepConf.id, 0, -1, ExamStepStatus.NotSubmitted)
       )
 
     //todo handle case when data set is not created - rollback attempt creation
@@ -321,7 +317,7 @@ class UserExamService(val db: DatabaseService)
                           submittedOptions: Seq[Long]): VerifiedTestAnswerDto = {
     val userExam = getUserExamById(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
-    val allStepAttempts = findUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val allStepAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
     val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
       throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
     )
@@ -372,7 +368,7 @@ class UserExamService(val db: DatabaseService)
                                answer: String): Option[VerifiedTaskFlowStepAnswer] = {
     val userExam = getUserExamById(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
-    val allStepAttempts = findUserExamStepAttempts(userExam.userId, examStepConf.id)
+    val allStepAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
     val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
       throw new IllegalArgumentException(s"Step attempt with id: $stepAttemptId not found!")
     )
@@ -414,7 +410,10 @@ class UserExamService(val db: DatabaseService)
 
     val score = calculateScore(examConf, stepResults)
 
+    val resultId = userExamResults.lastOption.map(_.id).getOrElse(0) + 1
+
     UserExamResult(
+      resultId,
       userExam.id,
       examConf.id,
       userExam.userId,
@@ -452,7 +451,7 @@ class UserExamService(val db: DatabaseService)
       }
       val mistakesAmount = currentStepConfAttempts.map(_.mistakesAmount).sum
       (
-        UserExamStepResult(userExam.id, stepConf.id, stepConf.sequence, stepConf.name, currentStepConfAttempts.size, mistakesAmount, -1),
+        UserExamStepResult(stepConf.id, stepConf.sequence, stepConf.name, currentStepConfAttempts.size, mistakesAmount, -1),
         stepConf
       )
     }
@@ -470,5 +469,97 @@ class UserExamService(val db: DatabaseService)
 }
 
 object UserExamQueries {
+
+  import io.circe.parser._
+
+  import anorm.SqlParser.{int, long, str, bool, date}
+
+  object UE {
+    val table = "user_exams"
+    val id = "id"
+    val userId = "user_id"
+    val examConfId = "exam_conf_id"
+    val currentStepConfId = "current_step_conf_id"
+    val status = "status"
+    val started = "started"
+    val finished = "finished"
+  }
+  
+  object UESA {
+    val table = "user_exam_step_attempts"
+    val id = "id"
+    val userExamId = "user_exam_id"
+    val examStepConfId = "exam_step_conf_id"
+    val mistakesAmount = "mistakes_amount"
+    val attemptNumber = "attempt_number"
+    val status = "status"
+  }
+  
+  object UER {
+    val table = "user_exam_step_attempts"
+    val id = "id"
+    val userExamId = "user_exam_id"
+    val examConfId = "exam_conf_id"
+    val userId = "user_id"
+    val examName = "exam_name"
+    val studentName = "student_name"
+    val studentGroupName = "student_group_name"
+    val durationMillis = "duration_millis"
+    val stepResults = "step_results"
+    val score = "score"
+    val maxScore = "max_score"
+  }
+
+  val ueParser = for {
+    id <- long(UE.id)
+    userId <- long(UE.userId)
+    examConfId <- long(UE.examConfId)
+    currentStepConfId <- long(UE.currentStepConfId)
+    status <- int(UE.status)
+    started <- date(UE.started).?
+    finished <- date(UE.finished).?
+  } yield UserExam(id, userId, examConfId, currentStepConfId, ExamStatus(status), started.map(new DateTime(_)), finished.map(new DateTime(_)))
+
+  val uesaParser = for {
+    id <- long(UESA.id)
+    userExamId <- long(UESA.userExamId)
+    examStepConfId <- long(UESA.examStepConfId)
+    mistakesAmount <- int(UESA.mistakesAmount)
+    attemptNumber <- int(UESA.attemptNumber)
+    status <- int(UESA.status)
+  } yield UserExamStepAttempt(id, userExamId, examStepConfId, mistakesAmount, attemptNumber, ExamStepStatus(status))
+
+  val uerParser = for {
+    id <- long(UER.id)
+    userExamId <- long(UER.userExamId)
+    examConfId <- long(UER.examConfId)
+    userId <- long(UER.userId)
+    examName <- str(UER.examName)
+    studentName <- str(UER.studentName)
+    studentGroupName <- str(UER.studentGroupName).?
+    durationMillis <- long(UER.durationMillis)
+    stepResults <- str(UER.stepResults)
+    score <- int(UER.score)
+    maxScore <- int(UER.maxScore)
+  } yield UserExamResult(
+    id,
+    userExamId,
+    examConfId,
+    userId,
+    examName,
+    studentName,
+    studentGroupName,
+    durationMillis,
+    parseStepResults(stepResults),
+    score,
+    maxScore
+  )
+
+  def parseStepResults(json: String): Seq[UserExamStepResult] = {
+    decode[Seq[UserExamStepResult]](json).fold( e =>
+      throw new RuntimeException(s"Failed to parse Seq[UserExamStepResult] in json: $json", e),
+      r => r
+    )
+  }
 
 }
