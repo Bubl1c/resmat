@@ -1,6 +1,8 @@
 package edu.knuca.resmat.exam
 
+import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
+import edu.knuca.resmat.GeneralHelpers
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam.ExamStepType.ExamStepType
@@ -12,6 +14,8 @@ import org.joda.time.DateTime
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
+import io.circe.syntax._
+import io.circe.generic.auto._
 
 trait StepDataDto
 
@@ -555,7 +559,121 @@ object UserExamQueries {
     maxScore
   )
 
-  def parseStepResults(json: String): Seq[UserExamStepResult] = {
+  def createUserExam(ue: UserExam) =
+    SQL(
+      s"""INSERT INTO ${UE.table} (
+         |${UE.userId},
+         |${UE.examConfId},
+         |${UE.currentStepConfId},
+         |${UE.status},
+         |${UE.started},
+         |${UE.finished}
+         |)
+         |VALUES (
+         |{userId},
+         |{examConfId},
+         |{currentStepConfId},
+         |{status},
+         |{started},
+         |{finished}
+         |)
+       """.stripMargin)
+      .on("userId" -> ue.userId)
+      .on("examConfId" -> ue.examConfId)
+      .on("currentStepConfId" -> ue.currentStepConfId)
+      .on("status" -> ue.status.id)
+      .on("started" -> ue.started.map(GeneralHelpers.toMysql).orNull)
+      .on("finished" -> ue.finished.map(GeneralHelpers.toMysql).orNull)
+
+  def updateUserExam(ue: UserExam) =
+    SQL(
+      s"""UPDATE ${UE.table} SET (
+         |${UE.status}={status},
+         |${UE.finished}={finished}
+         |) WHERE ${UE.id} = {id}
+         |
+       """.stripMargin)
+      .on("id" -> ue.id)
+      .on("status" -> ue.status.id)
+      .on("finished" -> ue.finished.map(GeneralHelpers.toMysql).orNull)
+
+  def createUserExamStepAttempt(uesa: UserExamStepAttempt) =
+    SQL(
+      s"""INSERT INTO ${UESA.table} (
+         |${UESA.userExamId},
+         |${UESA.examStepConfId},
+         |${UESA.mistakesAmount},
+         |${UESA.attemptNumber},
+         |${UESA.status}
+         |)
+         |VALUES (
+         |{userExamId},
+         |{examStepConfId},
+         |{mistakesAmount},
+         |{attemptNumber},
+         |{status}
+         |)
+       """.stripMargin)
+      .on("userExamId" -> uesa.userExamId)
+      .on("examStepConfId" -> uesa.examStepConfId)
+      .on("mistakesAmount" -> uesa.mistakesAmount)
+      .on("attemptNumber" -> uesa.status.id)
+      .on("status" -> uesa.status.id)
+
+  def updateUserExamStepAttempt(uesa: UserExamStepAttempt) =
+    SQL(
+      s"""UPDATE ${UESA.table} SET
+         |${UESA.mistakesAmount}={mistakesAmount},
+         |${UESA.attemptNumber}={attemptNumber},
+         |${UESA.status}={status}
+         |WHERE id = {id}
+       """.stripMargin)
+      .on("id" -> uesa.id)
+      .on("mistakesAmount" -> uesa.mistakesAmount)
+      .on("attemptNumber" -> uesa.attemptNumber)
+      .on("status" -> uesa.status.id)
+
+  def createUserExamResult(uer: UserExamResult) =
+    SQL(
+      s"""INSERT INTO ${UER.table} (
+         |${UER.userExamId},
+         |${UER.examConfId},
+         |${UER.userId},
+         |${UER.examName},
+         |${UER.studentName},
+         |${UER.studentGroupName},
+         |${UER.durationMillis},
+         |${UER.stepResults},
+         |${UER.score},
+         |${UER.maxScore}
+         |)
+         |VALUES (
+         |{userExamId},
+         |{examConfId},
+         |{userId},
+         |{examName},
+         |{studentName},
+         |{studentGroupName},
+         |{durationMillis},
+         |{stepResults},
+         |{score},
+         |{maxScore}
+         |)
+         """.stripMargin)
+      .on("userExamId" -> uer.userExamId)
+      .on("examConfId" -> uer.examConfId)
+      .on("userId" -> uer.userId)
+      .on("examName" -> uer.examName)
+      .on("studentName" -> uer.studentName)
+      .on("studentGroupName" -> uer.studentGroupName.orNull)
+      .on("durationMillis" -> uer.durationMillis)
+      .on("stepResults" -> uer.stepResults.asJson.toString)
+      .on("score" -> uer.score)
+      .on("maxScore" -> uer.maxScore)
+
+
+
+  private def parseStepResults(json: String): Seq[UserExamStepResult] = {
     decode[Seq[UserExamStepResult]](json).fold( e =>
       throw new RuntimeException(s"Failed to parse Seq[UserExamStepResult] in json: $json", e),
       r => r
