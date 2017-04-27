@@ -91,12 +91,17 @@ object Data {
       )
     ))
   )
+
+  def userExam(examConfId: Long, userId: Long) =
+    UserExam(-1, userId, examConfId, 1, ExamStatus.InProgress, started = Some(DateTime.now), None)
 }
 
 class InitialDataGenerator(db: DatabaseService,
                            usersService: UsersService,
                            authService: AuthService,
-                           examService: ExamService, problemService: ProblemService) extends LazyLogging {
+                           examService: ExamService,
+                           problemService: ProblemService,
+                           userExamService: UserExamService) extends LazyLogging {
 
   def generate()(implicit executionContext: ExecutionContext) = {
 
@@ -122,13 +127,15 @@ class InitialDataGenerator(db: DatabaseService,
     //b3FhdWpiamg1Y2F2c2c0ZXQ0MmVpbXVhOWh2cWUzaTlxNWhoYzVoaW9hNXV2YWd2dGg5bXUwM2htMCYzJjE0ODU1MzUyMjQwMDA
     val instructorToken = insertToken(Data.userToken(instructor.id.get))
 
-    Data.examConfs.foreach{ case((ec: ExamConf, steps: Seq[ExamStepConf])) =>
+    val examConfs = Data.examConfs.map{ case((ec: ExamConf, steps: Seq[ExamStepConf])) =>
       generateExamConf(ec, steps)
     }
 
     Data.problemConfs.foreach{ case((pc: ProblemConf, pvcs: Seq[ProblemVariantConf])) =>
       generateProblemConf(pc, pvcs)
     }
+
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {
@@ -138,11 +145,12 @@ class InitialDataGenerator(db: DatabaseService,
     }
   }
 
-  def generateExamConf(ec: ExamConf, esc: Seq[ExamStepConf]) = {
+  def generateExamConf(ec: ExamConf, esc: Seq[ExamStepConf]): ExamConf = {
     val newEC = examService.createExamConf(ec)
     esc.foreach{case (esc: ExamStepConf) => {
       val newESC = examService.createExamStepConf(esc.copy(examConfId = newEC.id))
     }}
+    newEC
   }
 
   def generateProblemConf(pc: ProblemConf, pvcs: Seq[ProblemVariantConf]) = {

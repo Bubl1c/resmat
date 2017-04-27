@@ -17,6 +17,8 @@ import scala.concurrent.duration._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
+import scala.util.Try
+
 trait StepDataDto
 
 case class UserExamDto(userExam: UserExam, currentStepPreview: Option[UserExamStepPreviewDto], examConf: ExamConf)
@@ -33,55 +35,67 @@ class UserExamService(val db: DatabaseService)
                       taskFlowExamService: TaskFlowExamService)
                      (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
-  private val userExams: ListBuffer[UserExam] = ListBuffer(
-    UserExam(1, 1, 1, 1, ExamStatus.InProgress, started = Some(DateTime.now), None),
-    UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
-  )
-  private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer()
+  import edu.knuca.resmat.exam.{UserExamQueries => Q}
 
-  private val userExamResults: ListBuffer[UserExamResult] = ListBuffer()
+//  private val userExams: ListBuffer[UserExam] = ListBuffer(
+//    UserExam(1, 1, 1, 1, ExamStatus.InProgress, started = Some(DateTime.now), None),
+//    UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
+//  )
+//  private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer()
+//
+//  private val userExamResults: ListBuffer[UserExamResult] = ListBuffer()
 
   //===============================================================
   //                      User - exam
   //===============================================================
 
-  def getUserExamById(id: Long): UserExam = userExams.find(_.id == id).getOrElse(
-    throw new RuntimeException(s"Exam with id: $id not found.")
-  )
+  def createUserExam(userExam: UserExam): UserExam = db.run{ implicit c =>
+    val insertedIdOpt: Option[Long] = Q.createUserExam(userExam).executeInsert()
+    val insertedId = insertedIdOpt.getOrElse(
+      throw new RuntimeException(s"Failed to insert $userExam")
+    )
+    getUserExam(insertedId)
+  }
 
-  def getUserExamDtoById(userExamId: Long): Option[UserExamDto] = userExams.find(_.id == userExamId).map(mapToDto)
+  def getUserExam(id: Long): UserExam = db.run{ implicit c =>
+    Q.getUserExam(id).as(Q.ueParser.singleOpt).getOrElse(
+      throw new RuntimeException(s"Exam with id: $id not found.")
+    )
+  }
 
-  def getUserExamsAvailableForUser(userId: Long): Seq[UserExamDto] = {
-    val ues = userExams.filter(_.userId == userId)
+  def getUserExamDto(id: Long): UserExamDto = db.run{ implicit c =>
+    mapToDto(getUserExam(id))
+  }
+
+  def getUserExamsAvailableForUser(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
+    val ues = Q.findUserExamsByUserId(userId).as(Q.ueParser.*)
     ues.map(mapToDto)
   }
 
-  def getCurrentUserExam(userId: Long): Option[UserExamDto] = {
-    val currentInProgress = userExams.find(ue => ue.userId == userId && ue.status == ExamStatus.InProgress)
+  def getCurrentUserExam(userId: Long): Option[UserExamDto] = db.run{ implicit c =>
+    val currentInProgress = Q.findUserExamsInProgress(userId).as(Q.ueParser.singleOpt)
     currentInProgress.fold{
-      val any = userExams.find(ue => ue.userId == userId)
-      any.map(mapToDto)
+      val userExams = Q.findUserExamsByUserId(userId).as(Q.ueParser.*)
+      userExams.find(_.status == ExamStatus.Initial).map(mapToDto)
     }{ ue =>
       Some(mapToDto(ue))
     }
   }
 
-  def updateUserExam(userExam: UserExam): UserExam = {
-    val userExamIndex = userExams.indexWhere(_.id == userExam.id)
-    userExams.update(userExamIndex, userExam)
-    userExam
+  def updateUserExam(userExam: UserExam): UserExam = db.run{ implicit c =>
+    val affected = Q.updateUserExam(userExam).executeUpdate()
+    if(affected != 1) {
+      throw new RuntimeException(s"Failed to update $userExam")
+    }
+    Q.getUserExam(userExam.id).as(Q.ueParser.single)
   }
 
-  def getUserExamResults(userId: Long): Seq[UserExamResult] = {
-    userExamResults.filter(_.userId == userId)
+  def findUserExamStepAttempts(userExamId: Long): Seq[UserExamStepAttempt] = db.run{ implicit c =>
+    Q.findUserExamStepAttempts(userExamId).as(Q.uesaParser.*)
   }
 
-  def findUserExamStepAttempts(userExamId: Long): Seq[UserExamStepAttempt] = {
-    userExamStepAttempts.filter(_.userExamId == userExamId)
-  }
-
-  def findUserExamStepAttempts(userExamId: Long, examStepConfId: Long): Seq[UserExamStepAttempt] = {
-    userExamStepAttempts.filter(ues => ues.userExamId == userExamId && ues.examStepConfId == examStepConfId)
+  def findUserExamStepAttempts(userExamId: Long, examStepConfId: Long): Seq[UserExamStepAttempt] = db.run{ implicit c =>
+    Q.findUserExamStepAttempts(userExamId, examStepConfId).as(Q.uesaParser.*)
   }
 
   private def mapToDto(ue: UserExam): UserExamDto = {
@@ -91,29 +105,45 @@ class UserExamService(val db: DatabaseService)
     UserExamDto(ue, currentStepOpt, configuration)
   }
 
+  def updateStepAttempt(stepAttempt: UserExamStepAttempt): UserExamStepAttempt = db.run{ implicit c =>
+    val affectedRows = Q.updateUserExamStepAttempt(stepAttempt).executeUpdate()
+    if(affectedRows != 1) {
+      throw new RuntimeException("Failed to update UserExamStepAttempt")
+    }
+    Q.getUserExamStepAttempt(stepAttempt.id).as(Q.uesaParser.single)
+  }
+
+  private def createStepAttempt(attempt: UserExamStepAttempt): UserExamStepAttempt = db.run{ implicit c =>
+    val insertedIdOpt: Option[Long] = Q.createUserExamStepAttempt(attempt).executeInsert()
+    val insertedId = insertedIdOpt.getOrElse(
+      throw new RuntimeException(s"Failed to insert $attempt")
+    )
+    Q.getUserExamStepAttempt(insertedId).as(Q.uesaParser.single)
+  }
+
+  def getUserExamResultByUserExamId(userExamId: Long): UserExamResult = db.run{ implicit c =>
+    Q.getUserExamResultByUserExamId(userExamId).as(Q.uerParser.singleOpt).getOrElse(
+      throw new RuntimeException(s"User exam result with id: $userExamId not found.")
+    )
+  }
+
+  def findUserExamResults(userId: Long): Seq[UserExamResult] = db.run{ implicit c =>
+    Q.findUserExamResults(userId).as(Q.uerParser.*)
+  }
+
   def getOrCreateUserExamResult(userExamId: Long): UserExamResult = {
-    userExamResults.find(_.userExamId == userExamId).getOrElse {
+    Try(getUserExamResultByUserExamId(userExamId)).getOrElse {
       val result = calculateUserExamResult(userExamId)
-      userExamResults += result
-      result
+      createUserExamResult(result)
     }
   }
 
-  def updateStepAttempt(stepAttempt: UserExamStepAttempt): UserExamStepAttempt = {
-    val stepAttemptIndex = userExamStepAttempts.indexWhere(_.id == stepAttempt.id)
-    userExamStepAttempts.update(
-      stepAttemptIndex,
-      stepAttempt
+  def createUserExamResult(userExamResult: UserExamResult): UserExamResult = db.run{ implicit c =>
+    val insertedIdOpt: Option[Long] = Q.createUserExamResult(userExamResult).executeInsert()
+    val insertedId = insertedIdOpt.getOrElse(
+      throw new RuntimeException(s"Failed to insert $userExamResult")
     )
-    stepAttempt
-  }
-
-  private def createStepAttempt(attempt: UserExamStepAttempt): UserExamStepAttempt = {
-    val existingAttempts = findUserExamStepAttempts(attempt.userExamId, attempt.examStepConfId)
-    val nextStepAttemptId = if(userExamStepAttempts.nonEmpty) userExamStepAttempts.last.id + 1 else 1
-    val withId = attempt.copy(id = nextStepAttemptId, attemptNumber = existingAttempts.size + 1)
-    userExamStepAttempts += withId
-    withId
+    Q.getUserExamResult(insertedId).as(Q.uerParser.single)
   }
 
   //===============================================================
@@ -121,13 +151,13 @@ class UserExamService(val db: DatabaseService)
   //===============================================================
 
   def getUserExamCurrentStepWithAttemptData(userExamId: Long): Option[UserExamStepAttemptDto] = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val examStepConf = examService.getExamStepConf(userExam.currentStepConfId)
     getUserExamStepCurrentAttempt(userExam.id, examStepConf.sequence)
   }
 
   def getUserExamStepInfos(userExamId: Long): Seq[UserExamStepInfoDto] = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val stepConfs = examService.findExamStepConfsByExamConfId(userExam.examConfId)
     stepConfs.map(getStepInfo(userExam.id, _))
   }
@@ -139,7 +169,7 @@ class UserExamService(val db: DatabaseService)
 
   //todo make this method return uncompleted parts
   def submitStep(userExamId: Long, stepSequence: Int): Boolean = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val stepConfs = examService.findExamStepConfsByExamConfId(userExam.examConfId)
     val examStepConf = stepConfs.find(_.sequence == stepSequence).getOrElse(
       throw new RuntimeException(s"Exam ($userExamId) step with sequence: $stepSequence not found.")
@@ -224,14 +254,14 @@ class UserExamService(val db: DatabaseService)
   //===============================================================
 
   def getUserExamStepAttempts(userExamId: Long, sequence: Int): Seq[UserExamStepAttemptDto] = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, sequence)
     val attempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
     attempts.flatMap(getAttemptDto(_, examStepConf))
   }
 
   def getUserExamStepCurrentAttempt(userExamId: Long, stepSequence: Int): Option[UserExamStepAttemptDto] = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
     val existingAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
 
@@ -319,7 +349,7 @@ class UserExamService(val db: DatabaseService)
                           stepAttemptId: Long,
                           testId: Long,
                           submittedOptions: Seq[Long]): VerifiedTestAnswerDto = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
     val allStepAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
     val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
@@ -370,7 +400,7 @@ class UserExamService(val db: DatabaseService)
                                taskFlowId: Long,
                                taskFlowStepId: Long,
                                answer: String): Option[VerifiedTaskFlowStepAnswer] = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
     val allStepAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
     val currentStepAttempt = allStepAttempts.find(_.id == stepAttemptId).getOrElse(
@@ -392,7 +422,7 @@ class UserExamService(val db: DatabaseService)
   //===============================================================
 
   def calculateUserExamResult(userExamId: Long): UserExamResult = {
-    val userExam = getUserExamById(userExamId)
+    val userExam = getUserExam(userExamId)
 
     if(!Seq(ExamStatus.Success, ExamStatus.Failed).contains(userExam.status)) {
       throw new IllegalStateException(s"Failed to compose exam result! Reason: Exam status is: ${userExam.status}")
@@ -414,10 +444,8 @@ class UserExamService(val db: DatabaseService)
 
     val score = calculateScore(examConf, stepResults)
 
-    val resultId = userExamResults.lastOption.map(_.id).getOrElse(0) + 1
-
     UserExamResult(
-      resultId,
+      -1,
       userExam.id,
       examConf.id,
       userExam.userId,
@@ -488,7 +516,7 @@ object UserExamQueries {
     val started = "started"
     val finished = "finished"
   }
-  
+
   object UESA {
     val table = "user_exam_step_attempts"
     val id = "id"
@@ -498,9 +526,9 @@ object UserExamQueries {
     val attemptNumber = "attempt_number"
     val status = "status"
   }
-  
+
   object UER {
-    val table = "user_exam_step_attempts"
+    val table = "user_exam_results"
     val id = "id"
     val userExamId = "user_exam_id"
     val examConfId = "exam_conf_id"
@@ -587,13 +615,13 @@ object UserExamQueries {
 
   def updateUserExam(ue: UserExam) =
     SQL(
-      s"""UPDATE ${UE.table} SET (
-         |${UE.status}={status},
-         |${UE.finished}={finished}
-         |) WHERE ${UE.id} = {id}
-         |
-       """.stripMargin)
+      s"""UPDATE ${UE.table} SET
+         |${UE.currentStepConfId} = {currentStepConfId},
+         |${UE.status} = {status},
+         |${UE.finished} = {finished}
+         |WHERE ${UE.id} = {id}""".stripMargin)
       .on("id" -> ue.id)
+      .on("currentStepConfId" -> ue.currentStepConfId)
       .on("status" -> ue.status.id)
       .on("finished" -> ue.finished.map(GeneralHelpers.toMysql).orNull)
 
@@ -671,6 +699,34 @@ object UserExamQueries {
       .on("score" -> uer.score)
       .on("maxScore" -> uer.maxScore)
 
+  def getUserExam(id: Long) = SQL(s"SELECT * FROM ${UE.table} WHERE ${UE.id} = {id}").on("id" -> id)
+
+  def findUserExamsByUserId(userId: Long) =
+    SQL(s"SELECT * FROM ${UE.table} WHERE ${UE.userId} = {userId}").on("userId" -> userId)
+
+  def findUserExamsInProgress(userId: Long) =
+    SQL(s"SELECT * FROM ${UE.table} " +
+      s"WHERE ${UE.userId} = {userId} AND ${UE.status} = ${ExamStatus.InProgress.id}").on("userId" -> userId)
+
+  def getUserExamResult(id: Long) =
+    SQL(s"SELECT * FROM ${UER.table} WHERE ${UER.id} = {id}").on("id" -> id)
+
+  def findUserExamResults(userId: Long) =
+    SQL(s"SELECT * FROM ${UER.table} WHERE ${UER.userId} = {userId}").on("userId" -> userId)
+
+  def getUserExamResultByUserExamId(userExamId: Long) =
+    SQL(s"SELECT * FROM ${UER.table} WHERE ${UER.userExamId} = {userExamId}").on("userExamId" -> userExamId)
+
+  def getUserExamStepAttempt(id: Long) =
+    SQL(s"SELECT * FROM ${UESA.table} WHERE ${UESA.id} = {id}").on("id" -> id)
+
+  def findUserExamStepAttempts(userExamId: Long) =
+    SQL(s"SELECT * FROM ${UESA.table} WHERE ${UESA.userExamId} = {userExamId}").on("userExamId" -> userExamId)
+
+  def findUserExamStepAttempts(userExamId: Long, examStepConfId: Long) =
+    SQL(s"SELECT * FROM ${UESA.table} WHERE ${UESA.userExamId} = {userExamId} AND ${UESA.examStepConfId} = {examStepConfId}")
+      .on("userExamId" -> userExamId)
+      .on("examStepConfId" -> examStepConfId)
 
 
   private def parseStepResults(json: String): Seq[UserExamStepResult] = {

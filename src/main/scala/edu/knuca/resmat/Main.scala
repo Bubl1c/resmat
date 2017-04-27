@@ -41,7 +41,9 @@ object Main extends App with Config {
   val examService: ExamService = new ExamService(databaseService)
   val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testSetExamService, taskFlowExamService)
 
-  val dataGenerator = new InitialDataGenerator(databaseService, usersService, authService, examService, problemService)
+  val dataGenerator = new InitialDataGenerator(
+    databaseService, usersService, authService, examService, problemService, userExamService
+  )
   dataGenerator.generate()
 
   val httpRoutes = new HttpRoutes(usersService, authService, userExamService, testSetExamService)(dataGenerator)

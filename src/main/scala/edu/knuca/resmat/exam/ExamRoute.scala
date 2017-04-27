@@ -33,13 +33,13 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
     } ~
     (pathPrefix("results") & parameters("userId".as[Long]) & get) { userId =>
       complete {
-        Future(getUserExamResults(userId))
+        Future(findUserExamResults(userId))
       }
     } ~
     pathPrefix(LongNumber) { userExamId =>
       (pathEndOrSingleSlash & get) {
         complete {
-          Future(getUserExamDtoById(userExamId))
+          Future(getUserExamDto(userExamId))
         }
       } ~
       pathPrefix("steps") {
