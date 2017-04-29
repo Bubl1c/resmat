@@ -6,6 +6,8 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
+mainClass in assembly := Some("edu.knuca.resmat.Main")
+
 val jsonDependencies = {
   val circeV = "0.7.0"
   Seq(
@@ -62,6 +64,15 @@ libraryDependencies ++=
   loggingDependencies ++
   dbDependencies ++
   mathDependencies
+
+assemblyMergeStrategy in assembly := {
+  case PathList("application.conf") => MergeStrategy.discard
+  case PathList("flyway.conf") => MergeStrategy.discard
+  case PathList("logback.xml") => MergeStrategy.discard
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 

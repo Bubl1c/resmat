@@ -3,7 +3,7 @@ package edu.knuca.resmat.auth
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import de.heikoseeberger.akkahttpcirce.CirceSupport
-import edu.knuca.resmat.InitialDataGenerator
+import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.http.SecurityDirectives
 import edu.knuca.resmat.user.{UserEntity, UsersService}
 import io.circe.generic.auto._

@@ -1,12 +1,12 @@
 package edu.knuca.resmat.http
 
 import akka.http.scaladsl.server.Directives._
-import edu.knuca.resmat.InitialDataGenerator
 import edu.knuca.resmat.auth.{AuthRoute, AuthService}
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
 import ch.megard.akka.http.cors.CorsDirectives._
+import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 

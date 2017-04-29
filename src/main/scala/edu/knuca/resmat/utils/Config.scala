@@ -15,7 +15,7 @@ trait Config {
   object MySql {
     private lazy val config = _config.getConfig("mysql-database")
 
-    val options = "jdbcCompliantTruncation=false&characterEncoding=UTF-8&serverTimezone=GMT&useSSL=false"
+    val options = "jdbcCompliantTruncation=false&characterEncoding=UTF-8&serverTimezone=GMT&useSSL=false&profileSQL=true"
     val host = config.getString("host")
     val port = config.getString("port")
     val db = config.getString("database")

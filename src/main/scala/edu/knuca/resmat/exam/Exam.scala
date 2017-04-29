@@ -104,17 +104,29 @@ case class UserExamStepResult(stepConfId: Long,
 
 //====================TestSet====================
 
-case class TestSetConf(id: Long, examConfId: Long, examStepConfId: Long)
-case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupId: Long)
+case class TestSetConf(id: Long, name: String, maxTestsAmount: Int)
+case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupConfId: Long, proportionPercents: Int)
 
 case class TestGroupConf(id: Long, name: String)
-case class TestConf(id: Long, groupId: Long, question: String, options: Seq[TestOptionConf], testType: TestType.TestType = TestType.Radio, help: Option[String] = None) {
+case class TestConf(id: Long,
+                    groupId: Long,
+                    question: String,
+                    options: Seq[TestOptionConf],
+                    testType: TestType.TestType = TestType.Radio,
+                    help: Option[String] = None) {
   def getCorrectOptionIds: Seq[Long] = options.filter(_.correct).map(_.id)
 }
-case class TestOptionConf(id: Long, value: String, correct: Boolean = false, valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
+case class TestOptionConf(id: Long,
+                          value: String,
+                          correct: Boolean = false,
+                          valueType: TestOptionValueType.TestOptionValueType = TestOptionValueType.Text)
 
-case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, testSetConfId: Long)
-case class UserExamStepAttemptTestSetTest(stepAttemptTestSetId: Long, testConfId: Long, done: Boolean = false, mistakes: Int = 0)
+case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, testSetConfId: Long)
+case class UserExamStepAttemptTestSetTest(id: Long,
+                                          stepAttemptTestSetId: Long,
+                                          testConfId: Long,
+                                          done: Boolean = false,
+                                          mistakes: Int = 0)
 
 //====================TaskFlow====================
 

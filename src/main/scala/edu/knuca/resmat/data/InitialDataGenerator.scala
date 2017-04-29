@@ -1,15 +1,14 @@
-package edu.knuca.resmat
+package edu.knuca.resmat.data
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
 import edu.knuca.resmat.core.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
-import edu.knuca.resmat.exam.{ExamStepTaskFlowDataSet, ProblemInputVariableConf, ProblemInputVariableValue, _}
+import edu.knuca.resmat.exam._
+import edu.knuca.resmat.exam.testset.TestSetExamService
+import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf, ProblemInputVariableValue => VarVal}
 import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
-
-import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf}
-import edu.knuca.resmat.exam.{ProblemInputVariableValue => VarVal}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, ExecutionContext}
@@ -101,7 +100,10 @@ class InitialDataGenerator(db: DatabaseService,
                            authService: AuthService,
                            examService: ExamService,
                            problemService: ProblemService,
-                           userExamService: UserExamService) extends LazyLogging {
+                           userExamService: UserExamService,
+                           testSetExamService: TestSetExamService) extends LazyLogging {
+
+  val testSet = new TestSetDataGenerator(testSetExamService)
 
   def generate()(implicit executionContext: ExecutionContext) = {
 
