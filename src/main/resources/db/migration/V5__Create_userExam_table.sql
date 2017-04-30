@@ -4,6 +4,7 @@ CREATE TABLE `user_exams` (
   `exam_conf_id`         BIGINT   NOT NULL,
   `current_step_conf_id` BIGINT   NOT NULL,
   `status`               SMALLINT NOT NULL,
+  `locked_until`         DATETIME NULL                      DEFAULT NULL,
   `started`              DATETIME NULL                      DEFAULT NULL,
   `finished`             DATETIME NULL                      DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -15,7 +16,7 @@ CREATE TABLE `user_exams` (
     ON DELETE CASCADE,
   FOREIGN KEY (current_step_conf_id)
   REFERENCES exam_step_confs (id)
-    ON DELETE CASCADE
+    ON DELETE RESTRICT
 )
   DEFAULT CHARSET = utf8;
 
@@ -32,7 +33,7 @@ CREATE TABLE `user_exam_step_attempts` (
     ON DELETE CASCADE,
   FOREIGN KEY (exam_step_conf_id)
   REFERENCES exam_step_confs (id)
-    ON DELETE CASCADE
+    ON DELETE RESTRICT
 )
   DEFAULT CHARSET = utf8;
 

@@ -42,6 +42,13 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
           Future(getUserExamDto(userExamId))
         }
       } ~
+      pathPrefix("start") {
+        (pathEndOrSingleSlash & get) {
+          complete{
+            Future(startAndGetUserExamDto(userExamId))
+          }
+        }
+      } ~
       pathPrefix("steps") {
         (pathEndOrSingleSlash & get) {
           complete{

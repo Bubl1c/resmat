@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.CirceSupport
 import io.circe.generic.auto._
 import akka.http.scaladsl.model._
+import edu.knuca.resmat.GeneralHelpers
 
 trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLogging {
 
@@ -30,6 +31,8 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
     case UnauthenticatedException(m) =>
       logger.warn(s"Authentication failed: ", m)
       completeUnauthorized(m)
+    case ResourceLocked(lockedUntil, message) =>
+      complete(StatusCodes.Locked -> lockedUntil.toString())
     case e: IllegalStateException =>
       complete(StatusCodes.Conflict -> ErrorMessage(e.getMessage))
 
@@ -42,7 +45,9 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
 
 trait ApiException
 
-case class NotAuthorized(message: String) extends Exception(message) with ApiException
+case class NotAuthorized(message: String = "Access to this resource is forbidden") extends Exception(message) with ApiException
+
+case class ResourceLocked(lockedUntil: org.joda.time.DateTime, message: String = "Resource is locked.") extends Exception(message) with ApiException
 
 case class NotFoundException(message: String) extends Exception(message) with ApiException
 

@@ -32,6 +32,7 @@ CREATE TABLE `test_confs` (
   `id`            BIGINT        NOT NULL                  AUTO_INCREMENT,
   `group_conf_id` BIGINT        NOT NULL,
   `question`      VARCHAR(2000) NOT NULL,
+  `image_url`      VARCHAR(1000) NULL,
   `options`       JSON          NOT NULL,
   `test_type`     SMALLINT      NOT NULL,
   `help`          VARCHAR(255)  NULL                      DEFAULT NULL,
@@ -52,7 +53,7 @@ CREATE TABLE `user_exam_step_attempt_test_sets` (
     ON DELETE CASCADE,
   FOREIGN KEY (test_set_conf_id)
   REFERENCES test_set_confs (id)
-    ON DELETE CASCADE
+    ON DELETE RESTRICT
 )
   DEFAULT CHARSET = utf8;
 
@@ -68,7 +69,7 @@ CREATE TABLE `user_exam_step_attempt_test_set_tests` (
     ON DELETE CASCADE,
   FOREIGN KEY (test_conf_id)
   REFERENCES test_confs (id)
-    ON DELETE CASCADE
+    ON DELETE RESTRICT
 )
   DEFAULT CHARSET = utf8;
 

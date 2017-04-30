@@ -43,7 +43,7 @@ object Main extends App with Config {
   val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testSetExamService, taskFlowExamService)
 
   val dataGenerator = new InitialDataGenerator(
-    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService
+    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService
   )
   dataGenerator.generate()
 

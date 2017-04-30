@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext
 case class TestOptionDto(id: Long, value: String, valueType: TestOptionValueType.TestOptionValueType) {
   def this(o: TestOptionConf) = this(o.id, o.value, o.valueType)
 }
-case class TestDto(id: Long, groupId: Long, testType: TestType.TestType, question: String, help: Option[String], options: Seq[TestOptionDto])
+case class TestDto(id: Long, groupId: Long, testType: TestType.TestType, question: String, imageUrl: Option[String], help: Option[String], options: Seq[TestOptionDto])
 case class TestSetDto(conf: TestSetConf,  tests: Seq[TestDto]) extends StepDataDto
 
 case class TestAnswerDto(testId: Long, submittedOptions: Seq[Long])
@@ -194,7 +194,7 @@ class TestSetExamService(val db: DatabaseService)
     val testSetTestsFromGroups: Seq[TestConf] = takeTestConfsFromGroups(
       tscTestGroups.map { tg =>
         val proportion = tg.proportionPercents / 100.0
-        (tg.id, Math.floor(testsAmount * proportion).toInt)
+        (tg.id, Math.ceil(testsAmount * proportion).toInt)
       }
     )
 
@@ -226,7 +226,7 @@ class TestSetExamService(val db: DatabaseService)
   }
 
   private def testToDto(t: TestConf): TestDto =
-    TestDto(t.id, t.groupId, t.testType, t.question, t.help, t.options.map(new TestOptionDto(_)))
+    TestDto(t.id, t.groupId, t.testType, t.question, t.imageUrl, t.help, t.options.map(new TestOptionDto(_)))
 
 }
 
@@ -263,6 +263,7 @@ object TestSetQueries {
     val id = "id"
     val groupConfId = "group_conf_id"
     val question = "question"
+    val imageUrl = "image_url"
     val options = "options"
     val testType = "test_type"
     val help = "help"
@@ -306,10 +307,11 @@ object TestSetQueries {
     id <- long(T.id)
     groupConfId <- int(T.groupConfId)
     question <- str(T.question)
+    imageUrl <- str(T.imageUrl).?
     options <- str(T.options)
     testType <- int(T.testType)
     help <- str(T.help).?
-  } yield TestConf(id, groupConfId, question, decodeTestOptions(options), TestType(testType), help)
+  } yield TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help)
 
   val uetsParser  = for {
     id <- long(UETS.id)
@@ -353,18 +355,21 @@ object TestSetQueries {
       s"""INSERT INTO ${T.table} (
          |${T.groupConfId},
          |${T.question},
+         |${T.imageUrl},
          |${T.options},
          |${T.testType},
          |${T.help}
          |) VALUES (
          |{groupConfId},
          |{question},
+         |{imageUrl},
          |{options},
          |{testType},
          |{help}
          |)""".stripMargin)
     .on("groupConfId" -> tc.groupId)
     .on("question" -> tc.question)
+    .on("imageUrl" -> tc.imageUrl)
     .on("options" -> tc.options.asJson.toString)
     .on("testType" -> tc.testType.id)
     .on("help" -> tc.help)

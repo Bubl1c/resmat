@@ -4,7 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
 import edu.knuca.resmat.core.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
+import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam._
+import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf, ProblemInputVariableValue => VarVal}
 import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
@@ -38,7 +40,7 @@ object Data {
     VarConf(2, "Fa", "кН/м", "a.f"),
     VarConf(3, "Ma", "кНм/м", "a.m"),
     VarConf(4, "wa", "м", "a.w"),
-    VarConf(5, "{phi}{a}", "рад", "a.fi"),
+    VarConf(5, "{phi}a", "рад", "a.fi"),
 
     VarConf(6, "E", "МПа", "moduleE"),
     VarConf(7, "{mu}", "", "poissonRatio"),
@@ -47,7 +49,7 @@ object Data {
     VarConf(9, "Fb", "кН/м", "b.f"),
     VarConf(10, "Mb", "кНм/м", "b.m"),
     VarConf(11, "wb", "м", "b.w"),
-    VarConf(12, "{phi}{b}", "рад", "b.fi"),
+    VarConf(12, "{phi}b", "рад", "b.fi"),
 
     VarConf(13, "a", "м", "a.length"),
     VarConf(14, "b", "м", "b.length"),
@@ -91,8 +93,8 @@ object Data {
     ))
   )
 
-  def userExam(examConfId: Long, userId: Long) =
-    UserExam(-1, userId, examConfId, 1, ExamStatus.InProgress, started = Some(DateTime.now), None)
+  def userExam(examConfId: Long, userId: Long, status: ExamStatus = ExamStatus.Initial) =
+    UserExam(-1, userId, examConfId, 1, status, None, started = Some(DateTime.now), None)
 }
 
 class InitialDataGenerator(db: DatabaseService,
@@ -101,11 +103,12 @@ class InitialDataGenerator(db: DatabaseService,
                            examService: ExamService,
                            problemService: ProblemService,
                            userExamService: UserExamService,
-                           testSetExamService: TestSetExamService) extends LazyLogging {
-
-  val testSet = new TestSetDataGenerator(testSetExamService)
+                           testSetExamService: TestSetExamService,
+                           taskFlowExamService: TaskFlowExamService) extends LazyLogging {
 
   def generate()(implicit executionContext: ExecutionContext) = {
+
+    val testSet = new TestSetDataGenerator(testSetExamService)
 
     val group = await(usersService.createStudentGroup(Data.group1))
     val group2 = await(usersService.createStudentGroup(Data.group2))
@@ -137,7 +140,12 @@ class InitialDataGenerator(db: DatabaseService,
       generateProblemConf(pc, pvcs)
     }
 
+    val taskFlow = new TaskFlowDataGenerator(taskFlowExamService)
+
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get, ExamStatus.InProgress))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get, ExamStatus.Success))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get, ExamStatus.Failed))
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {

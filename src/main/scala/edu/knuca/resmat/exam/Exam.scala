@@ -76,6 +76,7 @@ case class UserExam(id: Long,
                     examConfId: Long,
                     currentStepConfId: Long,
                     status: ExamStatus.ExamStatus,
+                    lockedUntil: Option[DateTime],
                     started: Option[DateTime],
                     finished: Option[DateTime])
 case class UserExamStepAttempt(id: Long,
@@ -111,6 +112,7 @@ case class TestGroupConf(id: Long, name: String)
 case class TestConf(id: Long,
                     groupId: Long,
                     question: String,
+                    imageUrl: Option[String],
                     options: Seq[TestOptionConf],
                     testType: TestType.TestType = TestType.Radio,
                     help: Option[String] = None) {
@@ -128,7 +130,7 @@ case class UserExamStepAttemptTestSetTest(id: Long,
                                           done: Boolean = false,
                                           mistakes: Int = 0)
 
-//====================TaskFlow====================
+//====================Problem====================
 
 case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf])
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
@@ -136,19 +138,38 @@ case class ProblemInputVariableValue(variableConfId: Long, value: Double)
 //todo switch calculatedData to interface to allow to work with different problems
 case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue], calculatedData: RingPlateProblemAnswer)
 
-case class TaskFlowConf(id: Long, problemConfId: Long)
+//====================TaskFlow====================
+
+case class TaskFlowConf(id: Long, problemConfId: Long, name: String)
 case class TaskFlowStepConf(id: Long,
                             taskFlowConfId: Long,
                             name: String,
                             sequence: Int,
-                            stepType: TaskFlowStepType.TaskFlowStepType, stepData: String/*JSON field*/, helpData: Boolean = false)
+                            stepType: TaskFlowStepType.TaskFlowStepType,
+                            stepData: String /*JSON field*/ ,
+                            isHelpStep: Boolean = false)
 
-case class UserExamStepAttemptTaskFlow(id: Long, stepAttemptId: Long, userExamId: Long, examStepConfId: Long, taskFlowConfId: Long, problemVariantConfId: Long, currentStepId: Long)
-case class UserExamStepAttemptTaskFlowStep(id: Long, stepAttemptTaskFlowId: Long, taskFlowStepConfId: Long, answer: String/*JSON object*/, done: Boolean = false, mistakes: Int = 0)
+case class UserExamStepAttemptTaskFlow(id: Long,
+                                       stepAttemptId: Long,
+                                       taskFlowConfId: Long,
+                                       problemVariantConfId: Long,
+                                       currentStepSequence: Int)
+case class UserExamStepAttemptTaskFlowStep(id: Long,
+                                           stepAttemptTaskFlowId: Long,
+                                           taskFlowStepConfId: Long,
+                                           sequence: Int,
+                                           answer: String/*JSON object*/,
+                                           done: Boolean = false,
+                                           mistakes: Int = 0)
 
 sealed trait TaskFlowStepData
 
-case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput]) extends TaskFlowStepData
+case class InputSet(id: Long, name: String, inputs: Seq[InputSetInput]) extends TaskFlowStepData {
+  def normalised: InputSet = {
+    val inputsWithNormalisedIds = inputs.zipWithIndex.map{ case (i, ind) => i.copy(id = ind + 1)}
+    this.copy(inputs = inputsWithNormalisedIds)
+  }
+}
 case class InputSetInput(id: Int, //unique within input set
                          name: String,
                          groupName: String,

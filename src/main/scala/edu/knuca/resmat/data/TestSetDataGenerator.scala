@@ -5,35 +5,35 @@ import edu.knuca.resmat.exam.testset.TestSetExamService
 
 object TestSetData {
   val testSetConfs: List[TestSetConf] = List(
-    TestSetConf(1, "Набір тестів для крутих студентів", 20)
+    TestSetConf(1, "Набір тестів для крутих студентів", 3)
   )
 
   val testGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(
     (TestGroupConf(1, "Група тестів 1"), Seq(
-      TestConf(-1, -1, "Test11", Seq(
-        TestOptionConf(1, "Option1", true),
-        TestOptionConf(2, "Option2"),
+      TestConf(-1, -1, "Test11 {sigma}", Some("img/tasks/9.png"), Seq(
+        TestOptionConf(1, "{theta}Option1", true),
+        TestOptionConf(2, "<br/>\n    w(a) = ? m <br/>\n    {phi}(a) = ? рад <br/>\n    Mr(а) = 0 кНм / м <br/>\n    Qr (а) = 0 кН / м <br/>\n    w(b) = 0 м<br/>\n    {phi}(b) = ? рад<br/>\n    Mr(b) = 0 кНм / м<br/>\n    Qr(b) = ? кН / м<br/><br/>"),
         TestOptionConf(3, "Option3"),
         TestOptionConf(4, "Option4")
       )),
-      TestConf(-1, -1, "Test12", Seq(
+      TestConf(-1, -1, "Test12", None, Seq(
         TestOptionConf(1, "Option1", true)
       ))
     )),
     (TestGroupConf(2, "Група тестів 2"), Seq(
-      TestConf(-1, -1, "Test21", Seq(
+      TestConf(-1, -1, "Test21", None, Seq(
         TestOptionConf(1, "Option1", true),
         TestOptionConf(2, "Option2")
       ), TestType.Checkbox),
-      TestConf(-1, -1, "Test22", Seq(
+      TestConf(-1, -1, "Test22", None, Seq(
         TestOptionConf(1, "Option1", true)
       ))
     )),
     (TestGroupConf(3, "Група тестів 3"), Seq(
-      TestConf(-1, -1, "Test31", Seq(
+      TestConf(-1, -1, "Test31", None, Seq(
         TestOptionConf(1, "Option1", true)
       )),
-      TestConf(-1, -1, "Test32", Seq(
+      TestConf(-1, -1, "Test32", None, Seq(
         TestOptionConf(1, "Option1", true)
       ))
     ))

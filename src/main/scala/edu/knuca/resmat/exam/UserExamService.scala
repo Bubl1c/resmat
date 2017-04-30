@@ -8,7 +8,8 @@ import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam.ExamStepType.ExamStepType
 import edu.knuca.resmat.exam.taskflow.{TaskFlowExamService, TaskFlowStepDto, VerifiedTaskFlowStepAnswer}
 import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestSetExamService, VerifiedTestAnswerDto}
-import edu.knuca.resmat.user.UsersService
+import edu.knuca.resmat.http.{ResourceLocked, NotAuthorized}
+import edu.knuca.resmat.user.{AuthenticatedUser, UsersService}
 import org.joda.time.DateTime
 
 import scala.collection.mutable.ListBuffer
@@ -37,18 +38,6 @@ class UserExamService(val db: DatabaseService)
 
   import edu.knuca.resmat.exam.{UserExamQueries => Q}
 
-//  private val userExams: ListBuffer[UserExam] = ListBuffer(
-//    UserExam(1, 1, 1, 1, ExamStatus.InProgress, started = Some(DateTime.now), None),
-//    UserExam(2, 1, 1, -1, ExamStatus.Initial, None, None)
-//  )
-//  private val userExamStepAttempts: ListBuffer[UserExamStepAttempt] = ListBuffer()
-//
-//  private val userExamResults: ListBuffer[UserExamResult] = ListBuffer()
-
-  //===============================================================
-  //                      User - exam
-  //===============================================================
-
   def createUserExam(userExam: UserExam): UserExam = db.run{ implicit c =>
     val insertedIdOpt: Option[Long] = Q.createUserExam(userExam).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
@@ -63,8 +52,28 @@ class UserExamService(val db: DatabaseService)
     )
   }
 
-  def getUserExamDto(id: Long): UserExamDto = db.run{ implicit c =>
-    mapToDto(getUserExam(id))
+  def startAndGetUserExamDto(id: Long)(implicit user: AuthenticatedUser): UserExamDto = {
+    var userExam = getUserExam(id)
+    if(userExam.userId != user.id) {
+      throw NotAuthorized()
+    }
+    if(userExam.status == ExamStatus.Failed) {
+      throw new IllegalStateException("Already failed")
+    }
+    val isLocked = userExam.lockedUntil.exists(lu => lu.getMillis > DateTime.now.getMillis)
+    if(isLocked) throw ResourceLocked(userExam.lockedUntil.get)
+    if(userExam.status == ExamStatus.Initial) {
+      userExam = updateUserExam(userExam.copy(status = ExamStatus.InProgress))
+    }
+    mapToDto(userExam)
+  }
+
+  def getUserExamDto(id: Long)(implicit user: AuthenticatedUser): UserExamDto = {
+    val exam = getUserExam(id)
+    if(exam.userId != user.id) {
+      throw NotAuthorized()
+    }
+    mapToDto(exam)
   }
 
   def getUserExamsAvailableForUser(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
@@ -114,7 +123,14 @@ class UserExamService(val db: DatabaseService)
   }
 
   private def createStepAttempt(attempt: UserExamStepAttempt): UserExamStepAttempt = db.run{ implicit c =>
-    val insertedIdOpt: Option[Long] = Q.createUserExamStepAttempt(attempt).executeInsert()
+    val existingAttempts = findUserExamStepAttempts(attempt.userExamId).filter(_.examStepConfId == attempt.examStepConfId)
+    val updatedAttemptNumber = if(existingAttempts.nonEmpty) {
+      existingAttempts.maxBy(_.attemptNumber).attemptNumber + 1
+    } else {
+      1
+    }
+    val updatedAttempt = attempt.copy(attemptNumber = updatedAttemptNumber)
+    val insertedIdOpt: Option[Long] = Q.createUserExamStepAttempt(updatedAttempt).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to insert $attempt")
     )
@@ -290,8 +306,10 @@ class UserExamService(val db: DatabaseService)
       //If step attempts limit exceeded - mark exam as failed. -1 means infinite amount
       if(allStepAttempts.size == examStepConf.attemptsLimit && examStepConf.attemptsLimit != -1) {
         updateUserExam(userExam.copy(status = ExamStatus.Failed))
+      } else { //Lock exam for 24 hrs
+        updateUserExam(userExam.copy(lockedUntil = Some(DateTime.now.plusHours(24))))
       }
-    } else if(updatedMistakesAmount > currentStepAttempt.mistakesAmount){
+    } else if(updatedMistakesAmount > currentStepAttempt.mistakesAmount){ //If any mistakes - update attempt
       updateStepAttempt(currentStepAttempt.copy(mistakesAmount = updatedMistakesAmount))
     }
   }
@@ -504,6 +522,7 @@ object UserExamQueries {
     val examConfId = "exam_conf_id"
     val currentStepConfId = "current_step_conf_id"
     val status = "status"
+    val lockedUntil = "locked_until"
     val started = "started"
     val finished = "finished"
   }
@@ -539,9 +558,11 @@ object UserExamQueries {
     examConfId <- long(UE.examConfId)
     currentStepConfId <- long(UE.currentStepConfId)
     status <- int(UE.status)
+    lockedUntil <- date(UE.lockedUntil).?
     started <- date(UE.started).?
     finished <- date(UE.finished).?
-  } yield UserExam(id, userId, examConfId, currentStepConfId, ExamStatus(status), started.map(new DateTime(_)), finished.map(new DateTime(_)))
+  } yield UserExam(id, userId, examConfId, currentStepConfId, ExamStatus(status),
+    lockedUntil.map(new DateTime(_)), started.map(new DateTime(_)), finished.map(new DateTime(_)))
 
   val uesaParser = for {
     id <- long(UESA.id)
@@ -609,11 +630,13 @@ object UserExamQueries {
       s"""UPDATE ${UE.table} SET
          |${UE.currentStepConfId} = {currentStepConfId},
          |${UE.status} = {status},
+         |${UE.lockedUntil} = {lockedUntil},
          |${UE.finished} = {finished}
          |WHERE ${UE.id} = {id}""".stripMargin)
       .on("id" -> ue.id)
       .on("currentStepConfId" -> ue.currentStepConfId)
       .on("status" -> ue.status.id)
+      .on("lockedUntil" -> ue.lockedUntil.map(GeneralHelpers.toMysql).orNull)
       .on("finished" -> ue.finished.map(GeneralHelpers.toMysql).orNull)
 
   def createUserExamStepAttempt(uesa: UserExamStepAttempt) =
@@ -636,7 +659,7 @@ object UserExamQueries {
       .on("userExamId" -> uesa.userExamId)
       .on("examStepConfId" -> uesa.examStepConfId)
       .on("mistakesAmount" -> uesa.mistakesAmount)
-      .on("attemptNumber" -> uesa.status.id)
+      .on("attemptNumber" -> uesa.attemptNumber)
       .on("status" -> uesa.status.id)
 
   def updateUserExamStepAttempt(uesa: UserExamStepAttempt) =
