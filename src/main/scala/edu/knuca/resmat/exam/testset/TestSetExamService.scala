@@ -120,8 +120,10 @@ class TestSetExamService(val db: DatabaseService)
 
   def takeTestConfsFromGroups(groupIdsWithProportions: Seq[(Long, Int)]): Seq[TestConf] =
     groupIdsWithProportions.flatMap{ case(groupId, proportion) =>
-      findTestConfsByGroup(groupId).take(proportion)
-    }  //todo reorder tests
+      val groupTests = findTestConfsByGroup(groupId)
+      val withProportion = scala.util.Random.shuffle(groupTests).take(proportion)
+      withProportion
+    }
 
   //====================UserExamStepAttemptTestSet====================
 

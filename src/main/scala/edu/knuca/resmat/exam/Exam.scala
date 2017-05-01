@@ -117,6 +117,10 @@ case class TestConf(id: Long,
                     testType: TestType.TestType = TestType.Radio,
                     help: Option[String] = None) {
   def getCorrectOptionIds: Seq[Long] = options.filter(_.correct).map(_.id)
+  def normalised: TestConf = {
+    val optionsWithNormalisedIds = options.zipWithIndex.map{ case(opt, i) => opt.copy(id = i) }
+    this.copy(options = optionsWithNormalisedIds)
+  }
 }
 case class TestOptionConf(id: Long,
                           value: String,
