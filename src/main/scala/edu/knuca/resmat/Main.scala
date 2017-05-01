@@ -23,9 +23,11 @@ object Main extends App with Config {
   implicit val log: LoggingAdapter = Logging(actorSystem, getClass)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val flywayService = new FlywayService(MySql.flywayJdbcUrl, MySql.user, MySql.password, MySql.db)
-  flywayService.dropDatabase()
-  flywayService.migrateDatabaseSchema
+  if(MySql.migrateOnStartup) {
+    val flywayService = new FlywayService(MySql.flywayJdbcUrl, MySql.user, MySql.password, MySql.db)
+    flywayService.dropDatabase()
+    flywayService.migrateDatabaseSchema
+  }
 
   val mySqlDbConfig = DBConfig(MySql.jdbcUrl, MySql.user, MySql.password, MySql.driver, MySql.conns)
   val databaseService = new DatabaseService {
@@ -45,7 +47,9 @@ object Main extends App with Config {
   val dataGenerator = new InitialDataGenerator(
     databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService
   )
-  dataGenerator.generate()
+  if(MySql.generateDataOnStartup) {
+    dataGenerator.generate()
+  }
 
   val httpRoutes = new HttpRoutes(usersService, authService, userExamService, testSetExamService)(dataGenerator)
   val httpRouteLogged = DebuggingDirectives.logRequestResult("Resmat REST API", Logging.DebugLevel)(httpRoutes.routes)

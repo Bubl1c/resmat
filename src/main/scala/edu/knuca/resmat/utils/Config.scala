@@ -15,6 +15,9 @@ trait Config {
   object MySql {
     private lazy val config = _config.getConfig("mysql-database")
 
+    val migrateOnStartup = config.getBoolean("migrateOnStartup")
+    val generateDataOnStartup = config.getBoolean("generateDataOnStartup")
+
     val options = "jdbcCompliantTruncation=false&characterEncoding=UTF-8&serverTimezone=GMT&useSSL=false"
     val host = config.getString("host")
     val port = config.getString("port")

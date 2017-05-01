@@ -1,7 +1,7 @@
 CREATE TABLE `exam_confs` (
   `id`          BIGINT       NOT NULL                  AUTO_INCREMENT,
   `name`        VARCHAR(100) NOT NULL,
-  `description` TEXT         NOT NULL                  DEFAULT '',
+  `description` TEXT         NOT NULL,
   `max_score`   SMALLINT     NOT NULL,
   PRIMARY KEY (`id`)
 )

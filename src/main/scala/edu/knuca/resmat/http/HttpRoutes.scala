@@ -1,6 +1,6 @@
 package edu.knuca.resmat.http
 
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.{complete, _}
 import edu.knuca.resmat.auth.{AuthRoute, AuthService}
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
@@ -20,7 +20,7 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val e
     with SecurityDirectives {
 
   val usersRouter = new UsersRoute(authService, usersService)
-  val authRouter = new AuthRoute(authService, usersService, dataGenerator)
+  val authRouter = new AuthRoute(authService, usersService)
   val studentsRouter = new StudentsRoute(usersService)
   val testSetExamRouter = new TestSetExamRoute(examService)
   val taskFlowExamRouter = new TaskFlowExamRoute(examService)
@@ -31,6 +31,16 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val e
       handleRejections(corsRejectionHandler) {
         cors() {
           (handleExceptions(generalHandler) & handleRejections(generalRejectionHandler)) {
+            path("generate") {
+              pathEndOrSingleSlash {
+                get {
+                  complete {
+                    dataGenerator.generate()
+                    "Ok"
+                  }
+                }
+              }
+            }
             authRouter.route ~
               authenticate { implicit user: AuthenticatedUser =>
                 usersRouter.route ~

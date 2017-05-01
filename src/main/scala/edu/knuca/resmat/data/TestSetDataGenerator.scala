@@ -15,7 +15,7 @@ object TestSetData {
         opt("Міра зміни відносної деформації по відношенню до нормального напруження"),
         opt("Міра зміни видовження ізотропного тіла при деформації розтягу"),
         opt("Відношення нормальних напружень при розтягу до поперечної деформації")
-      ))/*,
+      )),
       test("Модуль пружності при осьовому розтягу-стиску - це", Seq(
         opt("Модуль зсуву"),
         opt("Модуль Юнга", true),
@@ -55,7 +55,7 @@ object TestSetData {
       test("Яка гіпотеза відноситься до гіпотез Кірхгофа", Seq(
         opt("Якщо в будь-якій малій частині тіла прикладена зрівноважена система сила, то вона викликає в тілі напруження, які швидко зменшуються при віддаленні від даної частини"),
         opt("Прямолінійні волокна, які до деформації були нормальними до серединної поверхні, зберігають після деформації свою довжину та прямолінійність, але не залишаються перпендикулярними до деформованої серединної поверхні, при цьому повертаються на певний кут"),
-        opt("Прямолінійні волокна, перпендикулярні до серединної поверхні пластини до деформації, залишаються після деформації прямолінійними і перпендикулярними до зігнутої поверхні, зберігаючи при цьому свою довжину"),
+        opt("Прямолінійні волокна, перпендикулярні до серединної поверхні пластини до деформації, залишаються після деформації прямолінійними і перпендикулярними до зігнутої поверхні, зберігаючи при цьому свою довжину", true),
         opt("Прямолінійні волокна, перпендикулярні до серединної поверхні пластини до деформації залишаються перпендикулярними до зігнутої поверхні та набувають криволінійну форму")
       )),
       test("Яке з припущень відноситься до некласичної теорії пластин (припущення Тимошенко)?", Seq(
@@ -69,7 +69,7 @@ object TestSetData {
         opt("фізична характеристика теплопровідності матеріалу"),
         opt("відношення напружень до переміщень"),
         opt("відношення деформацій до напружень при розтягу-стиску")
-      ))*/
+      ))
     )),
     (TestGroupConf(-1, "Формули"), Seq(
       test("У чому вимірюється модуль Юнга?", Seq(
@@ -77,7 +77,7 @@ object TestSetData {
         opt("$[кН*м^2]$"),
         opt("$[кН/м]$"),
         opt("$[кН/м^2]$", true)
-      ))/*,
+      )),
       test("У чому вимірюється коефіцієнт Пуассона?", Seq(
         opt("$кН*м$"),
         opt("$м^2$"),
@@ -128,10 +128,10 @@ object TestSetData {
       )),
       test("Формула для визначення максимального колового нормального напруження", Seq(
         opt("$\\sigma_\\theta = \\frac{6M_\\theta}{12 \\cdot (1 - \\mu^2)}$"),
-        opt("$\\sigma_\\theta = \\frac{M_\\theta}{12h2}$"),
+        opt("$\\sigma_\\theta = \\frac{M_\\theta}{12h^2}$"),
         opt("$\\sigma_\\theta = \\frac{12M_\\theta}{bh^2}$"),
         opt("$\\sigma_\\theta = \\frac{6M_\\theta}{h^2}$", true)
-      ))*/
+      ))
     )),
     (TestGroupConf(3, "Перевірка граничних умов"), Seq(
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
@@ -193,7 +193,73 @@ object TestSetData {
         cond(null, null, 0d, 0d,   0d, -0.002, null, null, true),
         cond(-0.002, null, 0d, null,   0d, 0d, null, null),
         cond(0d, null, -0.002, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec12.png")
+      ), "img/tests/extreme-conditions/ec12.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(null, null, 0d, 10d,   0.005, null, 0d, null, true),
+        cond(0.005, null, 10d, null,   0d, 0d, null, null),
+        cond(0d, null, 0.005, 0d,   0d, null, 0d, 0d)
+      ), "img/tests/extreme-conditions/ec13.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(-0.007, null, 15d, null,   0d, null, 0d, null, true),
+        cond(0.007, null, 15d, null,   0d, null, 0d, null),
+        cond(-0.007, null, -15d, 0d,   0d, null, 0d, null)
+      ), "img/tests/extreme-conditions/ec14.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, -0.004, null, null,   null, null, 8d, 2d, true),
+        cond(0d, 0.004, null, null,   null, null, 8d, 2d),
+        cond(0d, -0.004, null, null,   null, 8d, null, 2d)
+      ), "img/tests/extreme-conditions/ec16.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, 0d, null, null,   -0.004, null, 7d, null, true),
+        cond(0d, 0d, null, null,   0.004, null, 7d, null),
+        cond(0d, 0d, null, null,   -0.004, null, -7d, null)
+      ), "img/tests/extreme-conditions/ec17.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0.004, null, 0d, null,   null, null, -30d, -40d, true),
+        cond(-0.004, null, 0d, null,   0d, null, -30d, -40d),
+        cond(0.004, null, null, 0d,   null, null, -30d, 40d)
+      ), "img/tests/extreme-conditions/ec18.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, null, 0d, null,   0d, null, -18d, null, true),
+        cond(null, null, 0d, null,   0d, null, -18d, null),
+        cond(0d, null, null, null,   0d, null, 18d, null)
+      ), "img/tests/extreme-conditions/ec19.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(null, null, 0d, 50d,   0d, null, -55d, null, true),
+        cond(null, 0d, 0d, 50d,   0d, null, -55d, null),
+        cond(0d, null, 0d, 50d,   null, null, 55d, null)
+      ), "img/tests/extreme-conditions/ec20.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(null, null, 0d, 13d,   0d, -0.002, null, null, true),
+        cond(null, 0d, 0d, -13d,   0d, 0.002, null, null),
+        cond(null, null, 0d, -13d,   0d, 0.002, null, null)
+      ), "img/tests/extreme-conditions/ec21.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, null, 20d, null,   0d, 0d, null, null, true),
+        cond(0d, null, -20d, null,   0d, 0d, null, null),
+        cond(0d, null, 20d, null,   0d, 0d, 0d, null)
+      ), "img/tests/extreme-conditions/ec22.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, -0.003, null, null,   null, null, 8d, -18d, true),
+        cond(0d, -0.003, 0d, null,   null, null, -8d, -18d),
+        cond(0d, 0.003, null, null,   null, 0d, 8d, -18d)
+      ), "img/tests/extreme-conditions/ec23.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, -0.003, null, null,   -0.006, null, 0d, null, true),
+        cond(null, -0.003, null, null,   0.006, null, 0d, null),
+        cond(-0.006, -0.003, null, null,   -0d, null, 0d, null)
+      ), "img/tests/extreme-conditions/ec24.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, 0d, null, null,   0d, 0.01, 0d, null, true),
+        cond(0d, null, null, null,   0d, 0.01, 0d, null),
+        cond(0d, -0.01, null, null,   0d, null, 0d, null)
+      ), "img/tests/extreme-conditions/ec25.png"),
+      test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
+        cond(0d, 0d, null, null,   null, -0.01, null, 0d, true),
+        cond(0d, 0d, null, 0d,   null, -0.01, null, 0d),
+        cond(0d, 0d, null, null,   null, 0.01, null, 0d)
+      ), "img/tests/extreme-conditions/ec26.png")
+
     ))
   )
 
@@ -203,19 +269,17 @@ object TestSetData {
     def parse(value: D): String = (if(value == null) "\\;?" else value.toString) + "\\;"
     val template = s"""${"$"}
       |w(a) = ${parse(wa)} м \\\\
-      |\\phi(a) = ${parse(phia)} рад \\\\
+      |\\varphi(a) = ${parse(phia)} рад \\\\
       |M_r(a) = ${parse(mra)} кНм/м \\\\
       |Q_r(a) = ${parse(qra)} кН/м \\\\
       |w(b) = ${parse(wb)} м \\\\
-      |\\phi(b) = ${parse(phib)} рад \\\\
+      |\\varphi(b) = ${parse(phib)} рад \\\\
       |M_r(b) = ${parse(mrb)} кНм/м \\\\
       |Q_r(b) = ${parse(qrb)} кН/м \\\\
       |${"$"}
     """.stripMargin
     opt(template, correct)
   }
-
-//  val tests =
 
   def test(question: String, options: Seq[TestOptionConf], imageUrl: String = null): TestConf = {
     TestConf(-1, -1, question, Option(imageUrl), options).normalised

@@ -11,7 +11,7 @@ import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 
-class AuthRoute(val authService: AuthService, val usersService: UsersService, val dataGenerator: InitialDataGenerator)
+class AuthRoute(val authService: AuthService, val usersService: UsersService)
                (implicit executionContext: ExecutionContext) extends CirceSupport with SecurityDirectives {
 
   import StatusCodes._
@@ -38,16 +38,6 @@ class AuthRoute(val authService: AuthService, val usersService: UsersService, va
         post {
           entity(as[AccessKey]) { accessKey =>
             complete(signInWithAccessKey(accessKey.accessKey).map(_.asJson))
-          }
-        }
-      }
-    } ~
-    path("generate") {
-      pathEndOrSingleSlash {
-        get {
-          complete {
-            dataGenerator.generate()
-            "Ok"
           }
         }
       }

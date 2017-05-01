@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, ExecutionContext}
 
 object Data {
-  val group1 = StudentGroupEntity(None, "ІП-41М")
+  val group1 = StudentGroupEntity(None, "Назва твоєї групи в університеті")
   val group2 = StudentGroupEntity(None, "ІО-41")
 
   val userAdmin = UserEntity(None, "admin", "root", "Андрій", "Можаровський", "admin@email.com", UserType.Admin, "admin", None)
@@ -29,10 +29,10 @@ object Data {
     UserEntity(None, username, "root", name.split(" ")(0), name.split(" ")(1), s"$username@email.com", UserType.Student, accessKey, Some(goupId))
 
   val examConfs: Seq[(ExamConf, Seq[ExamStepConf])] = Seq(
-    (ExamConf(1, "Exam1", "Exam1 description", 100), Seq(
-      ExamStepConf(-1, -1, 1, "Exam1 Step1 Test Set", ExamStepType.TestSet, 200, 1, 3, 5, 20, ExamStepTestSetDataSet(1)),
-      ExamStepConf(-1, -1, 2, "Exam1 Step2 Task Flow", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1)),
-      ExamStepConf(-1, -1, 3, "Exam1 Step3 Results", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
+    (ExamConf(1, "Назва залікової роботи", "Тет має бути детальний опис роботи та інструкції для студентів", 100), Seq(
+      ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 200, 1, 3, 5, 20, ExamStepTestSetDataSet(1)),
+      ExamStepConf(-1, -1, 2, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1)),
+      ExamStepConf(-1, -1, 3, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
     ))
   )
 
@@ -114,7 +114,7 @@ class InitialDataGenerator(db: DatabaseService,
     val group2 = await(usersService.createStudentGroup(Data.group2))
 
     val student1 = await(
-      usersService.createUser(Data.student(group.id.get, "student1", "Іван Іванов", "1"))
+      usersService.createUser(Data.student(group.id.get, "lev", "Дмитро Левківський", "1"))
     )
     val student2 = await(
       usersService.createUser(Data.student(group2.id.get, "student2", "Петро Петренко", "2"))
