@@ -743,6 +743,9 @@ object UserExamQueries {
       .on("userExamId" -> userExamId)
       .on("examStepConfId" -> examStepConfId)
 
+  def deleteUserExamStepAttempts(ids: Seq[Long]) =
+    SQL(s"DELETE FROM ${UESA.table} WHERE ${UESA.id} IN ({ids})").on("ids" -> ids)
+
 
   private def parseStepResults(json: String): Seq[UserExamStepResult] = {
     decode[Seq[UserExamStepResult]](json).fold( e =>

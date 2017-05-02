@@ -1,14 +1,17 @@
 package edu.knuca.resmat.http
 
+import akka.http.scaladsl.model.{HttpMethod, HttpMethods}
 import akka.http.scaladsl.server.Directives.{complete, _}
 import edu.knuca.resmat.auth.{AuthRoute, AuthService}
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
 import ch.megard.akka.http.cors.CorsDirectives._
+import ch.megard.akka.http.cors.CorsSettings
 import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
+import akka.http.scaladsl.model.HttpMethods._
 
 import scala.concurrent.ExecutionContext
 
@@ -33,10 +36,14 @@ class HttpRoutes(usersService: UsersService,
   val examConfRouter = new ExamConfRoute(examService)
   val problemConfRoute = new ProblemConfRoute(problemService)
 
+  val corsSettings = CorsSettings.defaultSettings.copy(
+    allowedMethods = scala.collection.immutable.Seq(GET, POST, DELETE, HEAD, OPTIONS)
+  )
+
   val routes =
     pathPrefix("v1") {
       handleRejections(corsRejectionHandler) {
-        cors() {
+        cors(corsSettings) {
           (handleExceptions(generalHandler) & handleRejections(generalRejectionHandler)) {
             path("generate") {
               pathEndOrSingleSlash {

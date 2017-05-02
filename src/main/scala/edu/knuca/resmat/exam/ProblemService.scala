@@ -4,6 +4,8 @@ import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.core.{RingPlateProblemAnswer, RingPlateProblemInput, RingPlateSolver}
 import edu.knuca.resmat.db.DatabaseService
+import edu.knuca.resmat.exam.taskflow.TaskFlowQueries
+import edu.knuca.resmat.http.FailedDependency
 import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -67,7 +69,15 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
     createProblemVariantConf(ProblemVariantConf(-1, problemConfId, p.schemaUrl, p.inputVariableValues, calculatedData))
   }
 
-  def deleteProblemVariantConf(id: Long) = db.run { implicit c =>
+  def deleteProblemVariantConf(id: Long, force: Boolean) = db.runTransaction { implicit c =>
+    val involvedTaskFlows = Q.findUserExamTaskFlowsByVariant(id).as(TaskFlowQueries.uetfParser.*)
+    if(involvedTaskFlows.nonEmpty) {
+      if(force) {
+        UserExamQueries.deleteUserExamStepAttempts(involvedTaskFlows.map(_.stepAttemptId)).executeUpdate()
+      } else {
+        throw FailedDependency(s"Conflicting task flow ids: ${involvedTaskFlows.map(_.id)}")
+      }
+    }
     val affectedRows = Q.deleteProblemVariantConf(id).executeUpdate()
     if(affectedRows != 1) {
       throw new RuntimeException("Failed to delete ProblemVariantConf with id: " + id )
@@ -157,6 +167,10 @@ object ProblemQueries {
     SQL(s"SELECT * FROM ${PV.table} WHERE ${PV.problemConfId} = {problemConfId}").on("problemConfId" -> problemConfId)
 
   def deleteProblemVariantConf(id: Long) = SQL(s"DELETE FROM ${PV.table} WHERE ${PV.id} = {id}").on("id" -> id)
+
+  def findUserExamTaskFlowsByVariant(problemVariantConfId: Long) =
+    SQL(s"SELECT * FROM ${TaskFlowQueries.UETF.table} WHERE ${TaskFlowQueries.UETF.problemVariantConfId} = {problemVariantConfId}")
+      .on("problemVariantConfId" -> problemVariantConfId)
 
   private def decodeInputVariableConfs(json: String): Seq[ProblemInputVariableConf] = {
     decode[Seq[ProblemInputVariableConf]](json).fold( e =>

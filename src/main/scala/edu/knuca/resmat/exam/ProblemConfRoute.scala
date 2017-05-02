@@ -36,9 +36,9 @@ class ProblemConfRoute(problemService: ProblemService)
         } ~
         pathPrefix(LongNumber) { problemVariantConfId =>
           pathEndOrSingleSlash {
-            delete {
+            (delete & parameters('force ? false)) { force =>
               complete {
-                Future(deleteProblemVariantConf(problemVariantConfId))
+                Future(deleteProblemVariantConf(problemVariantConfId, force))
               }
             }
           }

@@ -32,7 +32,11 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
       logger.warn(s"Authentication failed: ", m)
       completeUnauthorized(m)
     case ResourceLocked(lockedUntil, message) =>
+      logger.warn(s"Resource locked until $lockedUntil", message)
       complete(StatusCodes.Locked -> lockedUntil.toString())
+    case FailedDependency(m) =>
+      logger.warn(s"Failed dependency: ", m)
+      complete(StatusCodes.FailedDependency -> m)
     case e: IllegalStateException =>
       complete(StatusCodes.Conflict -> ErrorMessage(e.getMessage))
 
@@ -48,7 +52,7 @@ trait ApiException
 case class NotAuthorized(message: String = "Access to this resource is forbidden") extends Exception(message) with ApiException
 
 case class ResourceLocked(lockedUntil: org.joda.time.DateTime, message: String = "Resource is locked.") extends Exception(message) with ApiException
-
+case class FailedDependency(message: String = "There are dependent resources") extends Exception(message) with ApiException
 case class NotFoundException(message: String) extends Exception(message) with ApiException
 
 case class TokenNotFoundException(message: String = "Authorization token not found") extends Exception(message) with ApiException
