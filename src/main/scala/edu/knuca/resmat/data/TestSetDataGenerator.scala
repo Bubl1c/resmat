@@ -195,7 +195,7 @@ object TestSetData {
         cond(0d, null, -0.002, 0d,   0d, null, 0d, null)
       ), "img/tests/extreme-conditions/ec12.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
-        cond(null, null, 0d, 10d,   0.005, null, 0d, null, true),
+        cond(null, null, 0d, -10d,   0.005, null, 0d, null, true),
         cond(0.005, null, 10d, null,   0d, 0d, null, null),
         cond(0d, null, 0.005, 0d,   0d, null, 0d, 0d)
       ), "img/tests/extreme-conditions/ec13.png"),

@@ -18,7 +18,7 @@ read -p "Press enter to continue"
 
 REMOTE_FOLDER="~/api"
 
-API_ADMIN_SCRIPT=api_admin.sh
+API_SERVICE_NAME="resmat-api.service"
 
 JAR_FILE="/Users/amozh/Documents/prj/knuca/resmat/target/scala-2.11/resmat-assembly-1.0.jar"
 RESOURCES_FOLDER="/Users/amozh/Documents/prj/knuca/resmat/src/main/resources"
@@ -30,7 +30,7 @@ RESOURCES=(
 
 function apiService {
     echo APIService ${1}
-    runSSH "cd ${REMOTE_FOLDER}; ./${API_ADMIN_SCRIPT} ${1}"
+    runSSH "sudo systemctl ${1} ${API_SERVICE_NAME}"
 }
 
 function runSSH {
@@ -56,7 +56,6 @@ function prepare {
 }
 
 runSSH "mkdir -p "${REMOTE_FOLDER}
-scpToRemote ${API_ADMIN_SCRIPT} ${REMOTE_FOLDER}
 
 apiService stop
 

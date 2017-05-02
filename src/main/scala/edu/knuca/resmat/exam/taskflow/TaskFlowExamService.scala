@@ -132,6 +132,12 @@ class TaskFlowExamService(val db: DatabaseService)
     )
   }
 
+  def getTaskFlowStepBySequence(taskFlowId: Long, sequence: Int): UserExamStepAttemptTaskFlowStep = db.run { implicit c =>
+    Q.getTaskFlowStepBySequence(taskFlowId, sequence).as(Q.uetfsParser.singleOpt).getOrElse(
+      throw new RuntimeException(s"Task flow step with taskFlowId: $taskFlowId sequence: $sequence not found!")
+    )
+  }
+
   def findTaskFlowSteps(stepAttemptTaskFlowId: Long): Seq[UserExamStepAttemptTaskFlowStep] = db.run { implicit c =>
     Q.findTaskFlowSteps(stepAttemptTaskFlowId).as(Q.uetfsParser.*)
   }
@@ -161,8 +167,8 @@ class TaskFlowExamService(val db: DatabaseService)
     getTaskFlowStep(taskFlow.id, taskFlow.currentStepSequence)
   }
 
-  def getTaskFlowStep(taskFlowId: Long, taskFlowStepId: Long): Option[TaskFlowStepDto] = {
-    val taskFlowStep = getTaskFlowStepById(taskFlowStepId)
+  def getTaskFlowStep(taskFlowId: Long, taskFlowStepSequence: Int): Option[TaskFlowStepDto] = {
+    val taskFlowStep = getTaskFlowStepBySequence(taskFlowId, taskFlowStepSequence)
     val taskFlowStepConf = getTaskFlowStepConf(taskFlowStep.taskFlowStepConfId)
     if(taskFlowStepConf.isHelpStep) {
       updateTaskFlowStep(taskFlowStep.copy(done = true))
@@ -496,6 +502,11 @@ object TaskFlowQueries {
     SQL(s"SELECT * FROM ${UETF.table} WHERE ${UETF.stepAttemptId} = {stepAttemptId}").on("stepAttemptId" -> stepAttemptId)
 
   def getTaskFlowStep(id: Long) = SqlUtils.get(UETFS.table, id)
+
+  def getTaskFlowStepBySequence(stepAttemptTaskFlowId: Long, sequence: Int) =
+    SQL(s"SELECT * FROM ${UETFS.table} WHERE ${UETFS.sequence} = {sequence} AND ${UETFS.stepAttemptTaskFlowId} = {stepAttemptTaskFlowId}")
+    .on("sequence" -> sequence)
+    .on("stepAttemptTaskFlowId" -> stepAttemptTaskFlowId)
 
   def findTaskFlowSteps(stepAttemptTaskFlowId: Long) =
     SQL(s"SELECT * FROM ${UETFS.table} WHERE ${UETFS.stepAttemptTaskFlowId} = {stepAttemptTaskFlowId}")

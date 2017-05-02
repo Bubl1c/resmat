@@ -7,7 +7,7 @@ RELEASE_PARAM=${2}
 case ${ENV} in
     vm)
         CERT=~/.ssh/vm_ssh.pem
-        REMOTE_HOST=192.168.2.249
+        REMOTE_HOST=192.168.2.146
         REMOTE_USER=resmat
     ;;
     aws)

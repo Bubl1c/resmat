@@ -51,7 +51,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
   //та зовнішньому контурі та вимушені переміщення
   private val del_t: Double = (b.length - a.length) / (md - 1)
   println("del_t = " + del_t)
-  private val d_e: Double = pow(height_h, 3) * modul_E / 12d / (1d - pow(koef_Puas, 2))
+  private val d_e: Double = (pow(height_h, 3) * modul_E / 12d / (1d - pow(koef_Puas, 2))) * 1000
   println("d_e = " + d_e)
 
   private val r1Helper = DenseVector.zeros[BigDecimal](m)
@@ -112,7 +112,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
       var mr: Option[Double] = None
       var qr: Option[Double] = None
       if(sideConf.w == 0d){
-        qr = Some(sideConf.f)
+        qr = Some(-sideConf.f)
       } else {
         w = Some(sideConf.w)
       }
@@ -161,13 +161,13 @@ class RingPlateSolver(input: RingPlateProblemInput) {
           g1(0, 1) = 0d
           g1(0, 2) = 0d
           g1(0, 3) = 0d
-          g1(0, 4) = q1 * r1(0) / 2d + f_a
+          g1(0, 4) = q1 * r1(0) / 2d - f_a
         } else {
           g1(0, 0) = pow(r1(0), 2) * log(r1(0))
           g1(0, 1) = pow(r1(0), 2)
           g1(0, 2) = log(r1(0))
           g1(0, 3) = 1d
-          g1(0, 4) = q1 * pow(r1(0), 4) / 64d / d_e + w_a
+          g1(0, 4) = -q1 * pow(r1(0), 4) / 64d / d_e + w_a
         }
 
         // друге рівняння системи
@@ -238,7 +238,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
           g1(2, 1) = pow(r1(m - 1), 2)
           g1(2, 2) = log(r1(m - 1))
           g1(2, 3) = 1d
-          g1(2, 4) = q1 * pow(r1(m - 1), 4) / 64d / d_e + w_b
+          g1(2, 4) = -q1 * pow(r1(m - 1), 4) / 64d / d_e + w_b
           // четверте рівняння системи
           if (fi_b == 0d) {
             g1(3, 0) = -d_e * (2d * (1d + koef_Puas) * log(r1(m - 1)) + 3d + koef_Puas)

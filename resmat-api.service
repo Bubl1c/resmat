@@ -1,0 +1,9 @@
+[Unit]
+After=mysql.service
+
+[Service]
+WorkingDirectory=/home/ubuntu/api
+ExecStart=/usr/bin/java -cp .:resmat-assembly-1.0.jar edu.knuca.resmat.Main
+
+[Install]
+WantedBy=default.target
