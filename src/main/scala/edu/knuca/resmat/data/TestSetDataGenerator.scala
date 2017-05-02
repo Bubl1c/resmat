@@ -5,7 +5,7 @@ import edu.knuca.resmat.exam.testset.TestSetExamService
 
 object TestSetData {
   val testSetConfs: List[TestSetConf] = List(
-    TestSetConf(1, "Набір тестів для крутих студентів", 50)
+    TestSetConf(1, "Набір тестів для крутих студентів", 9)
   )
 
   val testGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(

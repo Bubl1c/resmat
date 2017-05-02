@@ -30,7 +30,7 @@ object Data {
 
   val examConfs: Seq[(ExamConf, Seq[ExamStepConf])] = Seq(
     (ExamConf(1, "Назва залікової роботи", "Тет має бути детальний опис роботи та інструкції для студентів", 100), Seq(
-      ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 200, 1, 3, 5, 20, ExamStepTestSetDataSet(1)),
+      ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(1)),
       ExamStepConf(-1, -1, 2, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1)),
       ExamStepConf(-1, -1, 3, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
     ))
@@ -86,7 +86,7 @@ object Data {
 
   val problemConfs: List[(ProblemConf, Seq[ProblemVariantConf])] = List(
     (ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, problemVariableConfs), Seq(
-      ProblemVariantConf(1, 1, "img/tasks/9.png",
+      ProblemVariantConf(1, 1, "img/tasks/variants/sc1.png",
         problemVarValues,
         new RingPlateSolver(problemVariableConfs, problemVarValues).solve()
       )

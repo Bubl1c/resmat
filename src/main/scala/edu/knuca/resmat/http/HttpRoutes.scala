@@ -12,7 +12,12 @@ import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 
 import scala.concurrent.ExecutionContext
 
-class HttpRoutes(usersService: UsersService, val authService: AuthService, val examService: UserExamService, val testSetExamService: TestSetExamService)
+class HttpRoutes(usersService: UsersService,
+                 val authService: AuthService,
+                 val userExamService: UserExamService,
+                 val examService: ExamService,
+                 val testSetExamService: TestSetExamService,
+                 val problemService: ProblemService)
                 (val dataGenerator: InitialDataGenerator)
                 (implicit executionContext: ExecutionContext)
     extends ApiExceptionHandlers
@@ -22,9 +27,11 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val e
   val usersRouter = new UsersRoute(authService, usersService)
   val authRouter = new AuthRoute(authService, usersService)
   val studentsRouter = new StudentsRoute(usersService)
-  val testSetExamRouter = new TestSetExamRoute(examService)
-  val taskFlowExamRouter = new TaskFlowExamRoute(examService)
-  val examRouter = new ExamRoute(examService, testSetExamRouter, taskFlowExamRouter)
+  val testSetExamRouter = new TestSetExamRoute(userExamService)
+  val taskFlowExamRouter = new TaskFlowExamRoute(userExamService)
+  val examRouter = new ExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter)
+  val examConfRouter = new ExamConfRoute(examService)
+  val problemConfRoute = new ProblemConfRoute(problemService)
 
   val routes =
     pathPrefix("v1") {
@@ -45,7 +52,9 @@ class HttpRoutes(usersService: UsersService, val authService: AuthService, val e
               authenticate { implicit user: AuthenticatedUser =>
                 usersRouter.route ~
                   studentsRouter.route ~
-                  examRouter.route
+                  examRouter.route ~
+                  examConfRouter.route ~
+                  problemConfRoute.route
               }
           }
         }

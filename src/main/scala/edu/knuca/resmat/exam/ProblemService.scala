@@ -10,6 +10,10 @@ import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 
+case class ProblemConfWithVariants(problemConf: ProblemConf, variants: Seq[ProblemVariantConf])
+
+case class NewProblemVariantConfDto(schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue])
+
 class ProblemService(val db: DatabaseService)(implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.http.JsonProtocol._
@@ -19,6 +23,16 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
     Q.getProblemConfById(id).as(Q.problemConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Problem conf with id: $id not found!")
     )
+  }
+
+  def findProblemConfs(): Seq[ProblemConf] = db.run { implicit c =>
+    Q.findProblemConfs.as(Q.problemConfParser.*)
+  }
+
+  def getProblemConfWithVariants(id: Long): ProblemConfWithVariants = {
+    val pc = getProblemConfById(id)
+    val variants = findProblemVariantConfsByProblemConfId(id)
+    ProblemConfWithVariants(pc, variants)
   }
 
   def getProblemVariantConfById(id: Long): ProblemVariantConf = db.run { implicit c =>
@@ -45,6 +59,12 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
       throw new RuntimeException(s"Failed to insert problem conf: $p")
     )
     getProblemVariantConfById(insertedId)
+  }
+
+  def calculateAndCreateProblemVariantConf(p: NewProblemVariantConfDto, problemConfId: Long): ProblemVariantConf = {
+    val problemConf = getProblemConfById(problemConfId)
+    val calculatedData = new RingPlateSolver(problemConf.inputVariableConfs, p.inputVariableValues).solve()
+    createProblemVariantConf(ProblemVariantConf(-1, problemConfId, p.schemaUrl, p.inputVariableValues, calculatedData))
   }
 
 }
@@ -103,6 +123,8 @@ object ProblemQueries {
       .on("inputVariableConfs" -> p.inputVariableConfs.asJson.toString)
 
   def getProblemConfById(id: Long) = SQL(s"SELECT * FROM ${P.table} WHERE ${P.id} = {id}").on("id" -> id)
+
+  def findProblemConfs = SQL(s"SELECT * FROM ${P.table}")
 
   def createProblemVariantConf(pv: ProblemVariantConf) =
     SQL(

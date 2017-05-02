@@ -328,7 +328,7 @@ class UserExamService(val db: DatabaseService)
         createNewTestSetForAttempt(newAttempt, testSetConf)
       case ExamStepType.TaskFlow =>
         val dataSet = examStepConf.dataSet.asInstanceOf[ExamStepTaskFlowDataSet]
-        createTaskFlowForAttempt(newAttempt, userExam.id, dataSet.taskFlowConfId, dataSet.problemConfId)
+        createTaskFlowForAttempt(newAttempt, userExam.id, userExam.examConfId, dataSet.taskFlowConfId, dataSet.problemConfId)
       case ExamStepType.Results => ()
       case anyOther =>
         throw new IllegalArgumentException(s"Unhandled ExamStepDataType: $anyOther")
@@ -394,11 +394,12 @@ class UserExamService(val db: DatabaseService)
 
   private def createTaskFlowForAttempt(attempt: UserExamStepAttempt,
                                        userExamId: Long,
+                                       examConfId: Long,
                                        taskFlowConfId: Long,
                                        problemConfId: Long): UserExamStepAttemptTaskFlow = {
     val (newTaskFlow, newTaskFlowSteps) =
       taskFlowExamService
-        .createTaskFlowWithSteps(attempt.id, userExamId, attempt.examStepConfId, taskFlowConfId, problemConfId)
+        .createTaskFlowWithSteps(attempt.id, userExamId, examConfId, attempt.examStepConfId, taskFlowConfId, problemConfId)
 
     newTaskFlow
   }

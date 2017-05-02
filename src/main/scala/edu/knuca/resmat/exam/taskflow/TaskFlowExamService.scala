@@ -237,18 +237,25 @@ class TaskFlowExamService(val db: DatabaseService)
     }
   }
 
-  //todo Implement variant selection logic
-  def getAvailableProblemVariantConf(problemConfId: Long): ProblemVariantConf = {
+  def getAvailableProblemVariantConf(problemConfId: Long, examConfId: Long): ProblemVariantConf = db.run { implicit c =>
     val allProblemVariantConfs = problemService.findProblemVariantConfsByProblemConfId(problemConfId)
-    allProblemVariantConfs.head
+    val allTaskFlows = Q.findTaskFlowsByExamConfId(examConfId).as(Q.uetfParser.*)
+    val usedVariantConfIds = allTaskFlows.map(_.problemVariantConfId)
+    val unusedVariantConfs = allProblemVariantConfs.filterNot(vc => usedVariantConfIds.contains(vc.id))
+    if(unusedVariantConfs.nonEmpty) {
+      unusedVariantConfs.head
+    } else {
+      scala.util.Random.shuffle(allProblemVariantConfs).head
+    }
   }
 
   def createTaskFlowWithSteps(stepAttemptId: Long,
                               userExamId: Long,
+                              examConfId: Long,
                               examStepConfId: Long,
                               taskFlowConfId: Long,
                               problemConfId: Long): (UserExamStepAttemptTaskFlow, Seq[UserExamStepAttemptTaskFlowStep]) = {
-    val problemVariantConf = getAvailableProblemVariantConf(problemConfId)
+    val problemVariantConf = getAvailableProblemVariantConf(problemConfId, examConfId)
     val cd = problemVariantConf.calculatedData
     val stepConfs = findTaskFlowStepConfs(taskFlowConfId)
 
@@ -465,6 +472,16 @@ object TaskFlowQueries {
       .on("id" -> uetfs.id)
       .on("done" -> uetfs.done)
       .on("mistakes" -> uetfs.mistakes)
+
+  def findTaskFlowsByExamConfId(examConfId: Long) = SQL(
+    s"""
+      |SELECT tf.*  FROM ${UETF.table} tf
+      |JOIN ${UserExamQueries.UESA.table} sa ON sa.id = tf.${UETF.stepAttemptId}
+      |JOIN ${UserExamQueries.UE.table} e ON e.id = sa.${UserExamQueries.UESA.userExamId}
+      |JOIN ${ExamQueries.E.table} ec ON ec.id = e.${UserExamQueries.UE.examConfId}
+      |WHERE e.id = {examConfId}
+    """.stripMargin)
+    .on("examConfId" -> examConfId)
 
   def getTaskFlowConf(id: Long) = SqlUtils.get(TF.table, id)
 

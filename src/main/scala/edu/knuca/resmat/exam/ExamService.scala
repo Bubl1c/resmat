@@ -9,6 +9,8 @@ import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
+case class ExamConfDto(examConf: ExamConf, stepConfs: Seq[ExamStepConf])
+
 class ExamService(val db: DatabaseService)(implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.{ExamQueries => Q}
@@ -33,6 +35,16 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
     Q.getExamConf(id).as(Q.examConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Cannot find exam conf by id: $id")
     )
+  }
+
+  def findExamConfs(): Seq[ExamConf] = db.run{ implicit c =>
+    Q.findExamConfs.as(Q.examConfParser.*)
+  }
+
+  def getExamConfDto(id: Long): ExamConfDto = {
+    val examConf = getExamConf(id)
+    val stepConfs = findExamStepConfsByExamConfId(id)
+    ExamConfDto(examConf, stepConfs)
   }
 
   def getExamStepConf(id: Long): ExamStepConf = db.run { implicit c =>
@@ -174,6 +186,8 @@ object ExamQueries {
       .on("hasToBeSubmitted" -> esc.hasToBeSubmitted)
 
   def getExamConf(id: Long) = SQL(s"SELECT * FROM ${E.table} WHERE ${E.id} = {id}").on("id" -> id)
+
+  def findExamConfs = SQL(s"SELECT * FROM ${E.table}")
 
   def getExamStepConf(id: Long) = SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.id} = {id}").on("id" -> id)
 

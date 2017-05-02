@@ -51,8 +51,12 @@ object Main extends App with Config {
     dataGenerator.generate()
   }
 
-  val httpRoutes = new HttpRoutes(usersService, authService, userExamService, testSetExamService)(dataGenerator)
-  val httpRouteLogged = DebuggingDirectives.logRequestResult("Resmat REST API", Logging.DebugLevel)(httpRoutes.routes)
+  val httpRoutes = new HttpRoutes(usersService, authService, userExamService, examService, testSetExamService, problemService)(dataGenerator)
+  val routeToBind = if(requestResultLoggingEnabled) {
+    DebuggingDirectives.logRequestResult("Resmat REST API", Logging.DebugLevel)(httpRoutes.routes)
+  } else {
+    httpRoutes.routes
+  }
 
-  Http().bindAndHandle(httpRouteLogged, httpHost, httpPort)
+  Http().bindAndHandle(routeToBind, httpHost, httpPort)
 }

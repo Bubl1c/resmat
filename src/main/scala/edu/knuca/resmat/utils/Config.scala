@@ -9,6 +9,8 @@ trait Config {
   private val httpConfig = _config.getConfig("http")
   private val databaseConfig = _config.getConfig("database")
 
+  val requestResultLoggingEnabled: Boolean = Try{_config.getBoolean("logging.requestResultLogs")}.getOrElse(false)
+
   val httpHost = httpConfig.getString("interface")
   val httpPort = httpConfig.getInt("port")
 
