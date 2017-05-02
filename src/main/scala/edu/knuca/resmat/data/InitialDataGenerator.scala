@@ -66,7 +66,7 @@ object Data {
     VarVal(4, -0.01),
     VarVal(5, 0),
 
-    VarVal(6, 200000000.0),
+    VarVal(6, 200000.0),
     VarVal(7, 0.3),
     VarVal(8, 0d),
 
@@ -84,11 +84,39 @@ object Data {
     VarVal(18, 160)
   )
 
+  private val problemVarValues2: List[ProblemInputVariableValue] = List(
+    VarVal(2, 0),
+    VarVal(3, 0),
+    VarVal(4, -0.01),
+    VarVal(5, 0),
+
+    VarVal(6, 200000.0),
+    VarVal(7, 0.3),
+    VarVal(8, 0d),
+
+    VarVal(9, 0),
+    VarVal(10, 0),
+    VarVal(11, 0),
+    VarVal(12, 0),
+
+    VarVal(13, 0.1),
+    VarVal(14, 1.1),
+    VarVal(15, 0.02),
+
+    VarVal(16, 2),
+    VarVal(17, 2),
+    VarVal(18, 160)
+  )
+
   val problemConfs: List[(ProblemConf, Seq[ProblemVariantConf])] = List(
     (ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, problemVariableConfs), Seq(
       ProblemVariantConf(1, 1, "img/tasks/variants/sc1.png",
         problemVarValues,
         new RingPlateSolver(problemVariableConfs, problemVarValues).solve()
+      ),
+      ProblemVariantConf(1, 1, "img/tasks/variants/sc2.png",
+        problemVarValues2,
+        new RingPlateSolver(problemVariableConfs, problemVarValues2).solve()
       )
     ))
   )
@@ -143,9 +171,37 @@ class InitialDataGenerator(db: DatabaseService,
     val taskFlow = new TaskFlowDataGenerator(taskFlowExamService)
 
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get, ExamStatus.InProgress))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get, ExamStatus.Success))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get, ExamStatus.Failed))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {

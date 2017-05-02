@@ -243,7 +243,7 @@ class TaskFlowExamService(val db: DatabaseService)
     val usedVariantConfIds = allTaskFlows.map(_.problemVariantConfId)
     val unusedVariantConfs = allProblemVariantConfs.filterNot(vc => usedVariantConfIds.contains(vc.id))
     if(unusedVariantConfs.nonEmpty) {
-      unusedVariantConfs.head
+      scala.util.Random.shuffle(unusedVariantConfs).head
     } else {
       scala.util.Random.shuffle(allProblemVariantConfs).head
     }
@@ -475,12 +475,12 @@ object TaskFlowQueries {
 
   def findTaskFlowsByExamConfId(examConfId: Long) = SQL(
     s"""
-      |SELECT tf.*  FROM ${UETF.table} tf
-      |JOIN ${UserExamQueries.UESA.table} sa ON sa.id = tf.${UETF.stepAttemptId}
-      |JOIN ${UserExamQueries.UE.table} e ON e.id = sa.${UserExamQueries.UESA.userExamId}
-      |JOIN ${ExamQueries.E.table} ec ON ec.id = e.${UserExamQueries.UE.examConfId}
-      |WHERE e.id = {examConfId}
-    """.stripMargin)
+       |SELECT tf.*  FROM user_exam_task_flows tf
+       |JOIN user_exam_step_attempts sa ON sa.id = tf.step_attempt_id
+       |JOIN user_exams e ON e.id = sa.user_exam_id
+       |JOIN exam_confs ec ON ec.id = e.exam_conf_id
+       |WHERE e.id = {examConfId}
+      """.stripMargin)
     .on("examConfId" -> examConfId)
 
   def getTaskFlowConf(id: Long) = SqlUtils.get(TF.table, id)

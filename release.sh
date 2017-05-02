@@ -60,10 +60,10 @@ scpToRemote ${API_ADMIN_SCRIPT} ${REMOTE_FOLDER}
 
 apiService stop
 
-#prepare
-#
-#echo Reloading JAR file
-#scpToRemote ${JAR_FILE} ${REMOTE_FOLDER}
+prepare
+
+echo Reloading JAR file
+scpToRemote ${JAR_FILE} ${REMOTE_FOLDER}
 
 if [ ${RELOAD_RESOURCES} = true ]; then
     echo "Uploading RESOURCES into" ${REMOTE_FOLDER}

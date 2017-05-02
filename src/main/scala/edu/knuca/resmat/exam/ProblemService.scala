@@ -67,6 +67,13 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
     createProblemVariantConf(ProblemVariantConf(-1, problemConfId, p.schemaUrl, p.inputVariableValues, calculatedData))
   }
 
+  def deleteProblemVariantConf(id: Long) = db.run { implicit c =>
+    val affectedRows = Q.deleteProblemVariantConf(id).executeUpdate()
+    if(affectedRows != 1) {
+      throw new RuntimeException("Failed to delete ProblemVariantConf with id: " + id )
+    }
+  }
+
 }
 
 object ProblemQueries {
@@ -148,6 +155,8 @@ object ProblemQueries {
 
   def findProblemVariantConfsByProblemConfId(problemConfId: Long) =
     SQL(s"SELECT * FROM ${PV.table} WHERE ${PV.problemConfId} = {problemConfId}").on("problemConfId" -> problemConfId)
+
+  def deleteProblemVariantConf(id: Long) = SQL(s"DELETE FROM ${PV.table} WHERE ${PV.id} = {id}").on("id" -> id)
 
   private def decodeInputVariableConfs(json: String): Seq[ProblemInputVariableConf] = {
     decode[Seq[ProblemInputVariableConf]](json).fold( e =>

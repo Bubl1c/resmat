@@ -33,6 +33,15 @@ class ProblemConfRoute(problemService: ProblemService)
           entity(as[NewProblemVariantConfDto]) { dto =>
             complete(calculateAndCreateProblemVariantConf(dto, problemConfId))
           }
+        } ~
+        pathPrefix(LongNumber) { problemVariantConfId =>
+          pathEndOrSingleSlash {
+            delete {
+              complete {
+                Future(deleteProblemVariantConf(problemVariantConfId))
+              }
+            }
+          }
         }
       } ~
       pathPrefix("with-variants") {
