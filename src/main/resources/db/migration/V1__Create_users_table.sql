@@ -14,7 +14,7 @@ CREATE TABLE `users` (
   `email`      VARCHAR(255) NOT NULL,
   `user_type`  SMALLINT     NOT NULL,
   `group_id`   BIGINT       NULL,
-  `access_key` VARCHAR(100) NOT NULL,
+  `access_key` VARCHAR(100) NOT NULL UNIQUE,
   PRIMARY KEY (`id`),
   FOREIGN KEY (group_id)
   REFERENCES student_groups(id)

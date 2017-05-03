@@ -47,7 +47,7 @@ class UsersRoute(val authService: AuthService, usersService: UsersService)
         get {
           complete(getAllNotStudents().map(_.asJson))
         } ~
-        (post & authorize(user.notStudent)) { //TODO: authorize(user.isAdmin)
+        (post & authorize(user.isAdmin)) {
           entity(as[UserEntity]) { userEntity =>
             complete(Created -> createUser(userEntity).map(_.asJson))
           }

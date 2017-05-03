@@ -37,7 +37,7 @@ class HttpRoutes(usersService: UsersService,
   val problemConfRoute = new ProblemConfRoute(problemService)
 
   val corsSettings = CorsSettings.defaultSettings.copy(
-    allowedMethods = scala.collection.immutable.Seq(GET, POST, DELETE, HEAD, OPTIONS)
+    allowedMethods = scala.collection.immutable.Seq(GET, POST, PUT, DELETE, HEAD, OPTIONS)
   )
 
   val routes =

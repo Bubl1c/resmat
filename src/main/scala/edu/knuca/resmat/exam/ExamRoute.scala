@@ -20,9 +20,14 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
 
   def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = pathPrefix("user-exams") {
     pathEndOrSingleSlash{
-      get {
+      (parameters('userId.as[Long].?) & get) { userId =>
         complete {
-          Future(getUserExamsAvailableForUser(user.id))
+          Future(getUserExamsAvailableForUser(userId.getOrElse(user.id)))
+        }
+      } ~
+      (parameters('userId.as[Long], 'examConfId.as[Long]) & post & authorize(user.isAdmin)) { (userId, examConfId) =>
+        complete {
+          Future(createUserExam(userId, examConfId))
         }
       }
     } ~
@@ -37,9 +42,28 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
       }
     } ~
     pathPrefix(LongNumber) { userExamId =>
-      (pathEndOrSingleSlash & get) {
-        complete {
-          Future(getUserExamDto(userExamId))
+      pathEndOrSingleSlash {
+        get {
+          complete {
+            Future(getUserExamDto(userExamId))
+          }
+        } ~
+        (delete & authorize(user.isAdmin)) {
+          complete(Future(deleteUserExam(userExamId)))
+        }
+      } ~
+      (pathPrefix("unlock") & authorize(user.isAdmin)) {
+        put {
+          complete{
+            Future(unlockUserExam(userExamId))
+          }
+        }
+      } ~
+      (pathPrefix("lock") & authorize(user.isAdmin)) {
+        (parameters('hoursAmount.as[Int]) & put) { hoursAmount =>
+          complete{
+            Future(lockUserExam(userExamId, hoursAmount))
+          }
         }
       } ~
       pathPrefix("start") {

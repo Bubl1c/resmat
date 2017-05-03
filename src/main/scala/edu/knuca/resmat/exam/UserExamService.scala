@@ -38,12 +38,37 @@ class UserExamService(val db: DatabaseService)
 
   import edu.knuca.resmat.exam.{UserExamQueries => Q}
 
+  def createUserExam(examConfId: Long, userId: Long): UserExamDto = db.run{ implicit c =>
+    val examConfDto = examService.getExamConfDto(examConfId)
+    val firstStepConf = examConfDto.stepConfs.sortBy(_.sequence).head
+    val ue = UserExam(-1, userId, examConfId, firstStepConf.id, ExamStatus.Initial, None, None, None)
+    mapToDto(createUserExam(ue))
+  }
+
   def createUserExam(userExam: UserExam): UserExam = db.run{ implicit c =>
     val insertedIdOpt: Option[Long] = Q.createUserExam(userExam).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to insert $userExam")
     )
     getUserExam(insertedId)
+  }
+
+  def unlockUserExam(id: Long): UserExamDto = db.run{ implicit c =>
+    val ue = getUserExam(id)
+    mapToDto(updateUserExam(ue.copy(lockedUntil = None)))
+  }
+
+  def lockUserExam(id: Long, hoursAmount: Int): UserExamDto = db.run{ implicit c =>
+    val ue = getUserExam(id)
+    val updatedLockedUntil = ue.lockedUntil.fold(DateTime.now().plusHours(hoursAmount)){ lu =>
+      val newValue = DateTime.now().plusHours(hoursAmount)
+      if(lu.getMillis > newValue.getMillis) lu else newValue
+    }
+    mapToDto(
+      updateUserExam(
+        ue.copy(lockedUntil = Some(updatedLockedUntil))
+      )
+    )
   }
 
   def getUserExam(id: Long): UserExam = db.run{ implicit c =>
@@ -97,6 +122,13 @@ class UserExamService(val db: DatabaseService)
       throw new RuntimeException(s"Failed to update $userExam")
     }
     Q.getUserExam(userExam.id).as(Q.ueParser.single)
+  }
+
+  def deleteUserExam(id: Long) = db.run{ implicit c =>
+    val affected = Q.deleteUserExam(id).executeUpdate()
+    if(affected != 1) {
+      throw new RuntimeException(s"Failed to delete user exam with id $id")
+    }
   }
 
   def findUserExamStepAttempts(userExamId: Long): Seq[UserExamStepAttempt] = db.run{ implicit c =>
@@ -742,6 +774,9 @@ object UserExamQueries {
     SQL(s"SELECT * FROM ${UESA.table} WHERE ${UESA.userExamId} = {userExamId} AND ${UESA.examStepConfId} = {examStepConfId}")
       .on("userExamId" -> userExamId)
       .on("examStepConfId" -> examStepConfId)
+
+  def deleteUserExam(id: Long) =
+    SQL(s"DELETE FROM ${UE.table} WHERE ${UE.id} = {id}").on("id" -> id)
 
   def deleteUserExamStepAttempts(ids: Seq[Long]) =
     SQL(s"DELETE FROM ${UESA.table} WHERE ${UESA.id} IN ({ids})").on("ids" -> ids)
