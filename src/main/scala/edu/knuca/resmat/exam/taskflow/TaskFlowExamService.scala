@@ -16,11 +16,16 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
 case class TaskFlowDto(problemConf: ProblemConf,
-                       problemVariantConf: ProblemVariantConf,
+                       problemVariantConf: ProblemVariantConfDto,
                        taskFlow: UserExamStepAttemptTaskFlow) extends StepDataDto
 case class TaskFlowStepDto(taskFlowStepConf: TaskFlowStepConf,
                            stepAttemptTaskFlowStep: UserExamStepAttemptTaskFlowStep,
                            taskFlowStepData: String)
+
+case class ProblemVariantConfDto(id: Long,
+                                 problemConfId: Long,
+                                 schemaUrl: String,
+                                 inputVariableValues: Seq[ProblemInputVariableValue])
 
 case class InputSetAnswerDto(inputSetId: Long, inputAnswers: Seq[InputSetInputAnswer])
 case class InputSetInputAnswer(id: Int, value: Option[Double] = None)

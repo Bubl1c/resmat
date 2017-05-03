@@ -140,7 +140,11 @@ case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemT
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
 case class ProblemInputVariableValue(variableConfId: Long, value: Double)
 //todo switch calculatedData to interface to allow to work with different problems
-case class ProblemVariantConf(id: Long, problemConfId: Long, schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue], calculatedData: RingPlateProblemAnswer)
+case class ProblemVariantConf(id: Long,
+                              problemConfId: Long,
+                              schemaUrl: String,
+                              inputVariableValues: Seq[ProblemInputVariableValue],
+                              calculatedData: RingPlateProblemAnswer)
 
 //====================TaskFlow====================
 
