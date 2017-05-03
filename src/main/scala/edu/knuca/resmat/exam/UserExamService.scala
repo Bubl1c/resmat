@@ -38,7 +38,7 @@ class UserExamService(val db: DatabaseService)
 
   import edu.knuca.resmat.exam.{UserExamQueries => Q}
 
-  def createUserExam(examConfId: Long, userId: Long): UserExamDto = db.run{ implicit c =>
+  def createUserExam(userId: Long, examConfId: Long): UserExamDto = db.run{ implicit c =>
     val examConfDto = examService.getExamConfDto(examConfId)
     val firstStepConf = examConfDto.stepConfs.sortBy(_.sequence).head
     val ue = UserExam(-1, userId, examConfId, firstStepConf.id, ExamStatus.Initial, None, None, None)
@@ -71,6 +71,22 @@ class UserExamService(val db: DatabaseService)
     )
   }
 
+  def unlockAllForGroup(groupId: Long) = {
+    usersService.getStudentsByGroup(groupId).flatMap{ students =>
+      val exams = students.flatMap(s => findUserExamsAvailableForUser(s.id.get))
+      exams.foreach( e => unlockUserExam(e.userExam.id))
+      Future()
+    }
+  }
+
+  def lockAllForGroup(groupId: Long, hoursAmount: Int) = {
+    usersService.getStudentsByGroup(groupId).flatMap{ students =>
+      val exams = students.flatMap(s => findUserExamsAvailableForUser(s.id.get))
+      exams.foreach( e => lockUserExam(e.userExam.id, hoursAmount))
+      Future()
+    }
+  }
+
   def getUserExam(id: Long): UserExam = db.run{ implicit c =>
     Q.getUserExam(id).as(Q.ueParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Exam with id: $id not found.")
@@ -101,7 +117,7 @@ class UserExamService(val db: DatabaseService)
     mapToDto(exam)
   }
 
-  def getUserExamsAvailableForUser(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
+  def findUserExamsAvailableForUser(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
     val ues = Q.findUserExamsByUserId(userId).as(Q.ueParser.*)
     ues.map(mapToDto)
   }

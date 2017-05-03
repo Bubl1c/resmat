@@ -22,12 +22,26 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
     pathEndOrSingleSlash{
       (parameters('userId.as[Long].?) & get) { userId =>
         complete {
-          Future(getUserExamsAvailableForUser(userId.getOrElse(user.id)))
+          Future(findUserExamsAvailableForUser(userId.getOrElse(user.id)))
         }
       } ~
       (parameters('userId.as[Long], 'examConfId.as[Long]) & post & authorize(user.isAdmin)) { (userId, examConfId) =>
         complete {
           Future(createUserExam(userId, examConfId))
+        }
+      }
+    } ~
+    (pathPrefix("lockAll") & authorize(user.isAdmin)) {
+      (parameters('groupId.as[Long], 'hoursAmount.as[Int]) & put) { (groupId, hoursAmount) =>
+        complete {
+          Future(lockAllForGroup(groupId, hoursAmount))
+        }
+      }
+    } ~
+    (pathPrefix("unlockAll") & authorize(user.isAdmin)) {
+      (parameters('groupId.as[Long]) & put) { groupId =>
+        complete {
+          Future(unlockAllForGroup(groupId))
         }
       }
     } ~
