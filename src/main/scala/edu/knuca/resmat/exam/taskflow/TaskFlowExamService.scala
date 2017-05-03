@@ -164,7 +164,13 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlow = getTaskFlowByStepAttemptId(stepAttemptId)
     val problemVariantConf = problemService.getProblemVariantConfById(taskFlow.problemVariantConfId)
     val problemConf = problemService.getProblemConfById(problemVariantConf.problemConfId)
-    Some(TaskFlowDto(problemConf, problemVariantConf, taskFlow))
+    val pvcDto = ProblemVariantConfDto(
+      problemVariantConf.id,
+      problemVariantConf.problemConfId,
+      problemVariantConf.schemaUrl,
+      problemVariantConf.inputVariableValues
+    )
+    Some(TaskFlowDto(problemConf, pvcDto, taskFlow))
   }
 
   def getCurrentTaskFlowStep(taskFlowId: Long): Option[TaskFlowStepDto] = {
