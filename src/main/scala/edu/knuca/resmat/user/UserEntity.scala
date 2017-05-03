@@ -59,7 +59,7 @@ case class UserEntityUpdate(username: Option[String] = None,
       lastName.getOrElse(user.lastName),
       email.getOrElse(user.email),
       user.userType,
-      user.accessKey,
+      accessKey.getOrElse(user.accessKey),
       user.studentGroupId)
   }
 }

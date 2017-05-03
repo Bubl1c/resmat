@@ -5,7 +5,7 @@ import edu.knuca.resmat.exam.testset.TestSetExamService
 
 object TestSetData {
   val testSetConfs: List[TestSetConf] = List(
-    TestSetConf(1, "Набір тестів для крутих студентів", 1)
+    TestSetConf(1, "Набір тестів для крутих студентів", 9)
   )
 
   val testGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(
@@ -225,7 +225,7 @@ object TestSetData {
         cond(0d, null, null, null,   0d, null, 18d, null)
       ), "img/tests/extreme-conditions/ec19.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
-        cond(null, null, 0d, 50d,   0d, null, -55d, null, true),
+        cond(null, null, 0d, -50d,   0d, null, -55d, null, true),
         cond(null, 0d, 0d, 50d,   0d, null, -55d, null),
         cond(0d, null, 0d, 50d,   null, null, 55d, null)
       ), "img/tests/extreme-conditions/ec20.png"),

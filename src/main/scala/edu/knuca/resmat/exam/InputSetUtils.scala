@@ -38,8 +38,8 @@ object InputSetUtils {
 
   def areAlmostEqual(ethalon: Double, d2: Double, precision: Double = 0.05): Boolean = {
     val diff = (ethalon - d2).abs
-    if(ethalon == 0.0) {
-      ethalon == d2
+    if(ethalon == 0.0 || ethalon.abs < 0.00000001) {
+      d2 == 0.0
     } else {
       (diff / ethalon).abs <= precision
     }
