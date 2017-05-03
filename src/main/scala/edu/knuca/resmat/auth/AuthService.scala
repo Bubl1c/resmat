@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.GeneralHelpers
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.http.UnauthenticatedException
-import edu.knuca.resmat.user.{AuthenticatedUser, UserEntity, UsersService}
+import edu.knuca.resmat.user.{AuthenticatedUser, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
 
 import scala.concurrent.duration._
@@ -57,6 +57,9 @@ trait AuthService { this: LazyLogging =>
   def signInWithAccessKey(accessKey: String): Future[EncodedToken] = Future {
     db.run{implicit c =>
       val token = usersService.getByAccessKey(accessKey).flatMap{ userEntity =>
+        if(userEntity.userType != UserType.Student) {
+          throw UnauthenticatedException()
+        }
         Some(getOrCreateToken(userEntity.id.get))
       }
       TokenUtils.encode(token.getOrElse(
