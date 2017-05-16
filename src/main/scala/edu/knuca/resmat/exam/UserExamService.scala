@@ -104,7 +104,7 @@ class UserExamService(val db: DatabaseService)
     val isLocked = userExam.lockedUntil.exists(lu => lu.getMillis > DateTime.now.getMillis)
     if(isLocked) throw ResourceLocked(userExam.lockedUntil.get)
     if(userExam.status == ExamStatus.Initial) {
-      userExam = updateUserExam(userExam.copy(status = ExamStatus.InProgress))
+      userExam = updateUserExam(userExam.copy(status = ExamStatus.InProgress, started = Some(DateTime.now())))
     }
     mapToDto(userExam)
   }

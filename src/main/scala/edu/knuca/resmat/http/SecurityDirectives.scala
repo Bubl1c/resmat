@@ -5,6 +5,8 @@ import akka.http.scaladsl.server.{Directive1, MissingHeaderRejection}
 import edu.knuca.resmat.auth.{AuthService, TokenUtils}
 import edu.knuca.resmat.user.AuthenticatedUser
 
+import scala.util.{Failure, Success}
+
 trait SecurityDirectives {
 
   import BasicDirectives._
@@ -25,9 +27,10 @@ trait SecurityDirectives {
         val decodedTokenOpt = TokenUtils.parse(token)
         decodedTokenOpt match {
           case Some(decodedToken) =>
-            onSuccess(authService.authenticate(decodedToken)).flatMap {
-              case Some(user) => provide(user)
-              case None => completeUnauthorized()
+            onComplete(authService.authenticate(decodedToken)).flatMap {
+              case Success(Some(user)) => provide(user)
+              case Failure(t) => completeUnauthorized(t.getMessage)
+              case _ => completeUnauthorized()
             }
           case None => completeUnauthorized("Invalid token")
         }
