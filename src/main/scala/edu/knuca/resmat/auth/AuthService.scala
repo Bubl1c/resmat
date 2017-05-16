@@ -83,7 +83,16 @@ trait AuthService { this: LazyLogging =>
 
   private def getOrCreateToken(userId: Long)(implicit c: Connection): TokenEntity = {
     TokensQueries.getByUserId(userId).as(TokensQueries.parser.singleOpt) match {
-      case Some(tokenEntity) => tokenEntity
+      case Some(tokenEntity) =>
+        if(tokenEntity.expires.isDefined && tokenEntity.expires.get.getMillis <= DateTime.now().getMillis) {
+          val affectedRows = TokensQueries.delete(tokenEntity.id.get).executeUpdate()
+          if(affectedRows != 1) {
+            throw new RuntimeException(s"Failed to delete token: $tokenEntity. affectedRows = $affectedRows")
+          }
+          Await.result(createToken(userId), 5 seconds)
+        } else {
+          tokenEntity
+        }
       case None => Await.result(createToken(userId), 5 seconds)
     }
   }
@@ -129,6 +138,8 @@ object TokensQueries {
   def getByToken(token: String, created: DateTime) =
     SQL("SELECT * FROM tokens WHERE token = {token} AND created = {created} AND expires > now()")
       .on("token" -> token, "created" -> GeneralHelpers.toMysql(created))
+
+  def delete(id: Long) = SQL("DELETE FROM tokens WHERE id = {id}").on("id" -> id)
 
   def deleteByUserId(userId: Long) = SQL("DELETE FROM tokens WHERE user_id = {userId}").on("userId" -> userId)
 }

@@ -528,7 +528,9 @@ class UserExamService(val db: DatabaseService)
       (Math.round(conf.maxScore * reduceMaxScoreOverAttempts) + Math.round(conf.maxScore * reduceMaxScoreMistakesAmount)).toInt
     }
 
-    examConf.maxScore - stepResults.map(calculateReduceForStep).sum
+    val score = examConf.maxScore - stepResults.map(calculateReduceForStep).sum
+
+    if(score < 0) 0 else score
   }
 
   def calculateStepResults(userExam: UserExam, examConf: ExamConf): Seq[(UserExamStepResult, ExamStepConf)] = {
