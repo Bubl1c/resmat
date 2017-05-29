@@ -682,7 +682,7 @@ object UserExamQueries {
          |${UE.currentStepConfId} = {currentStepConfId},
          |${UE.status} = {status},
          |${UE.lockedUntil} = {lockedUntil},
-         |${UE.started} = {started}
+         |${UE.started} = {started},
          |${UE.finished} = {finished}
          |WHERE ${UE.id} = {id}""".stripMargin)
       .on("id" -> ue.id)
