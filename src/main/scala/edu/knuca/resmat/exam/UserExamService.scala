@@ -682,12 +682,14 @@ object UserExamQueries {
          |${UE.currentStepConfId} = {currentStepConfId},
          |${UE.status} = {status},
          |${UE.lockedUntil} = {lockedUntil},
+         |${UE.started} = {started}
          |${UE.finished} = {finished}
          |WHERE ${UE.id} = {id}""".stripMargin)
       .on("id" -> ue.id)
       .on("currentStepConfId" -> ue.currentStepConfId)
       .on("status" -> ue.status.id)
       .on("lockedUntil" -> ue.lockedUntil.map(GeneralHelpers.toMysql).orNull)
+      .on("started" -> ue.started.map(GeneralHelpers.toMysql).orNull)
       .on("finished" -> ue.finished.map(GeneralHelpers.toMysql).orNull)
 
   def createUserExamStepAttempt(uesa: UserExamStepAttempt) =
