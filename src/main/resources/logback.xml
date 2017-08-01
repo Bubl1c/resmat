@@ -7,9 +7,30 @@
     </encoder>
   </appender>
 
+  <!--FOR Production only-->
+  <!--<appender name="SYSLOG-TLS" class="com.papertrailapp.logback.Syslog4jAppender">
+    <layout class="ch.qos.logback.classic.PatternLayout">
+      <pattern>%highlight([%date] [%level]) %cyan([%logger{26} %file:%line]) %msg%n</pattern>
+    </layout>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+    <syslogConfig class="org.productivity.java.syslog4j.impl.net.tcp.ssl.SSLTCPNetSyslogConfig">
+      &lt;!&ndash; remote system to log to &ndash;&gt;
+      <host>logs6.papertrailapp.com</host>
+      &lt;!&ndash; remote port to log to &ndash;&gt;
+      <port>48503</port>
+      &lt;!&ndash; program name to log as &ndash;&gt;
+      <ident>resmat-api</ident>
+      &lt;!&ndash; max log message length in bytes &ndash;&gt;
+      <maxMessageLength>1280000</maxMessageLength>
+    </syslogConfig>
+  </appender>-->
+
   <logger name="com.zaxxer.hikari" level="error"/>
 
   <root level="TRACE">
+    <!--<appender-ref ref="SYSLOG-TLS" />-->
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>

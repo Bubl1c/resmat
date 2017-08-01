@@ -24,7 +24,8 @@ val loggingDependencies = {
     "ch.qos.logback" % "logback-core" % logbackV,
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
+    "com.papertrailapp" % "logback-syslog4j" % "1.0.0"
   )
 }
 

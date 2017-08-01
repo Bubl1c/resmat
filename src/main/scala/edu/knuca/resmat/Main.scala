@@ -10,14 +10,16 @@ import edu.knuca.resmat.http.HttpRoutes
 import edu.knuca.resmat.user.{DefaultUsersService, UsersService}
 import edu.knuca.resmat.utils.Config
 import akka.http.scaladsl.server.directives.DebuggingDirectives
+import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.exam.{ExamService, ProblemService, UserExamService}
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
-object Main extends App with Config {
+object Main extends App with Config with LazyLogging {
   implicit val actorSystem = ActorSystem()
   implicit val executor: ExecutionContext = actorSystem.dispatcher
   implicit val log: LoggingAdapter = Logging(actorSystem, getClass)
@@ -58,5 +60,8 @@ object Main extends App with Config {
     httpRoutes.routes
   }
 
-  Http().bindAndHandle(routeToBind, httpHost, httpPort)
+  Http().bindAndHandle(routeToBind, httpHost, httpPort).onComplete {
+    case Success(_) => logger.info(s"API is listening on $httpHost:$httpPort")
+    case Failure(t) => logger.error("Failed to start API: ", t)
+  }
 }
