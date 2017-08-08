@@ -49,11 +49,13 @@ libraryDependencies ++= {
   val akkaV = "10.0.3"
   val scalaTestV = "3.0.1"
   val akkaHttpCorsV = "0.1.11"
+  val awsSdkV = "1.11.172"
   Seq(
     "com.typesafe.akka" %% "akka-http-core" % akkaV,
     "com.typesafe.akka" %% "akka-http" % akkaV,
 
     "ch.megard" %% "akka-http-cors" % akkaHttpCorsV,
+    "com.amazonaws" % "aws-java-sdk" % awsSdkV,
 
     "org.scalatest" %% "scalatest" % scalaTestV % "test",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaV % "test"
@@ -78,4 +80,3 @@ assemblyMergeStrategy in assembly := {
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
 
-    
