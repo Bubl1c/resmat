@@ -1,15 +1,21 @@
 package edu.knuca.resmat.utils
 
 import java.io.{ByteArrayInputStream, InputStream}
+import java.util.{Collections, Date}
+import java.util.concurrent.TimeUnit
 
+import akka.stream.Materializer
+import akka.util.ByteString
+import akka.stream.scaladsl.StreamConverters
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
-
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.model._
 import com.typesafe.config.ConfigFactory
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 object Main extends App {
@@ -18,16 +24,7 @@ object Main extends App {
   val secretKey = cfg.getString("secretKey")
   val bucket = cfg.getString("bucket")
   val manager = new S3Manager(accessKey, secretKey, bucket)
-
-  val testFileName = "testing/test-file.txt"
-  val contentBytes = "test file content".getBytes("UTF-8")
-  manager.put(testFileName, new ByteArrayInputStream(contentBytes), contentBytes.length).foreach{ result =>
-    println("Uploaded file size: " + result.getMetadata.toString)
-  }
-
-  manager.get(testFileName).map{ img =>
-    println("Downloaded file size: " + img.getObjectMetadata.getContentLength)
-  }
+  //tests here
 }
 
 class S3Manager(accessKey: String, secretKey: String, bucket: String) {
@@ -56,10 +53,39 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String) {
    * like content-type and content-encoding, plus additional metadata
    * specific to your applications.
    */
-  def put(key: String, inputStream: InputStream, sizeBytes: Long): Try[PutObjectResult] = Try {
+  def put(key: String, inputStream: InputStream, sizeBytes: Long, isTemp: Boolean = false): Try[String] = Try {
     val metadata = new ObjectMetadata()
     metadata.setContentLength(sizeBytes)
     s3.putObject(new PutObjectRequest(bucket, key, inputStream, metadata))
+    if(isTemp) {
+      s3.setObjectTagging(
+        new SetObjectTaggingRequest(
+          bucket, key, new ObjectTagging(Collections.singletonList(new Tag("temporary", "not_submitted")))
+        )
+      )
+    }
+    key
+  }
+
+  def removeTemporaryTag(key: String): Try[DeleteObjectTaggingResult] = Try {
+    s3.deleteObjectTagging(new DeleteObjectTaggingRequest(bucket, key))
+  }
+
+  def put(key: String, inputStream: InputStream): Try[PutObjectResult] = Try {
+    val metadata = new ObjectMetadata()
+    s3.putObject(new PutObjectRequest(bucket, key, inputStream, metadata))
+  }
+
+  def put(folder: String,
+          fileName: String,
+          source: akka.stream.scaladsl.Source[ByteString, Any],
+          sizeBytes: Long,
+          isTemp: Boolean = true)
+         (implicit ec: ExecutionContext, mat: Materializer): Future[Try[String]]= Future {
+    val inputStream: InputStream = source.runWith(
+      StreamConverters.asInputStream(FiniteDuration(10, TimeUnit.SECONDS))
+    )
+    put(folder + fileName, inputStream, sizeBytes, isTemp)
   }
 
   /**

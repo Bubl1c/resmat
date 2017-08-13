@@ -17,9 +17,9 @@
     </filter>
     <syslogConfig class="org.productivity.java.syslog4j.impl.net.tcp.ssl.SSLTCPNetSyslogConfig">
       &lt;!&ndash; remote system to log to &ndash;&gt;
-      <host>logs6.papertrailapp.com</host>
+      <host>logs{some number here}.papertrailapp.com</host>
       &lt;!&ndash; remote port to log to &ndash;&gt;
-      <port>48503</port>
+      <port>{some number here}</port>
       &lt;!&ndash; program name to log as &ndash;&gt;
       <ident>resmat-api</ident>
       &lt;!&ndash; max log message length in bytes &ndash;&gt;

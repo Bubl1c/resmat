@@ -12,6 +12,7 @@ import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 import akka.http.scaladsl.model.HttpMethods._
+import edu.knuca.resmat.utils.S3Manager
 
 import scala.concurrent.ExecutionContext
 
@@ -20,7 +21,8 @@ class HttpRoutes(usersService: UsersService,
                  val userExamService: UserExamService,
                  val examService: ExamService,
                  val testSetExamService: TestSetExamService,
-                 val problemService: ProblemService)
+                 val problemService: ProblemService,
+                 val s3Manager: S3Manager)
                 (val dataGenerator: InitialDataGenerator)
                 (implicit executionContext: ExecutionContext)
     extends ApiExceptionHandlers

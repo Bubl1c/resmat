@@ -8,8 +8,9 @@ import edu.knuca.resmat.auth.{AuthService, DefaultAuthService, UUIDTokenGenerato
 import edu.knuca.resmat.db.{DBConfig, DatabaseService, FlywayService}
 import edu.knuca.resmat.http.HttpRoutes
 import edu.knuca.resmat.user.{DefaultUsersService, UsersService}
-import edu.knuca.resmat.utils.Config
+import edu.knuca.resmat.utils.{Config, S3Manager}
 import akka.http.scaladsl.server.directives.DebuggingDirectives
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
@@ -24,6 +25,12 @@ object Main extends App with Config with LazyLogging {
   implicit val executor: ExecutionContext = actorSystem.dispatcher
   implicit val log: LoggingAdapter = Logging(actorSystem, getClass)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+
+  val cfg = ConfigFactory.load("aws").getConfig("s3")
+  val accessKey = cfg.getString("accessKey")
+  val secretKey = cfg.getString("secretKey")
+  val bucket = cfg.getString("bucket")
+  val s3Manager = new S3Manager(accessKey, secretKey, bucket)
 
   if(MySql.migrateOnStartup) {
     val flywayService = new FlywayService(MySql.flywayJdbcUrl, MySql.user, MySql.password, MySql.db)
@@ -53,7 +60,7 @@ object Main extends App with Config with LazyLogging {
     dataGenerator.generate()
   }
 
-  val httpRoutes = new HttpRoutes(usersService, authService, userExamService, examService, testSetExamService, problemService)(dataGenerator)
+  val httpRoutes = new HttpRoutes(usersService, authService, userExamService, examService, testSetExamService, problemService, s3Manager)(dataGenerator)
   val routeToBind = if(requestResultLoggingEnabled) {
     DebuggingDirectives.logRequestResult("Resmat REST API", Logging.DebugLevel)(httpRoutes.routes)
   } else {
