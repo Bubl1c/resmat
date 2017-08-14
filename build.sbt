@@ -6,7 +6,7 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
-mainClass in assembly := Some("edu.knuca.resmat.Main")
+mainClass in assembly := Some("edu.knuca.resmat.Api")
 
 val jsonDependencies = {
   val circeV = "0.7.0"

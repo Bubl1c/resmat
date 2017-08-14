@@ -20,7 +20,7 @@ import edu.knuca.resmat.exam.{ExamService, ProblemService, UserExamService}
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-object Main extends App with Config with LazyLogging {
+object Api extends App with Config with LazyLogging {
   implicit val actorSystem = ActorSystem()
   implicit val executor: ExecutionContext = actorSystem.dispatcher
   implicit val log: LoggingAdapter = Logging(actorSystem, getClass)
