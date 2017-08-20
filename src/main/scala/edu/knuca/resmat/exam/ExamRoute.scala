@@ -9,10 +9,11 @@ import de.heikoseeberger.akkahttpcirce.CirceSupport
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.TestSetExamRoute
 import edu.knuca.resmat.user.AuthenticatedUser
+import edu.knuca.resmat.utils.{FileUploadUtils, S3Manager}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute)
+class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute, s3Manager: S3Manager)
                (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
@@ -30,6 +31,9 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
           Future(createUserExam(userId, examConfId))
         }
       }
+    } ~
+    (pathPrefix("upload") & authorize(user.isAdmin)) {
+      FileUploadUtils.toS3TmpFileUpload(s3Manager, user.id)
     } ~
     (pathPrefix("lockAll") & authorize(user.isAdmin)) {
       (parameters('groupId.as[Long], 'hoursAmount.as[Int]) & put) { (groupId, hoursAmount) =>

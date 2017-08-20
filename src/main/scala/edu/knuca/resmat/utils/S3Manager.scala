@@ -1,12 +1,9 @@
 package edu.knuca.resmat.utils
 
-import java.io.{ByteArrayInputStream, InputStream}
-import java.util.{Collections, Date}
-import java.util.concurrent.TimeUnit
+import java.io.InputStream
+import java.util.{UUID}
 
-import akka.stream.Materializer
-import akka.util.ByteString
-import akka.stream.scaladsl.StreamConverters
+
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
@@ -14,22 +11,45 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.model._
 import com.typesafe.config.ConfigFactory
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Main extends App {
   val cfg = ConfigFactory.load("aws").getConfig("s3")
   val accessKey = cfg.getString("accessKey")
   val secretKey = cfg.getString("secretKey")
   val bucket = cfg.getString("bucket")
-  val manager = new S3Manager(accessKey, secretKey, bucket)
+  val s3 = new S3Manager(accessKey, secretKey, bucket, "")
+
+  val fileName = "temporary-uploads/4/3cc73b1a-c3db-4852-8eda-9c994bb2d8d7---original-key.Screen Shot 2017-08-14 at 8.24.48 AM.png"
+  s3.copyTempObject(fileName, "users/4/tests/1/") match {
+    case Success(r) => print("success")
+    case Failure(e) => e.printStackTrace()
+  }
   //tests here
 }
 
-class S3Manager(accessKey: String, secretKey: String, bucket: String) {
+object S3Manager {
+  private val tmpKeyDelimiter = "---original-key."
+  def tmpFolder(userId: Long): String = s"temporary-uploads/$userId/"
+  def tmpKey(originalKey: String): String = UUID.randomUUID() + tmpKeyDelimiter + originalKey
+
+  def originalFromTmpKey(tmpKey: String): String = {
+    val delimiterIndex = tmpKey.lastIndexOf(tmpKeyDelimiter)
+    if(delimiterIndex == -1) {
+      throw new IllegalArgumentException(
+        s"Failed to extract the original key. Cannot find delimiter: $tmpKeyDelimiter in S3 temporary key: $tmpKey"
+      )
+    } else {
+      tmpKey.substring(delimiterIndex + tmpKeyDelimiter.length)
+    }
+  }
+}
+
+class S3Manager(accessKey: String, secretKey: String, bucket: String, _baseUrl: String) {
   val s3 = new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey))
   s3.setRegion(Region.getRegion(Regions.EU_CENTRAL_1))
+
+  val baseUrl = _baseUrl + s"/$bucket/"
 
   /**
    * Download an object - When you download an object, you get all of
@@ -46,6 +66,20 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String) {
   def get(key: String): Try[S3Object] = Try { s3.getObject(new GetObjectRequest(bucket, key)) }
 
   /**
+    * List objects in your bucket by prefix - There are many options for
+    * listing the objects in your bucket.  Keep in mind that buckets with
+    * many objects might truncate their results when listing their objects,
+    * so be sure to check if the returned object listing is truncated, and
+    * use the AmazonS3.listNextBatchOfObjects(...) operation to retrieve
+    * additional results.
+    */
+  def list(prefix: String = ""): Try[List[S3ObjectSummary]] = Try {
+    import scala.collection.JavaConversions._
+    val result = s3.listObjects(new ListObjectsRequest().withBucketName(bucket).withPrefix(prefix))
+    result.getObjectSummaries.toList
+  }
+
+  /**
    * Upload an object to your bucket - You can easily upload a file to
    * S3, or upload directly an InputStream if you know the length of
    * the data in the stream. You can also specify your own metadata
@@ -53,39 +87,20 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String) {
    * like content-type and content-encoding, plus additional metadata
    * specific to your applications.
    */
-  def put(key: String, inputStream: InputStream, sizeBytes: Long, isTemp: Boolean = false): Try[String] = Try {
+  def put(key: String, inputStream: InputStream, sizeBytes: Long): Try[String] = Try {
     val metadata = new ObjectMetadata()
     metadata.setContentLength(sizeBytes)
     s3.putObject(new PutObjectRequest(bucket, key, inputStream, metadata))
-    if(isTemp) {
-      s3.setObjectTagging(
-        new SetObjectTaggingRequest(
-          bucket, key, new ObjectTagging(Collections.singletonList(new Tag("temporary", "not_submitted")))
-        )
-      )
-    }
     key
   }
 
-  def removeTemporaryTag(key: String): Try[DeleteObjectTaggingResult] = Try {
-    s3.deleteObjectTagging(new DeleteObjectTaggingRequest(bucket, key))
-  }
-
-  def put(key: String, inputStream: InputStream): Try[PutObjectResult] = Try {
-    val metadata = new ObjectMetadata()
-    s3.putObject(new PutObjectRequest(bucket, key, inputStream, metadata))
-  }
-
-  def put(folder: String,
-          fileName: String,
-          source: akka.stream.scaladsl.Source[ByteString, Any],
-          sizeBytes: Long,
-          isTemp: Boolean = true)
-         (implicit ec: ExecutionContext, mat: Materializer): Future[Try[String]]= Future {
-    val inputStream: InputStream = source.runWith(
-      StreamConverters.asInputStream(FiniteDuration(10, TimeUnit.SECONDS))
-    )
-    put(folder + fileName, inputStream, sizeBytes, isTemp)
+  def copyTempObject(tmpKey: String, targetFolder: String): Try[String] = Try {
+    val originalKey = S3Manager.originalFromTmpKey(tmpKey)
+    val normalisedTF = if(targetFolder.endsWith("/") || targetFolder.isEmpty) targetFolder else targetFolder + "/"
+    val destinationKey = normalisedTF + originalKey
+    s3.copyObject(bucket, tmpKey, bucket, destinationKey)
+    s3.deleteObject(bucket, tmpKey)
+    destinationKey
   }
 
   /**
@@ -94,18 +109,15 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String) {
    */
   def delete(key: String): Try[Unit] = Try{ s3.deleteObject(bucket, key) }
 
-  /**
-   * List objects in your bucket by prefix - There are many options for
-   * listing the objects in your bucket.  Keep in mind that buckets with
-   * many objects might truncate their results when listing their objects,
-   * so be sure to check if the returned object listing is truncated, and
-   * use the AmazonS3.listNextBatchOfObjects(...) operation to retrieve
-   * additional results.
-   */
-  def list(prefix: String = ""): Try[List[S3ObjectSummary]] = Try {
-    import scala.collection.JavaConversions._
-    val result = s3.listObjects(new ListObjectsRequest().withBucketName(bucket).withPrefix(prefix))
-    result.getObjectSummaries.toList
+  def deleteFolder(folderPrefix: String): Try[Unit] = Try {
+    import scala.collection.JavaConverters._
+    list(folderPrefix) match {
+      case Success(files) =>
+        val delReq = new DeleteObjectsRequest(bucket)
+        delReq.withKeys(files.map(f => new DeleteObjectsRequest.KeyVersion(f.getKey)).asJava)
+        s3.deleteObjects(delReq)
+      case Failure(e) => throw e;
+    }
   }
 
   //  } catch {

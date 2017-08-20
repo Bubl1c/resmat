@@ -17,25 +17,25 @@ trait ApiExceptionHandlers extends RouteDirectives with CirceSupport with LazyLo
 
   def generalHandler = ExceptionHandler {
     case NotFoundException(m) =>
-      logger.warn(s"Item not found: ", m)
+      logger.warn(s"Item not found: " + m)
       completeNotFound
     case NotAuthorized(m) =>
-      logger.warn(s"User not authorized: ", m)
+      logger.warn(s"User not authorized: " + m)
       completeForbidden(m)
     case InvalidTokenException(m) =>
-      logger.warn(s"Unprocessable token: ", m)
+      logger.warn(s"Unprocessable token: " + m)
       completeUnauthorized(m)
     case TokenNotFoundException(m) =>
-      logger.warn(s"Token not found: ", m)
+      logger.warn(s"Token not found: " + m)
       completeUnauthorized(m)
     case UnauthenticatedException(m) =>
-      logger.warn(s"Authentication failed: ", m)
+      logger.warn(s"Authentication failed: " + m)
       completeUnauthorized(m)
     case ResourceLocked(lockedUntil, message) =>
       logger.warn(s"Resource locked until $lockedUntil", message)
       complete(StatusCodes.Locked -> lockedUntil.toString())
     case FailedDependency(m) =>
-      logger.warn(s"Failed dependency: ", m)
+      logger.warn(s"Failed dependency: " + m)
       complete(StatusCodes.FailedDependency -> m)
     case e: IllegalStateException =>
       complete(StatusCodes.Conflict -> ErrorMessage(e.getMessage))

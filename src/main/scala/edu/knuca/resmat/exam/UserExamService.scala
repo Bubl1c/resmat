@@ -8,7 +8,8 @@ import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam.ExamStepType.ExamStepType
 import edu.knuca.resmat.exam.taskflow.{TaskFlowExamService, TaskFlowStepDto, VerifiedTaskFlowStepAnswer}
 import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestSetExamService, VerifiedTestAnswerDto}
-import edu.knuca.resmat.http.{ResourceLocked, NotAuthorized}
+import edu.knuca.resmat.http.{NotAuthorized, ResourceLocked}
+import edu.knuca.resmat.tests.TestConfsService
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersService}
 import org.joda.time.DateTime
 
@@ -32,6 +33,7 @@ case class NI(data: String = "not implemented") extends StepDataDto
 class UserExamService(val db: DatabaseService)
                      (examService: ExamService,
                       usersService: UsersService,
+                      testConfsService: TestConfsService,
                       testSetExamService: TestSetExamService,
                       taskFlowExamService: TaskFlowExamService)
                      (implicit val executionContext: ExecutionContext) extends LazyLogging {
@@ -372,7 +374,7 @@ class UserExamService(val db: DatabaseService)
     examStepConf.stepType match {
       case ExamStepType.TestSet =>
         val dataSet = examStepConf.dataSet.asInstanceOf[ExamStepTestSetDataSet]
-        val testSetConf = testSetExamService.getTestSetConf(dataSet.testSetConfId)
+        val testSetConf = testConfsService.getTestSetConf(dataSet.testSetConfId)
         createNewTestSetForAttempt(newAttempt, testSetConf)
       case ExamStepType.TaskFlow =>
         val dataSet = examStepConf.dataSet.asInstanceOf[ExamStepTaskFlowDataSet]

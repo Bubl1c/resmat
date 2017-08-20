@@ -2,7 +2,7 @@ package edu.knuca.resmat.http
 
 import akka.http.scaladsl.model.{HttpMethod, HttpMethods}
 import akka.http.scaladsl.server.Directives.{complete, _}
-import edu.knuca.resmat.auth.{AuthRoute, AuthService}
+import edu.knuca.resmat.auth.{AuthRoute, AuthService, TestConfsRoute}
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
@@ -12,6 +12,7 @@ import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 import akka.http.scaladsl.model.HttpMethods._
+import edu.knuca.resmat.tests.TestConfsService
 import edu.knuca.resmat.utils.S3Manager
 
 import scala.concurrent.ExecutionContext
@@ -20,6 +21,7 @@ class HttpRoutes(usersService: UsersService,
                  val authService: AuthService,
                  val userExamService: UserExamService,
                  val examService: ExamService,
+                 val testConfsService: TestConfsService,
                  val testSetExamService: TestSetExamService,
                  val problemService: ProblemService,
                  val s3Manager: S3Manager)
@@ -32,9 +34,10 @@ class HttpRoutes(usersService: UsersService,
   val usersRouter = new UsersRoute(authService, usersService)
   val authRouter = new AuthRoute(authService, usersService)
   val studentsRouter = new StudentsRoute(usersService)
+  val testConfsRoute = new TestConfsRoute(testConfsService)
   val testSetExamRouter = new TestSetExamRoute(userExamService)
   val taskFlowExamRouter = new TaskFlowExamRoute(userExamService)
-  val examRouter = new ExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter)
+  val examRouter = new ExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter, s3Manager)
   val examConfRouter = new ExamConfRoute(examService)
   val problemConfRoute = new ProblemConfRoute(problemService)
 
@@ -63,7 +66,8 @@ class HttpRoutes(usersService: UsersService,
                   studentsRouter.route ~
                   examRouter.route ~
                   examConfRouter.route ~
-                  problemConfRoute.route
+                  problemConfRoute.route ~
+                  testConfsRoute.route
               }
           }
         }

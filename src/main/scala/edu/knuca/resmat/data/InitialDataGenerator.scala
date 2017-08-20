@@ -9,6 +9,7 @@ import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf, ProblemInputVariableValue => VarVal}
+import edu.knuca.resmat.tests.TestConfsService
 import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
 
@@ -132,11 +133,12 @@ class InitialDataGenerator(db: DatabaseService,
                            problemService: ProblemService,
                            userExamService: UserExamService,
                            testSetExamService: TestSetExamService,
-                           taskFlowExamService: TaskFlowExamService) extends LazyLogging {
+                           taskFlowExamService: TaskFlowExamService,
+                           testConfsService: TestConfsService) extends LazyLogging {
 
   def generate()(implicit executionContext: ExecutionContext) = {
 
-    val testSet = new TestSetDataGenerator(testSetExamService)
+    val testSet = new TestSetDataGenerator(testConfsService)
 
     val group = await(usersService.createStudentGroup(Data.group1))
     val group2 = await(usersService.createStudentGroup(Data.group2))

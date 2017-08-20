@@ -2,6 +2,7 @@ package edu.knuca.resmat.data
 
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.testset.TestSetExamService
+import edu.knuca.resmat.tests.TestConfsService
 
 object TestSetData {
   val testSetConfs: List[TestSetConf] = List(
@@ -288,9 +289,9 @@ object TestSetData {
   def opt(value: String, correct: Boolean = false): TestOptionConf = TestOptionConf(-1, value, correct)
 }
 
-class TestSetDataGenerator(testSetExamService: TestSetExamService) {
+class TestSetDataGenerator(testConfsService: TestConfsService) {
 
-  val testSetConfs: Seq[TestSetConf] = TestSetData.testSetConfs.map(testSetExamService.createTestSetConf)
+  val testSetConfs: Seq[TestSetConf] = TestSetData.testSetConfs.map(testConfsService.createTestSetConf)
 
   private val groupsWithTests = generateGroupsWithTests
 
@@ -301,9 +302,9 @@ class TestSetDataGenerator(testSetExamService: TestSetExamService) {
 
   def generateGroupsWithTests: Seq[(TestGroupConf, Seq[TestConf])] = {
     TestSetData.testGroupConfs.map{ case(tgConf, tConfs) =>
-      val tgc = testSetExamService.createTestGroupConf(tgConf)
+      val tgc = testConfsService.createTestGroupConf(tgConf)
       val testConfs = tConfs.map(tc =>
-        testSetExamService.createTestConf(tc.copy(groupId = tgc.id))
+        testConfsService.createTestConf(tc.copy(groupId = tgc.id))
       )
       (tgc, testConfs)
     }
@@ -312,7 +313,7 @@ class TestSetDataGenerator(testSetExamService: TestSetExamService) {
   def addGroupsToTestSet(testSetConf: TestSetConf, groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
     val balancedProportion = 100 / groups.size
     groups.map(gc =>
-      testSetExamService.createTestSetConfTestGroup(TestSetConfTestGroup(-1, testSetConf.id, gc.id, balancedProportion))
+      testConfsService.createTestSetConfTestGroup(TestSetConfTestGroup(-1, testSetConf.id, gc.id, balancedProportion))
     )
   }
 }

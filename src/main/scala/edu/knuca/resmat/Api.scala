@@ -16,6 +16,7 @@ import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.exam.{ExamService, ProblemService, UserExamService}
+import edu.knuca.resmat.tests.TestConfsService
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -30,7 +31,7 @@ object Api extends App with Config with LazyLogging {
   val accessKey = cfg.getString("accessKey")
   val secretKey = cfg.getString("secretKey")
   val bucket = cfg.getString("bucket")
-  val s3Manager = new S3Manager(accessKey, secretKey, bucket)
+  val s3Manager = new S3Manager(accessKey, secretKey, bucket, "https://s3.eu-central-1.amazonaws.com")
 
   if(MySql.migrateOnStartup) {
     val flywayService = new FlywayService(MySql.flywayJdbcUrl, MySql.user, MySql.password, MySql.db)
@@ -47,20 +48,30 @@ object Api extends App with Config with LazyLogging {
 
   val usersService: UsersService = new DefaultUsersService(databaseService)
   val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
-  val testSetExamService: TestSetExamService = new TestSetExamService(databaseService)
+  val testConfsService: TestConfsService = new TestConfsService(databaseService)
+  val testSetExamService: TestSetExamService = new TestSetExamService(databaseService, testConfsService)
   val problemService: ProblemService = new ProblemService(databaseService)
   val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(problemService)
   val examService: ExamService = new ExamService(databaseService)
-  val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testSetExamService, taskFlowExamService)
+  val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testConfsService, testSetExamService, taskFlowExamService)
 
   val dataGenerator = new InitialDataGenerator(
-    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService
+    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService, testConfsService
   )
   if(MySql.generateDataOnStartup) {
     dataGenerator.generate()
   }
 
-  val httpRoutes = new HttpRoutes(usersService, authService, userExamService, examService, testSetExamService, problemService, s3Manager)(dataGenerator)
+  val httpRoutes = new HttpRoutes(
+    usersService,
+    authService,
+    userExamService,
+    examService,
+    testConfsService,
+    testSetExamService,
+    problemService,
+    s3Manager
+  )(dataGenerator)
   val routeToBind = if(requestResultLoggingEnabled) {
     DebuggingDirectives.logRequestResult("Resmat REST API", Logging.DebugLevel)(httpRoutes.routes)
   } else {

@@ -15,7 +15,7 @@ trait SecurityDirectives {
   import FutureDirectives._
   import HttpUtils._
 
-  val authorizationTokenName = "Token"
+  val authorizationTokenName = "Authorization"
 
   protected val authService: AuthService
 
