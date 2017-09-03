@@ -79,6 +79,17 @@ class TestConfsService (val db: DatabaseService)
     getTestConf(insertedId)
   }
 
+  def editTestConf(id: Long, testConf: TestConf): TestConf = db.run { implicit c =>
+    val updatedRows: Int = Q.updateTestConf(id, testConf).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to update $testConf by id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Updated $updatedRows rows while updating $testConf by id $id")
+    }
+    getTestConf(id)
+  }
+
   def getTestConf(id: Long): TestConf = db.run { implicit c =>
     Q.getTestConf(id).as(Q.tcParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Test conf with id $id not found")
@@ -209,6 +220,25 @@ object TestConfsQueries {
          |{testType},
          |{help}
          |)""".stripMargin)
+      .on("groupConfId" -> tc.groupId)
+      .on("question" -> tc.question)
+      .on("imageUrl" -> tc.imageUrl)
+      .on("options" -> tc.options.asJson.toString)
+      .on("testType" -> tc.testType.id)
+      .on("help" -> tc.help)
+
+  def updateTestConf(id: Long, tc: TestConf) =
+    SQL(
+      s"""UPDATE ${T.table} SET
+         |${T.groupConfId} = {groupConfId},
+         |${T.question} = {question},
+         |${T.imageUrl} = {imageUrl},
+         |${T.options} = {options},
+         |${T.testType} = {testType},
+         |${T.help} = {help}
+         |WHERE ${T.id} = {id}
+         |""".stripMargin)
+      .on("id" -> id)
       .on("groupConfId" -> tc.groupId)
       .on("question" -> tc.question)
       .on("imageUrl" -> tc.imageUrl)

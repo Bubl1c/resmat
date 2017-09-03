@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Directives.{complete, _}
 import edu.knuca.resmat.auth.{AuthRoute, AuthService, TestConfsRoute}
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.students.StudentsRoute
-import edu.knuca.resmat.user.{AuthenticatedUser, UsersRoute, UsersService}
+import edu.knuca.resmat.user.{AuthenticatedUser, TmpFileUploadRoute, UsersRoute, UsersService}
 import ch.megard.akka.http.cors.CorsDirectives._
 import ch.megard.akka.http.cors.CorsSettings
 import edu.knuca.resmat.data.InitialDataGenerator
@@ -40,6 +40,7 @@ class HttpRoutes(usersService: UsersService,
   val examRouter = new ExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter, s3Manager)
   val examConfRouter = new ExamConfRoute(examService)
   val problemConfRoute = new ProblemConfRoute(problemService)
+  val tmpFileUploadRouter = new TmpFileUploadRoute(s3Manager)
 
   val corsSettings = CorsSettings.defaultSettings.copy(
     allowedMethods = scala.collection.immutable.Seq(GET, POST, PUT, DELETE, HEAD, OPTIONS)
@@ -67,7 +68,8 @@ class HttpRoutes(usersService: UsersService,
                   examRouter.route ~
                   examConfRouter.route ~
                   problemConfRoute.route ~
-                  testConfsRoute.route
+                  testConfsRoute.route ~
+                  tmpFileUploadRouter.route
               }
           }
         }

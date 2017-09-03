@@ -17,7 +17,7 @@ import scala.util.{Failure, Try}
 object FileUploadUtils {
 
   def toS3TmpFileUpload(s3Manager: S3Manager, userId: Long)(implicit ec: ExecutionContext): Route = {
-    toS3FileUpload(s3Manager, S3Manager.tmpFolder(userId), (fileName) => S3Manager.tmpKey(fileName))
+    toS3FileUpload(s3Manager, S3Manager.userTmpFolder(userId), (fileName) => S3Manager.makeTmpFileName(fileName))
   }
 
   def toS3FileUpload(s3Manager: S3Manager, folder: String, overrideFileName: String => String = (n) => n)
@@ -44,7 +44,7 @@ object FileUploadUtils {
     }
   }
 
-  def uploadStream(s3Manager: S3Manager,
+  private def uploadStream(s3Manager: S3Manager,
                    folder: String,
                    fileName: String,
                    source: akka.stream.scaladsl.Source[ByteString, Any],

@@ -29,19 +29,20 @@ object Main extends App {
 }
 
 object S3Manager {
+  private val tmpFolderName = "temporary-uploads"
   private val tmpKeyDelimiter = "---original-key."
-  def tmpFolder(userId: Long): String = s"temporary-uploads/$userId/"
-  def tmpKey(originalKey: String): String = UUID.randomUUID() + tmpKeyDelimiter + originalKey
+  def userTmpFolder(userId: Long): String = s"$tmpFolderName/$userId/"
+  def makeTmpFileName(originalFileName: String): String = UUID.randomUUID() + tmpKeyDelimiter + originalFileName
+  def isTmpKey(key: String): Boolean = key.contains(tmpFolderName) && key.contains(tmpKeyDelimiter)
 
   def originalFromTmpKey(tmpKey: String): String = {
-    val delimiterIndex = tmpKey.lastIndexOf(tmpKeyDelimiter)
-    if(delimiterIndex == -1) {
+    if(!isTmpKey(tmpKey)) {
       throw new IllegalArgumentException(
         s"Failed to extract the original key. Cannot find delimiter: $tmpKeyDelimiter in S3 temporary key: $tmpKey"
       )
-    } else {
-      tmpKey.substring(delimiterIndex + tmpKeyDelimiter.length)
     }
+    val delimiterIndex = tmpKey.lastIndexOf(tmpKeyDelimiter)
+    tmpKey.substring(delimiterIndex + tmpKeyDelimiter.length)
   }
 }
 
@@ -50,6 +51,15 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String, _baseUrl: 
   s3.setRegion(Region.getRegion(Regions.EU_CENTRAL_1))
 
   val baseUrl = _baseUrl + s"/$bucket/"
+
+  def urlFromKey(key: String) = baseUrl + key
+
+  def keyFromUrl(url: String) = {
+    if(url.indexOf(baseUrl) > 0) {
+      throw new IllegalArgumentException(s"Cannot retrieve S3 key from URL '$url' as it doesn't contain base url: '$baseUrl'")
+    }
+    url.substring(baseUrl.length)
+  }
 
   /**
    * Download an object - When you download an object, you get all of

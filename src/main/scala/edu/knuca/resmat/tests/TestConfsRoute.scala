@@ -3,6 +3,7 @@ package edu.knuca.resmat.auth
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import edu.knuca.resmat.exam.TestConf
 import edu.knuca.resmat.tests.TestConfsService
 import edu.knuca.resmat.user.AuthenticatedUser
 import io.circe.generic.auto._
@@ -24,8 +25,16 @@ class TestConfsRoute(val testConfsService: TestConfsService) extends CirceSuppor
       pathPrefix(LongNumber) { testGroupConfId =>
         pathPrefix("tests") {
           pathEndOrSingleSlash {
+            (post & entity(as[TestConf])) { testConf =>
+              complete(Future(testConfsService.createTestConf(testConf)))
+            } ~
             get {
-              complete(testConfsService.findTestConfsByGroup(testGroupConfId))
+              complete(Future(testConfsService.findTestConfsByGroup(testGroupConfId)))
+            }
+          } ~
+          pathPrefix(LongNumber) { testConfId =>
+            (put & entity(as[TestConf])) { testConf =>
+              complete(Future(testConfsService.editTestConf(testConfId, testConf)))
             }
           }
         }
