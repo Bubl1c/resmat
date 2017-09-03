@@ -139,127 +139,127 @@ object TestSetData {
         cond(null, null, 0d, 0d,   0d, null, 0d, null, true),
         cond(null, 0d, 0d, 0d,   0d, null, 0d, null),
         cond(null, null, 0d, 0d,   0d, 0d, 0d, 0d)
-      ), "img/tests/extreme-conditions/ec1.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec1.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   0d, null, 0d, null, true),
         cond(0d, 0d, null, 0d,   0d, null, 0d, null),
         cond(null, null, 0d, 0d,   0d, null, 0d, 0d)
-      ), "img/tests/extreme-conditions/ec2.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec2.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   null, null, 0d, 0d, true),
         cond(0d, null, 0d, null,   0d, null, 0d, null),
         cond(null, null, 0d, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec3.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec3.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   null, null, 0d, 0d, true),
         cond(null, null, 0d, 0d,   0d, 0d, 0d, 0d),
         cond(null, null, 0d, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec4.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec4.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   0d, 0d, null, null, true),
         cond(null, null, 0d, 0d,   0d, null, 0d, 0d),
         cond(0d, 0d, null, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec5.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec5.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0d, 0d, null, null, true),
         cond(null, 0d, 0d, 0d,   0d, null, 0d, 0d),
         cond(0d, 0d, null, 0d,   null, 0d, 0d, null)
-      ), "img/tests/extreme-conditions/ec6.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec6.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0.005, null, 0d, null, true),
         cond(null, 0d, 0d, 0d,   0d, 0.005, 0d, 0d),
         cond(0d, null, null, 0d,   0d, 0d, 0d, null)
-      ), "img/tests/extreme-conditions/ec7.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec7.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(-0.007, null, 0d, null,   0d, null, 0d, null, true),
         cond(null, null, 0d, 0d,   -0.007, null, 0d, 0d),
         cond(0d, null, 0d, 0d,   null, 0d, 0d, null)
-      ), "img/tests/extreme-conditions/ec8.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec8.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(-0.003, null, 0d, null,   null, null, 0d, 0d, true),
         cond(0.003, null, 0d, null,   null, null, 0d, 0d),
         cond(0d, null, 0d, 0d,   null, 0d, 0d, null)
-      ), "img/tests/extreme-conditions/ec9.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec9.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.004, null, null,   null, null, 0d, 0d, true),
         cond(null, 0.004, null, null,   null, null, 0d, 0d),
         cond(-0.004, null, 0d, 0d,   0d, 0d, 0d, null)
-      ), "img/tests/extreme-conditions/ec10.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec10.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0.005, null, 0d, null,   0d, 0d, null, null, true),
         cond(-0.005, null, 0d, null,   0d, 0d, null, null),
         cond(0d, null, -0.005, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec11.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec11.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0d, -0.002, null, null, true),
         cond(-0.002, null, 0d, null,   0d, 0d, null, null),
         cond(0d, null, -0.002, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec12.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec12.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, -10d,   0.005, null, 0d, null, true),
         cond(0.005, null, 10d, null,   0d, 0d, null, null),
         cond(0d, null, 0.005, 0d,   0d, null, 0d, 0d)
-      ), "img/tests/extreme-conditions/ec13.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec13.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(-0.007, null, 15d, null,   0d, null, 0d, null, true),
         cond(0.007, null, 15d, null,   0d, null, 0d, null),
         cond(-0.007, null, -15d, 0d,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec14.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec14.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.004, null, null,   null, null, 8d, 2d, true),
         cond(0d, 0.004, null, null,   null, null, 8d, 2d),
         cond(0d, -0.004, null, null,   null, 8d, null, 2d)
-      ), "img/tests/extreme-conditions/ec16.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec16.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   -0.004, null, 7d, null, true),
         cond(0d, 0d, null, null,   0.004, null, 7d, null),
         cond(0d, 0d, null, null,   -0.004, null, -7d, null)
-      ), "img/tests/extreme-conditions/ec17.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec17.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0.004, null, 0d, null,   null, null, -30d, -40d, true),
         cond(-0.004, null, 0d, null,   0d, null, -30d, -40d),
         cond(0.004, null, null, 0d,   null, null, -30d, 40d)
-      ), "img/tests/extreme-conditions/ec18.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec18.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   0d, null, -18d, null, true),
         cond(null, null, 0d, null,   0d, null, -18d, null),
         cond(0d, null, null, null,   0d, null, 18d, null)
-      ), "img/tests/extreme-conditions/ec19.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec19.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, -50d,   0d, null, -55d, null, true),
         cond(null, 0d, 0d, 50d,   0d, null, -55d, null),
         cond(0d, null, 0d, 50d,   null, null, 55d, null)
-      ), "img/tests/extreme-conditions/ec20.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec20.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 13d,   0d, -0.002, null, null, true),
         cond(null, 0d, 0d, -13d,   0d, 0.002, null, null),
         cond(null, null, 0d, -13d,   0d, 0.002, null, null)
-      ), "img/tests/extreme-conditions/ec21.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec21.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 20d, null,   0d, 0d, null, null, true),
         cond(0d, null, -20d, null,   0d, 0d, null, null),
         cond(0d, null, 20d, null,   0d, 0d, 0d, null)
-      ), "img/tests/extreme-conditions/ec22.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec22.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.003, null, null,   null, null, 8d, -18d, true),
         cond(0d, -0.003, 0d, null,   null, null, -8d, -18d),
         cond(0d, 0.003, null, null,   null, 0d, 8d, -18d)
-      ), "img/tests/extreme-conditions/ec23.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec23.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.003, null, null,   -0.006, null, 0d, null, true),
         cond(null, -0.003, null, null,   0.006, null, 0d, null),
         cond(-0.006, -0.003, null, null,   -0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec24.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec24.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   0d, 0.01, null, null, true),
         cond(0d, null, null, null,   0d, 0.01, 0d, null),
         cond(0d, -0.01, null, null,   0d, null, 0d, null)
-      ), "img/tests/extreme-conditions/ec25.png"),
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec25.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   null, -0.01, null, 0d, true),
         cond(0d, 0d, null, 0d,   null, -0.01, null, 0d),
         cond(0d, 0d, null, null,   null, 0.01, null, 0d)
-      ), "img/tests/extreme-conditions/ec26.png")
+      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec26.png")
 
     ))
   )

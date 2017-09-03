@@ -54,8 +54,22 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String, _baseUrl: 
 
   def urlFromKey(key: String) = baseUrl + key
 
-  def keyFromUrl(url: String) = {
-    if(url.indexOf(baseUrl) > 0) {
+  def urlToS3Key(url: String, withFolder: String = ""): String = {
+    if(S3Manager.isTmpKey(url)) {
+      if(withFolder == "") {
+        throw new IllegalArgumentException(s"withFolder shouldn't be empty for temporary keys. url=$url withFolder=$withFolder")
+      }
+      copyTempObject(keyFromUrl(url), withFolder) match {
+        case Success(result) => result
+        case Failure(t) => throw new RuntimeException(s"Failed to copy temporary file with url: $url to folder $withFolder. Reason: ", t)
+      }
+    } else {
+      keyFromUrl(url)
+    }
+  }
+
+  def keyFromUrl(url: String): String = {
+    if(url.indexOf(baseUrl) != 0) {
       throw new IllegalArgumentException(s"Cannot retrieve S3 key from URL '$url' as it doesn't contain base url: '$baseUrl'")
     }
     url.substring(baseUrl.length)

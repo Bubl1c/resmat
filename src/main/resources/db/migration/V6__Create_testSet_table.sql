@@ -69,7 +69,7 @@ CREATE TABLE `user_exam_step_attempt_test_set_tests` (
     ON DELETE CASCADE,
   FOREIGN KEY (test_conf_id)
   REFERENCES test_confs (id)
-    ON DELETE RESTRICT
+    ON DELETE CASCADE
 )
   DEFAULT CHARSET = utf8;
 

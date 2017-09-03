@@ -48,7 +48,7 @@ object Api extends App with Config with LazyLogging {
 
   val usersService: UsersService = new DefaultUsersService(databaseService)
   val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
-  val testConfsService: TestConfsService = new TestConfsService(databaseService)
+  val testConfsService: TestConfsService = new TestConfsService(databaseService, s3Manager)
   val testSetExamService: TestSetExamService = new TestSetExamService(databaseService, testConfsService)
   val problemService: ProblemService = new ProblemService(databaseService)
   val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(problemService)

@@ -4,11 +4,11 @@ import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
-import edu.knuca.resmat.utils.SqlUtils
+import edu.knuca.resmat.utils.{S3Manager, SqlUtils}
 
 import scala.concurrent.ExecutionContext
 
-class TestConfsService (val db: DatabaseService)
+class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
                        (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.tests.{TestConfsQueries => Q}
@@ -37,6 +37,11 @@ class TestConfsService (val db: DatabaseService)
       throw new RuntimeException(s"Failed to create $testGroupConf")
     )
     getTestGroupConf(insertedId)
+  }
+
+  def editTestGroupConf(id: Long, testGroupConf: TestGroupConf) = db.run { implicit c =>
+    Q.editTestGroupConf(id, testGroupConf).executeUpdate()
+    getTestGroupConf(id)
   }
 
   def getTestGroupConf(id: Long): TestGroupConf = db.run { implicit c =>
@@ -71,16 +76,26 @@ class TestConfsService (val db: DatabaseService)
 
   //====================TestConf====================
 
-  def createTestConf(testConf: TestConf): TestConf = db.run { implicit c =>
-    val insertedIdOpt: Option[Long] = Q.createTestConf(testConf).executeInsert()
-    val insertedId = insertedIdOpt.getOrElse(
-      throw new RuntimeException(s"Failed to create $testConf")
-    )
-    getTestConf(insertedId)
+  def createTestConf(testConf: TestConf): TestConf = {
+    val id = db.runTransaction { implicit c =>
+      val insertedIdOpt: Option[Long] = Q.createTestConf(testConf).executeInsert()
+      val insertedId = insertedIdOpt.getOrElse(
+        throw new RuntimeException(s"Failed to create $testConf")
+      )
+      Q.updateTestConf(
+        insertedId,
+        TestConfsQueries.updateUrlsToS3Keys(testConf.copy(id = insertedId), s3Manager)
+      ).executeUpdate()
+      insertedId
+    }
+    getTestConf(id)
   }
 
   def editTestConf(id: Long, testConf: TestConf): TestConf = db.run { implicit c =>
-    val updatedRows: Int = Q.updateTestConf(id, testConf).executeUpdate()
+    val updatedRows: Int = Q.updateTestConf(
+      id,
+      TestConfsQueries.updateUrlsToS3Keys(testConf, s3Manager)
+    ).executeUpdate()
     if(updatedRows == 0) {
       throw new RuntimeException(s"Failed to update $testConf by id $id")
     }
@@ -90,18 +105,28 @@ class TestConfsService (val db: DatabaseService)
     getTestConf(id)
   }
 
+  def deleteTestConf(id: Long): Unit = db.runTransaction { implicit c =>
+    val updatedRows = Q.deleteTestConf(id).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to delete test conf with id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Deleted $updatedRows rows while deleting test conf by id $id")
+    }
+  }
+
   def getTestConf(id: Long): TestConf = db.run { implicit c =>
-    Q.getTestConf(id).as(Q.tcParser.singleOpt).getOrElse(
+    Q.getTestConf(id).as(Q.tcParser(s3Manager).singleOpt).getOrElse(
       throw new RuntimeException(s"Test conf with id $id not found")
     )
   }
 
   def findTestConfs(ids: Seq[Long]): Seq[TestConf] = db.run { implicit c =>
-    Q.findTestConfs(ids).as(Q.tcParser.*)
+    Q.findTestConfs(ids).as(Q.tcParser(s3Manager).*)
   }
 
   def findTestConfsByGroup(groupId: Long): Seq[TestConf] = db.run { implicit c =>
-    Q.findTestConfsByGroup(groupId).as(Q.tcParser.*)
+    Q.findTestConfsByGroup(groupId).as(Q.tcParser(s3Manager).*)
   }
 
   def takeTestConfsFromGroups(groupIdsWithProportions: Seq[(Long, Int)]): Seq[TestConf] =
@@ -170,7 +195,7 @@ object TestConfsQueries {
     proportionPercents <- int(TSTG.proportionPercents)
   } yield TestSetConfTestGroup(id, testSetConfId, testGroupConfId, proportionPercents)
 
-  val tcParser  = for {
+  def tcParser(s3Manager: S3Manager)  = for {
     id <- long(T.id)
     groupConfId <- int(T.groupConfId)
     question <- str(T.question)
@@ -178,7 +203,10 @@ object TestConfsQueries {
     options <- str(T.options)
     testType <- int(T.testType)
     help <- str(T.help).?
-  } yield TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help)
+  } yield updateS3KeysToUrls(
+    TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help),
+    s3Manager
+  )
 
   def createTestSetConf(tsc: TestSetConf) =
     SQL(s"INSERT INTO ${TS.table} (${TS.name}, ${TS.maxTestsAmount}) VALUES ({name}, {maxTestsAmount})")
@@ -187,6 +215,9 @@ object TestConfsQueries {
 
   def createTestGroupConf(tsc: TestGroupConf) =
     SQL(s"INSERT INTO ${TG.table} (${TG.name}) VALUES ({name})").on("name" -> tsc.name)
+
+  def editTestGroupConf(id: Long, tsc: TestGroupConf) =
+    SQL(s"UPDATE ${TG.table} SET ${TG.name} = {name} WHERE ${TG.id} = {id}").on("id" -> id).on("name" -> tsc.name)
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup) =
     SQL(
@@ -246,6 +277,9 @@ object TestConfsQueries {
       .on("testType" -> tc.testType.id)
       .on("help" -> tc.help)
 
+  def deleteTestConf(testConfId: Long) =
+    SQL(s"DELETE FROM ${T.table} WHERE ${T.id} = {id}").on("id" -> testConfId)
+
   def getTestSetConf(id: Long) = SqlUtils.get(TS.table, id)
 
   def getTestGroupConf(id: Long) = SqlUtils.get(TG.table, id)
@@ -269,4 +303,35 @@ object TestConfsQueries {
     throw new RuntimeException(s"Failed to decode TestOptionConf in json: $json", e),
     r => r
   )
+
+  private def s3TestFolder(testId: Long) = s"test-confs/$testId"
+
+  def updateS3KeysToUrls(testConf: TestConf, s3Manager: S3Manager): TestConf = {
+    testConf.copy(
+      imageUrl = testConf.imageUrl.map(s3Manager.urlFromKey),
+      help = testConf.help.map(s3Manager.urlFromKey),
+      options = testConf.options.map(option =>
+        if(option.valueType == TestOptionValueType.Image) {
+          option.copy(value = s3Manager.urlFromKey(option.value))
+        } else {
+          option
+        }
+      )
+    )
+  }
+
+  def updateUrlsToS3Keys(testConf: TestConf, s3Manager: S3Manager): TestConf = {
+    val testFolder = s3TestFolder(testConf.id)
+    testConf.copy(
+      imageUrl = testConf.imageUrl.map(s3Manager.urlToS3Key(_, testFolder)),
+      help = testConf.help.map(s3Manager.urlToS3Key(_, testFolder)),
+      options = testConf.options.map(option =>
+        if(option.valueType == TestOptionValueType.Image) {
+          option.copy(value = s3Manager.urlToS3Key(option.value, testFolder))
+        } else {
+          option
+        }
+      )
+    )
+  }
 }
