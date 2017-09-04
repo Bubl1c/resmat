@@ -3,7 +3,7 @@ After=mysql.service
 
 [Service]
 WorkingDirectory=/home/ubuntu/api
-ExecStart=/usr/bin/java -cp .:resmat-assembly-1.0.jar edu.knuca.resmat.Main
+ExecStart=/usr/bin/java -cp .:resmat-assembly-1.0.jar edu.knuca.resmat.Api
 
 [Install]
 WantedBy=default.target

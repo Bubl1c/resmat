@@ -20,7 +20,7 @@ class TestConfsRoute(val testConfsService: TestConfsService) extends CirceSuppor
       pathEndOrSingleSlash {
         (post & entity(as[TestGroupConf])) { testGroupConf =>
           complete(Future(testConfsService.createTestGroupConf(testGroupConf)))
-        }
+        } ~
         get {
           complete(Future(testConfsService.getTestGroupConfs()))
         }
