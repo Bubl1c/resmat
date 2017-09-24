@@ -125,8 +125,8 @@ class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
     Q.findTestConfs(ids).as(Q.tcParser(s3Manager).*)
   }
 
-  def findTestConfsByGroup(groupId: Long): Seq[TestConf] = db.run { implicit c =>
-    Q.findTestConfsByGroup(groupId).as(Q.tcParser(s3Manager).*)
+  def findTestConfsByGroup(groupConfId: Long): Seq[TestConf] = db.run { implicit c =>
+    Q.findTestConfsByGroup(groupConfId).as(Q.tcParser(s3Manager).*)
   }
 
   def takeTestConfsFromGroups(groupIdsWithProportions: Seq[(Long, Int)]): Seq[TestConf] =

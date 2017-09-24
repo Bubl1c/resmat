@@ -57,12 +57,12 @@ function prepare {
 
 runSSH "mkdir -p "${REMOTE_FOLDER}
 
+echo Reloading JAR file
+scpToRemote ${JAR_FILE} ${REMOTE_FOLDER}
+
 apiService stop
 
 prepare
-
-echo Reloading JAR file
-scpToRemote ${JAR_FILE} ${REMOTE_FOLDER}
 
 if [ ${RELOAD_RESOURCES} = true ]; then
     echo "Uploading RESOURCES into" ${REMOTE_FOLDER}

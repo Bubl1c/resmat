@@ -115,7 +115,7 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
     val testSetTestsFromGroups: Seq[TestConf] = testConfsService.takeTestConfsFromGroups(
       tscTestGroups.map { tg =>
         val proportion = tg.proportionPercents / 100.0
-        (tg.id, Math.ceil(testsAmount * proportion).toInt)
+        (tg.testGroupConfId, Math.ceil(testsAmount * proportion).toInt)
       }
     )
 
