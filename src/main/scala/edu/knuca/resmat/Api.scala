@@ -12,6 +12,7 @@ import edu.knuca.resmat.utils.{Config, S3Manager}
 import akka.http.scaladsl.server.directives.DebuggingDirectives
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
+import edu.knuca.resmat.articles.ArticleService
 import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
@@ -54,9 +55,10 @@ object Api extends App with Config with LazyLogging {
   val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(problemService)
   val examService: ExamService = new ExamService(databaseService)
   val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testConfsService, testSetExamService, taskFlowExamService)
+  val articleService: ArticleService = new ArticleService(databaseService)
 
   val dataGenerator = new InitialDataGenerator(
-    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService, testConfsService
+    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService, testConfsService, articleService
   )
   if(MySql.generateDataOnStartup) {
     dataGenerator.generate()
@@ -70,6 +72,7 @@ object Api extends App with Config with LazyLogging {
     testConfsService,
     testSetExamService,
     problemService,
+    articleService,
     s3Manager
   )(dataGenerator)
   val routeToBind = if(requestResultLoggingEnabled) {

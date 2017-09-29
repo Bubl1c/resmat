@@ -1,6 +1,7 @@
 package edu.knuca.resmat.data
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.knuca.resmat.articles.{ArticleDto, ArticleQueries, ArticleService}
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
 import edu.knuca.resmat.core.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
@@ -12,6 +13,7 @@ import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf, ProblemInputV
 import edu.knuca.resmat.tests.TestConfsService
 import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
+import io.circe.parser.parse
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, ExecutionContext}
@@ -124,6 +126,23 @@ object Data {
 
   def userExam(examConfId: Long, userId: Long, status: ExamStatus = ExamStatus.Initial) =
     UserExam(-1, userId, examConfId, 1, status, None, started = Some(DateTime.now), None)
+
+  val article = ArticleDto(
+    -1,
+    "Lorem Ipsum",
+    "<h2>Что такое Lorem Ipsum?</h2>\n<p style=\"text-align: center;\"><strong><img style=\"float: left;\" " +
+      "src=\"http://www.jqueryscript.net/images/Universal-Placeholder-Text-Lorem-Ipsum-Generator-getlorem.jpg\" " +
+      "width=\"443\" height=\"323\" /></strong></p>\n<p style=\"text-align: center;\">&nbsp;</p>\n<p style=\"text-align: " +
+      "center;\">&nbsp;</p>\n<p style=\"text-align: center;\"><strong>Lorem Ipsum</strong>&nbsp;- это текст-\"рыба\", " +
+      "часто используемый в печати и вэб-дизайне. Lorem Ipsum является стандартной \"рыбой\" для текстов на латинице с начала XVI века. " +
+      "В то время некий безымянный печатник создал большую коллекцию размеров и форм шрифтов, используя Lorem Ipsum для распечатки образцов. " +
+      "Lorem Ipsum не только успешно пережил без заметных изменений пять веков, но и перешагнул в электронный дизайн. " +
+      "Его популяризации в новое время послужили публикация листов Letraset с образцами Lorem Ipsum в 60-х годах и, " +
+      "в более недавнее время, программы электронной вёрстки типа Aldus PageMaker, в шаблонах которых используется " +
+      "Lorem Ipsum.</p>\n<p style=\"text-align: center;\">html</p>",
+    "<div>\n<h2><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"https://www.sessions.edu/wp-content/uploads/1-PJgt-UmbqBXXGiDBL1KG0A.jpeg\" width=\"700\" height=\"399\" /></h2>\n<h2>Почему он используется?</h2>\n<p>Давно выяснено, что при оценке дизайна и композиции читаемый текст мешает сосредоточиться. Lorem Ipsum используют потому, что тот обеспечивает более или менее стандартное заполнение шаблона, а также реальное распределение букв и пробелов в абзацах, которое не получается при простой дубликации \"Здесь ваш текст.. Здесь ваш текст.. Здесь ваш текст..\" Многие программы электронной вёрстки и редакторы HTML используют Lorem Ipsum в качестве текста по умолчанию, так что поиск по ключевым словам \"lorem ipsum\" сразу показывает, как много веб-страниц всё ещё дожидаются своего настоящего рождения. За прошедшие годы текст Lorem Ipsum получил много версий. Некоторые версии появились по ошибке, некоторые - намеренно (например, юмористические варианты).</p>\n</div>\n<p>&nbsp;</p>\n<div>\n<h2>Откуда он появился?</h2>\n<p>Многие думают, что Lorem Ipsum - взятый с потолка псевдо-латинский набор слов, но это не совсем так. Его корни уходят в один фрагмент классической латыни 45 года н.э., то есть более двух тысячелетий назад. Ричард МакКлинток, профессор латыни из колледжа Hampden-Sydney, штат Вирджиния, взял одно из самых странных слов в Lorem Ipsum, \"consectetur\", и занялся его поисками в классической латинской литературе. В результате он нашёл неоспоримый первоисточник Lorem Ipsum в разделах 1.10.32 и 1.10.33 книги \"de Finibus Bonorum et Malorum\" (\"О пределах добра и зла\"), написанной Цицероном в 45 году н.э. Этот трактат по теории этики был очень популярен в эпоху Возрождения. Первая строка Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", происходит от одной из строк в разделе 1.10.32</p>\n</div>\n<p>html</p>",
+    true,
+    ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }"))
 }
 
 class InitialDataGenerator(db: DatabaseService,
@@ -134,7 +153,8 @@ class InitialDataGenerator(db: DatabaseService,
                            userExamService: UserExamService,
                            testSetExamService: TestSetExamService,
                            taskFlowExamService: TaskFlowExamService,
-                           testConfsService: TestConfsService) extends LazyLogging {
+                           testConfsService: TestConfsService,
+                           articleService: ArticleService) extends LazyLogging {
 
   def generate()(implicit executionContext: ExecutionContext) = {
 
@@ -204,6 +224,8 @@ class InitialDataGenerator(db: DatabaseService,
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+
+    articleService.create(Data.article)
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {

@@ -53,7 +53,11 @@ object FileUploadUtils {
     val inputStream: InputStream = source.runWith(
       StreamConverters.asInputStream(FiniteDuration(10, TimeUnit.SECONDS))
     )
-    s3Manager.put(folder + fileName, inputStream, sizeBytes).map(s3Manager.baseUrl + _)
+    s3Manager.put(
+      PathUtils.normalisePath(folder, "/", "/") + fileName,
+      inputStream,
+      sizeBytes
+    ).map(s3Manager.baseUrl + _)
   }
 
 }

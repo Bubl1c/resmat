@@ -44,4 +44,16 @@ class ArticleRoute(articleService: ArticleService, s3Manager: S3Manager) extends
       }
     }
 
+  def publicRoute(implicit ec: ExecutionContext): Route =
+    pathPrefix("public-articles") {
+      (pathEndOrSingleSlash & get) {
+        complete(Future(articleService.getVisible()))
+      } ~
+      pathPrefix(LongNumber) { articleId =>
+        (pathEndOrSingleSlash & get) {
+          complete(Future(articleService.getById(articleId, true)))
+        }
+      }
+    }
+
 }

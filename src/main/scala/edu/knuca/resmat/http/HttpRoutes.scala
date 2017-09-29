@@ -12,6 +12,7 @@ import edu.knuca.resmat.data.InitialDataGenerator
 import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 import akka.http.scaladsl.model.HttpMethods._
+import edu.knuca.resmat.articles.{ArticleRoute, ArticleService}
 import edu.knuca.resmat.tests.TestConfsService
 import edu.knuca.resmat.utils.S3Manager
 
@@ -24,6 +25,7 @@ class HttpRoutes(usersService: UsersService,
                  val testConfsService: TestConfsService,
                  val testSetExamService: TestSetExamService,
                  val problemService: ProblemService,
+                 val articleService: ArticleService,
                  val s3Manager: S3Manager)
                 (val dataGenerator: InitialDataGenerator)
                 (implicit executionContext: ExecutionContext)
@@ -41,6 +43,7 @@ class HttpRoutes(usersService: UsersService,
   val examConfRouter = new ExamConfRoute(examService)
   val problemConfRoute = new ProblemConfRoute(problemService)
   val tmpFileUploadRouter = new TmpFileUploadRoute(s3Manager)
+  val articlesRouter = new ArticleRoute(articleService, s3Manager)
 
   val corsSettings = CorsSettings.defaultSettings.copy(
     allowedMethods = scala.collection.immutable.Seq(GET, POST, PUT, DELETE, HEAD, OPTIONS)
@@ -62,6 +65,8 @@ class HttpRoutes(usersService: UsersService,
               }
             }
             authRouter.route ~
+              //Routes that don't require authorization
+              articlesRouter.publicRoute ~
               authenticate { implicit user: AuthenticatedUser =>
                 usersRouter.route ~
                   studentsRouter.route ~
@@ -69,7 +74,8 @@ class HttpRoutes(usersService: UsersService,
                   examConfRouter.route ~
                   problemConfRoute.route ~
                   testConfsRoute.route ~
-                  tmpFileUploadRouter.route
+                  tmpFileUploadRouter.route ~
+                  articlesRouter.route
               }
           }
         }
