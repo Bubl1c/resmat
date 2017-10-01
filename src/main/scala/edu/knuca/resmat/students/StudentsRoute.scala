@@ -10,7 +10,7 @@ import edu.knuca.resmat.user._
 import io.circe.generic.auto._
 import io.circe.syntax._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class StudentsRoute(usersService: UsersService)
                    (implicit executionContext: ExecutionContext) extends CirceSupport {
@@ -39,6 +39,16 @@ class StudentsRoute(usersService: UsersService)
         put {
           entity(as[StudentGroupEntityUpdate]) { groupUpdate =>
             complete(updateStudentGroup(studentGroupId, groupUpdate).map(_.asJson))
+          }
+        }
+      } ~
+      pathPrefix("articles") {
+        pathEndOrSingleSlash {
+          (put & entity(as[Seq[Long]])) { articleIds =>
+            complete(Future(setArticlesToGroup(studentGroupId, articleIds)))
+          } ~
+          delete {
+            complete(Future(setArticlesToGroup(studentGroupId, Seq())))
           }
         }
       } ~

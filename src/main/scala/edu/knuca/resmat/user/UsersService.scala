@@ -109,7 +109,7 @@ trait UsersService { this: LazyLogging =>
   /*===================== GROUPS ============================*/
 
   def createStudentGroup(group: StudentGroupEntity): Future[StudentGroupEntity] = Future {
-    db.runTransaction{ implicit c =>
+    db.run{ implicit c =>
       logger.debug(s"Creating group: $group")
       val groupIdOpt: Option[Long] = UsersQueries.insertStudentGroup(group).executeInsert()
       groupIdOpt match {
@@ -143,6 +143,15 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
+  def setArticlesToGroup(groupId: Long, articleIds: Seq[Long]): Unit = {
+    db.runTransaction { implicit c =>
+      UsersQueries.deleteGroupArticles(groupId).executeUpdate()
+      if(articleIds.nonEmpty) {
+        UsersQueries.createGroupArticles(groupId, articleIds).executeInsert()
+      }
+    }
+  }
+
   private def checkUserType(user: UserEntity, checkTypeOpt: Option[UserType.UserType]): Try[UserEntity] = Try {
     checkTypeOpt.foreach( checkType =>
       require(
@@ -157,6 +166,12 @@ trait UsersService { this: LazyLogging =>
 
 object UsersQueries {
   import anorm.SqlParser.{int, long, str}
+
+  object SGA {
+    val table = "student_group_articles"
+    val studentGroupId = "student_group_id"
+    val articleId = "article_id"
+  }
 
   val parserWithPassword  = for {
     id <- long("id")
@@ -248,4 +263,10 @@ object UsersQueries {
 
   def updateStudentGroup(groupId: Long, groupUpdate: StudentGroupEntityUpdate) =
     SQL("UPDATE student_groups SET name = {name} WHERE id = {id}").on("id" -> groupId, "name" -> groupUpdate.name)
+
+  def createGroupArticles(groupId: Long, articleIds: Seq[Long]) =
+    SQL(s"INSERT INTO ${SGA.table} (${SGA.studentGroupId}, ${SGA.articleId}) VALUES ${articleIds.map(aid => s"($groupId, $aid)").mkString(", ")}")
+
+  def deleteGroupArticles(groupId: Long) =
+    SQL(s"DELETE FROM ${SGA.table} WHERE ${SGA.studentGroupId} = {groupId}").on("groupId" -> groupId)
 }

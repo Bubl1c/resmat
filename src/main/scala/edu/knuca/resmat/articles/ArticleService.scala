@@ -36,18 +36,25 @@ class ArticleService(val db: DatabaseService)
     getById(id)
   }
 
-  def get(): Seq[ArticleDto] = db.run{ implicit c =>
-    Q.getArticles.as(Q.parser.*)
+  def delete(id: Long): Unit = db.runTransaction { implicit c =>
+    val affectedRows = Q.deleteArticle(id).executeUpdate()
+    if(affectedRows != 1) {
+      throw new RuntimeException(s"Failed to delete article with id $id. Affected rows: $affectedRows.")
+    }
   }
 
-  def getVisible(): Seq[ArticleDto] = db.run{ implicit c =>
-    Q.getArticles.as(Q.parser.*).filter(_.visible)
+  def get(onlyIfVisible: Boolean = false): Seq[ArticleDto] = db.run{ implicit c =>
+    Q.getArticles(onlyIfVisible).as(Q.parser.*)
   }
 
   def getById(id: Long, onlyIfVisible: Boolean = false): ArticleDto = db.run{ implicit c =>
     Q.getArticle(id).as(Q.parser.singleOpt).filter(ad => if(onlyIfVisible) ad.visible else true).getOrElse(
       throw NotFoundException(s"Article with id $id not found!")
     )
+  }
+
+  def getByStudentGroupId(studentGroupId: Long, onlyIfVisible: Boolean = false): Seq[ArticleDto] = db.run{ implicit c =>
+    Q.getArticlesByStudentGroupId(studentGroupId, onlyIfVisible).as(Q.parser.*)
   }
 }
 
@@ -63,6 +70,8 @@ object ArticleQueries {
     val visible = "visible"
     val meta = "meta"
   }
+
+  import edu.knuca.resmat.user.UsersQueries.SGA
 
   val parser  = for {
     id <- long(A.id)
@@ -110,7 +119,16 @@ object ArticleQueries {
       .on("visible" -> article.visible)
       .on("meta" -> article.meta.toString())
 
-  def getArticles = SqlUtils.get(A.table)
+  def deleteArticle(id: Long) = SqlUtils.delete(A.table, id)
+
+  def getArticles(onlyVisible: Boolean = false) = SQL(s"SELECT * FROM ${A.table}${if(onlyVisible) " WHERE visible = 1" else ""}")
+
+  def getArticlesByStudentGroupId(studentGroupId: Long, onlyVisible: Boolean = false) =
+    SQL(s"""
+         |SELECT a.* FROM ${A.table} a
+         |JOIN ${SGA.table} sga ON ${SGA.articleId} = ${A.id}
+         |WHERE sga.${SGA.studentGroupId} = {groupId}${if(onlyVisible) " AND a.visible = 1" else ""}""".stripMargin)
+      .on("groupId" -> studentGroupId)
 
   def getArticle(id: Long) = SqlUtils.get(A.table, id)
 

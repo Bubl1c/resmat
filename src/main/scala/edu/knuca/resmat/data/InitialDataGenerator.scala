@@ -133,14 +133,21 @@ object Data {
     "<h2>Что такое Lorem Ipsum?</h2>\n<p style=\"text-align: center;\"><strong><img style=\"float: left;\" " +
       "src=\"http://www.jqueryscript.net/images/Universal-Placeholder-Text-Lorem-Ipsum-Generator-getlorem.jpg\" " +
       "width=\"443\" height=\"323\" /></strong></p>\n<p style=\"text-align: center;\">&nbsp;</p>\n<p style=\"text-align: " +
-      "center;\">&nbsp;</p>\n<p style=\"text-align: center;\"><strong>Lorem Ipsum</strong>&nbsp;- это текст-\"рыба\", " +
+      "center;\">&nbsp;</p><p style=\"text-align: center;\"><strong>Lorem Ipsum</strong>&nbsp;- это текст-\"рыба\", " +
       "часто используемый в печати и вэб-дизайне. Lorem Ipsum является стандартной \"рыбой\" для текстов на латинице с начала XVI века. " +
       "В то время некий безымянный печатник создал большую коллекцию размеров и форм шрифтов, используя Lorem Ipsum для распечатки образцов. " +
       "Lorem Ipsum не только успешно пережил без заметных изменений пять веков, но и перешагнул в электронный дизайн. " +
       "Его популяризации в новое время послужили публикация листов Letraset с образцами Lorem Ipsum в 60-х годах и, " +
       "в более недавнее время, программы электронной вёрстки типа Aldus PageMaker, в шаблонах которых используется " +
-      "Lorem Ipsum.</p>\n<p style=\"text-align: center;\">html</p>",
-    "<div>\n<h2><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"https://www.sessions.edu/wp-content/uploads/1-PJgt-UmbqBXXGiDBL1KG0A.jpeg\" width=\"700\" height=\"399\" /></h2>\n<h2>Почему он используется?</h2>\n<p>Давно выяснено, что при оценке дизайна и композиции читаемый текст мешает сосредоточиться. Lorem Ipsum используют потому, что тот обеспечивает более или менее стандартное заполнение шаблона, а также реальное распределение букв и пробелов в абзацах, которое не получается при простой дубликации \"Здесь ваш текст.. Здесь ваш текст.. Здесь ваш текст..\" Многие программы электронной вёрстки и редакторы HTML используют Lorem Ipsum в качестве текста по умолчанию, так что поиск по ключевым словам \"lorem ipsum\" сразу показывает, как много веб-страниц всё ещё дожидаются своего настоящего рождения. За прошедшие годы текст Lorem Ipsum получил много версий. Некоторые версии появились по ошибке, некоторые - намеренно (например, юмористические варианты).</p>\n</div>\n<p>&nbsp;</p>\n<div>\n<h2>Откуда он появился?</h2>\n<p>Многие думают, что Lorem Ipsum - взятый с потолка псевдо-латинский набор слов, но это не совсем так. Его корни уходят в один фрагмент классической латыни 45 года н.э., то есть более двух тысячелетий назад. Ричард МакКлинток, профессор латыни из колледжа Hampden-Sydney, штат Вирджиния, взял одно из самых странных слов в Lorem Ipsum, \"consectetur\", и занялся его поисками в классической латинской литературе. В результате он нашёл неоспоримый первоисточник Lorem Ipsum в разделах 1.10.32 и 1.10.33 книги \"de Finibus Bonorum et Malorum\" (\"О пределах добра и зла\"), написанной Цицероном в 45 году н.э. Этот трактат по теории этики был очень популярен в эпоху Возрождения. Первая строка Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", происходит от одной из строк в разделе 1.10.32</p>\n</div>\n<p>html</p>",
+      "Lorem Ipsum.</p>",
+    "<div><h2><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"https://www.sessions.edu/wp-content/uploads/1-PJgt-UmbqBXXGiDBL1KG0A.jpeg\" width=\"700\" height=\"399\" /></h2><h2>Почему он используется?</h2><p>Давно выяснено, что при оценке дизайна и композиции читаемый текст мешает сосредоточиться. Lorem Ipsum используют потому, что тот обеспечивает более или менее стандартное заполнение шаблона, а также реальное распределение букв и пробелов в абзацах, которое не получается при простой дубликации \"Здесь ваш текст.. Здесь ваш текст.. Здесь ваш текст..\" Многие программы электронной вёрстки и редакторы HTML используют Lorem Ipsum в качестве текста по умолчанию, так что поиск по ключевым словам \"lorem ipsum\" сразу показывает, как много веб-страниц всё ещё дожидаются своего настоящего рождения. За прошедшие годы текст Lorem Ipsum получил много версий. Некоторые версии появились по ошибке, некоторые - намеренно (например, юмористические варианты).</p></div><p style=\"text-align: center;\">&nbsp;<iframe src=\"//www.youtube.com/embed/9t3kU77C7H4\" width=\"560\" height=\"314\" allowfullscreen=\"allowfullscreen\"></iframe></p><div><h2>Откуда он появился?</h2><p>Многие думают, что Lorem Ipsum - взятый с потолка псевдо-латинский набор слов, но это не совсем так. Его корни уходят в один фрагмент классической латыни 45 года н.э., то есть более двух тысячелетий назад. Ричард МакКлинток, профессор латыни из колледжа Hampden-Sydney, штат Вирджиния, взял одно из самых странных слов в Lorem Ipsum, \"consectetur\", и занялся его поисками в классической латинской литературе. В результате он нашёл неоспоримый первоисточник Lorem Ipsum в разделах 1.10.32 и 1.10.33 книги \"de Finibus Bonorum et Malorum\" (\"О пределах добра и зла\"), написанной Цицероном в 45 году н.э. Этот трактат по теории этики был очень популярен в эпоху Возрождения. Первая строка Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", происходит от одной из строк в разделе 1.10.32</p></div>",
+    true,
+    ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }"))
+  val article2 = ArticleDto(
+    -1,
+    "Lorem Ipsum 2",
+    "<h4>Что такое Lorem Ipsum?</h4><p style=\"text-align: center;\"><iframe src=\"//www.youtube.com/embed/9t3kU77C7H4\" width=\"560\" height=\"314\" allowfullscreen=\"allowfullscreen\"></iframe></p>",
+    "<div><h2><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"https://www.sessions.edu/wp-content/uploads/1-PJgt-UmbqBXXGiDBL1KG0A.jpeg\" width=\"700\" height=\"399\" /></h2><h2>Почему он используется?</h2><p>Давно выяснено, что при оценке дизайна и композиции читаемый текст мешает сосредоточиться. Lorem Ipsum используют потому, что тот обеспечивает более или менее стандартное заполнение шаблона, а также реальное распределение букв и пробелов в абзацах, которое не получается при простой дубликации \"Здесь ваш текст.. Здесь ваш текст.. Здесь ваш текст..\" Многие программы электронной вёрстки и редакторы HTML используют Lorem Ipsum в качестве текста по умолчанию, так что поиск по ключевым словам \"lorem ipsum\" сразу показывает, как много веб-страниц всё ещё дожидаются своего настоящего рождения. За прошедшие годы текст Lorem Ipsum получил много версий. Некоторые версии появились по ошибке, некоторые - намеренно (например, юмористические варианты).</p></div><p style=\"text-align: center;\">&nbsp;<iframe src=\"//www.youtube.com/embed/9t3kU77C7H4\" width=\"560\" height=\"314\" allowfullscreen=\"allowfullscreen\"></iframe></p><div><h2>Откуда он появился?</h2><p>Многие думают, что Lorem Ipsum - взятый с потолка псевдо-латинский набор слов, но это не совсем так. Его корни уходят в один фрагмент классической латыни 45 года н.э., то есть более двух тысячелетий назад. Ричард МакКлинток, профессор латыни из колледжа Hampden-Sydney, штат Вирджиния, взял одно из самых странных слов в Lorem Ipsum, \"consectetur\", и занялся его поисками в классической латинской литературе. В результате он нашёл неоспоримый первоисточник Lorem Ipsum в разделах 1.10.32 и 1.10.33 книги \"de Finibus Bonorum et Malorum\" (\"О пределах добра и зла\"), написанной Цицероном в 45 году н.э. Этот трактат по теории этики был очень популярен в эпоху Возрождения. Первая строка Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", происходит от одной из строк в разделе 1.10.32</p></div>",
     true,
     ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }"))
 }
@@ -158,9 +165,14 @@ class InitialDataGenerator(db: DatabaseService,
 
   def generate()(implicit executionContext: ExecutionContext) = {
 
+    val article = articleService.create(Data.article)
+    val article2 = articleService.create(Data.article2)
+
     val testSet = new TestSetDataGenerator(testConfsService)
 
     val group = await(usersService.createStudentGroup(Data.group1))
+    usersService.setArticlesToGroup(group.id.get, Seq(article.id))
+
     val group2 = await(usersService.createStudentGroup(Data.group2))
 
     val student1 = await(
@@ -224,8 +236,6 @@ class InitialDataGenerator(db: DatabaseService,
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-
-    articleService.create(Data.article)
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {
