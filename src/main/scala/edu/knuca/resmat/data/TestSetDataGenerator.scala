@@ -1,10 +1,13 @@
 package edu.knuca.resmat.data
 
+import com.typesafe.config.ConfigFactory
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.tests.TestConfsService
 
 object TestSetData {
+  val awsBucketName = ConfigFactory.load("aws").getConfig("s3").getString("bucket")
+
   val testSetConfs: List[TestSetConf] = List(
     TestSetConf(1, "Набір тестів для крутих студентів", 9)
   )
@@ -139,127 +142,127 @@ object TestSetData {
         cond(null, null, 0d, 0d,   0d, null, 0d, null, true),
         cond(null, 0d, 0d, 0d,   0d, null, 0d, null),
         cond(null, null, 0d, 0d,   0d, 0d, 0d, 0d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec1.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec1.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   0d, null, 0d, null, true),
         cond(0d, 0d, null, 0d,   0d, null, 0d, null),
         cond(null, null, 0d, 0d,   0d, null, 0d, 0d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec2.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec2.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   null, null, 0d, 0d, true),
         cond(0d, null, 0d, null,   0d, null, 0d, null),
         cond(null, null, 0d, 0d,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec3.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec3.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   null, null, 0d, 0d, true),
         cond(null, null, 0d, 0d,   0d, 0d, 0d, 0d),
         cond(null, null, 0d, 0d,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec4.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec4.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   0d, 0d, null, null, true),
         cond(null, null, 0d, 0d,   0d, null, 0d, 0d),
         cond(0d, 0d, null, 0d,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec5.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec5.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0d, 0d, null, null, true),
         cond(null, 0d, 0d, 0d,   0d, null, 0d, 0d),
         cond(0d, 0d, null, 0d,   null, 0d, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec6.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec6.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0.005, null, 0d, null, true),
         cond(null, 0d, 0d, 0d,   0d, 0.005, 0d, 0d),
         cond(0d, null, null, 0d,   0d, 0d, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec7.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec7.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(-0.007, null, 0d, null,   0d, null, 0d, null, true),
         cond(null, null, 0d, 0d,   -0.007, null, 0d, 0d),
         cond(0d, null, 0d, 0d,   null, 0d, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec8.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec8.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(-0.003, null, 0d, null,   null, null, 0d, 0d, true),
         cond(0.003, null, 0d, null,   null, null, 0d, 0d),
         cond(0d, null, 0d, 0d,   null, 0d, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec9.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec9.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.004, null, null,   null, null, 0d, 0d, true),
         cond(null, 0.004, null, null,   null, null, 0d, 0d),
         cond(-0.004, null, 0d, 0d,   0d, 0d, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec10.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec10.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0.005, null, 0d, null,   0d, 0d, null, null, true),
         cond(-0.005, null, 0d, null,   0d, 0d, null, null),
         cond(0d, null, -0.005, 0d,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec11.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec11.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0d, -0.002, null, null, true),
         cond(-0.002, null, 0d, null,   0d, 0d, null, null),
         cond(0d, null, -0.002, 0d,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec12.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec12.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, -10d,   0.005, null, 0d, null, true),
         cond(0.005, null, 10d, null,   0d, 0d, null, null),
         cond(0d, null, 0.005, 0d,   0d, null, 0d, 0d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec13.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec13.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(-0.007, null, 15d, null,   0d, null, 0d, null, true),
         cond(0.007, null, 15d, null,   0d, null, 0d, null),
         cond(-0.007, null, -15d, 0d,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec14.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec14.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.004, null, null,   null, null, 8d, 2d, true),
         cond(0d, 0.004, null, null,   null, null, 8d, 2d),
         cond(0d, -0.004, null, null,   null, 8d, null, 2d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec16.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec16.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   -0.004, null, 7d, null, true),
         cond(0d, 0d, null, null,   0.004, null, 7d, null),
         cond(0d, 0d, null, null,   -0.004, null, -7d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec17.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec17.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0.004, null, 0d, null,   null, null, -30d, -40d, true),
         cond(-0.004, null, 0d, null,   0d, null, -30d, -40d),
         cond(0.004, null, null, 0d,   null, null, -30d, 40d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec18.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec18.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 0d, null,   0d, null, -18d, null, true),
         cond(null, null, 0d, null,   0d, null, -18d, null),
         cond(0d, null, null, null,   0d, null, 18d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec19.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec19.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, -50d,   0d, null, -55d, null, true),
         cond(null, 0d, 0d, 50d,   0d, null, -55d, null),
         cond(0d, null, 0d, 50d,   null, null, 55d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec20.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec20.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 13d,   0d, -0.002, null, null, true),
         cond(null, 0d, 0d, -13d,   0d, 0.002, null, null),
         cond(null, null, 0d, -13d,   0d, 0.002, null, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec21.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec21.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, null, 20d, null,   0d, 0d, null, null, true),
         cond(0d, null, -20d, null,   0d, 0d, null, null),
         cond(0d, null, 20d, null,   0d, 0d, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec22.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec22.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.003, null, null,   null, null, 8d, -18d, true),
         cond(0d, -0.003, 0d, null,   null, null, -8d, -18d),
         cond(0d, 0.003, null, null,   null, 0d, 8d, -18d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec23.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec23.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, -0.003, null, null,   -0.006, null, 0d, null, true),
         cond(null, -0.003, null, null,   0.006, null, 0d, null),
         cond(-0.006, -0.003, null, null,   -0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec24.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec24.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   0d, 0.01, null, null, true),
         cond(0d, null, null, null,   0d, 0.01, 0d, null),
         cond(0d, -0.01, null, null,   0d, null, 0d, null)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec25.png"),
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec25.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(0d, 0d, null, null,   null, -0.01, null, 0d, true),
         cond(0d, 0d, null, 0d,   null, -0.01, null, 0d),
         cond(0d, 0d, null, null,   null, 0.01, null, 0d)
-      ), "https://s3.eu-central-1.amazonaws.com/resmat-img/img/tests/extreme-conditions/ec26.png")
+      ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png")
 
     ))
   )

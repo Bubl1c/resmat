@@ -4,15 +4,21 @@ import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.http.NotFoundException
-import edu.knuca.resmat.utils.SqlUtils
+import edu.knuca.resmat.utils.{S3Manager, SqlUtils}
 import io.circe.Json
 import io.circe.parser.parse
 
 import scala.concurrent.ExecutionContext
+import scala.util.Failure
+
+object ArticleConstants {
+  val s3Folder = "articles"
+  def s3ItemFolder(articleId: Long) = s"$s3Folder/$articleId"
+}
 
 case class ArticleDto(id: Long, header: String, preview: String, body: String, visible: Boolean, meta: Json)
 
-class ArticleService(val db: DatabaseService)
+class ArticleService(val db: DatabaseService, s3Manager: S3Manager)
                         (implicit val executionContext: ExecutionContext) extends LazyLogging {
   import edu.knuca.resmat.articles.{ArticleQueries => Q}
   import io.circe.parser._
@@ -38,6 +44,10 @@ class ArticleService(val db: DatabaseService)
 
   def delete(id: Long): Unit = db.runTransaction { implicit c =>
     val affectedRows = Q.deleteArticle(id).executeUpdate()
+    s3Manager.deleteFolder(ArticleConstants.s3ItemFolder(id)) match {
+      case Failure(t) => throw new RuntimeException(s"Failed to deleted article with id=${id}, reason: ", t)
+      case _ => ()
+    }
     if(affectedRows != 1) {
       throw new RuntimeException(s"Failed to delete article with id $id. Affected rows: $affectedRows.")
     }
@@ -121,13 +131,13 @@ object ArticleQueries {
 
   def deleteArticle(id: Long) = SqlUtils.delete(A.table, id)
 
-  def getArticles(onlyVisible: Boolean = false) = SQL(s"SELECT * FROM ${A.table}${if(onlyVisible) " WHERE visible = 1" else ""}")
+  def getArticles(onlyVisible: Boolean = false) = SQL(s"SELECT * FROM ${A.table}${if(onlyVisible) " WHERE visible = 1 ORDER BY id DESC" else ""}")
 
   def getArticlesByStudentGroupId(studentGroupId: Long, onlyVisible: Boolean = false) =
     SQL(s"""
          |SELECT a.* FROM ${A.table} a
          |JOIN ${SGA.table} sga ON ${SGA.articleId} = ${A.id}
-         |WHERE sga.${SGA.studentGroupId} = {groupId}${if(onlyVisible) " AND a.visible = 1" else ""}""".stripMargin)
+         |WHERE sga.${SGA.studentGroupId} = {groupId}${if(onlyVisible) " AND a.visible = 1" else ""} ORDER BY a.id DESC""".stripMargin)
       .on("groupId" -> studentGroupId)
 
   def getArticle(id: Long) = SqlUtils.get(A.table, id)

@@ -55,7 +55,7 @@ class ArticleRoute(articleService: ArticleService, s3Manager: S3Manager) extends
           }
         } ~
         (pathPrefix("upload-file") & authorize(user.isAdmin)) {
-          FileUploadUtils.toS3FileUpload(s3Manager, s"articles/$articleId")
+          FileUploadUtils.toS3FileUpload(s3Manager, ArticleConstants.s3ItemFolder(articleId))
         }
       }
     }

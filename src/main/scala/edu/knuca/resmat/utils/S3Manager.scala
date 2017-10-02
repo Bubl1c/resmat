@@ -114,14 +114,13 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String, _baseUrl: 
   def put(key: String, inputStream: InputStream, sizeBytes: Long): Try[String] = Try {
     val metadata = new ObjectMetadata()
     metadata.setContentLength(sizeBytes)
-    s3.putObject(new PutObjectRequest(bucket, key, inputStream, metadata))
+    s3.putObject(new PutObjectRequest(bucket, PathUtils.normalisePath(key), inputStream, metadata))
     key
   }
 
   def copyTempObject(tmpKey: String, targetFolder: String): Try[String] = Try {
     val originalKey = S3Manager.originalFromTmpKey(tmpKey)
-    val normalisedTF = if(targetFolder.endsWith("/") || targetFolder.isEmpty) targetFolder else targetFolder + "/"
-    val destinationKey = normalisedTF + originalKey
+    val destinationKey = PathUtils.normalisePath(targetFolder, "", "/") + originalKey
     s3.copyObject(bucket, tmpKey, bucket, destinationKey)
     s3.deleteObject(bucket, tmpKey)
     destinationKey
@@ -137,9 +136,11 @@ class S3Manager(accessKey: String, secretKey: String, bucket: String, _baseUrl: 
     import scala.collection.JavaConverters._
     list(folderPrefix) match {
       case Success(files) =>
-        val delReq = new DeleteObjectsRequest(bucket)
-        delReq.withKeys(files.map(f => new DeleteObjectsRequest.KeyVersion(f.getKey)).asJava)
-        s3.deleteObjects(delReq)
+        if(files.nonEmpty) {
+          val delReq = new DeleteObjectsRequest(bucket)
+          delReq.withKeys(files.map(f => new DeleteObjectsRequest.KeyVersion(f.getKey)).asJava)
+          s3.deleteObjects(delReq)
+        }
       case Failure(e) => throw e;
     }
   }

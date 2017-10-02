@@ -54,7 +54,7 @@ object FileUploadUtils {
       StreamConverters.asInputStream(FiniteDuration(10, TimeUnit.SECONDS))
     )
     s3Manager.put(
-      PathUtils.normalisePath(folder, "/", "/") + fileName,
+      PathUtils.normalisePath(folder, "", "/") + PathUtils.normalisePath(fileName),
       inputStream,
       sizeBytes
     ).map(s3Manager.baseUrl + _)
