@@ -29,6 +29,17 @@ trait Config {
     val conns = Try(config.getInt("connections")).getOrElse(20)
     val driver = config.getString("driver")
     val jdbcUrl = s"jdbc:mysql://$host:$port/$db?$options"
-    val flywayJdbcUrl = s"jdbc:mysql://$host:$port/mysql?$options"
+    lazy val flywayJdbcUrl = Flyway.jdbcUrl
+  }
+
+  object Flyway {
+    private lazy val config = ConfigFactory.load("flyway").getConfig("flyway")
+
+    val host = config.getString("host")
+    val db = config.getString("database")
+    val user = config.getString("user")
+    val password = config.getString("password")
+    val baselineVersion = config.getString("baselineVersion")
+    val jdbcUrl = s"jdbc:mysql://$host:${MySql.port}/mysql?${MySql.options}"
   }
 }

@@ -35,7 +35,7 @@ object Api extends App with Config with LazyLogging {
   val s3Manager = new S3Manager(accessKey, secretKey, bucket, "https://s3.eu-central-1.amazonaws.com")
 
   if(MySql.migrateOnStartup) {
-    val flywayService = new FlywayService(MySql.flywayJdbcUrl, MySql.user, MySql.password, MySql.db)
+    val flywayService = new FlywayService(MySql.flywayJdbcUrl, MySql.user, MySql.password, MySql.db, Flyway.baselineVersion)
     flywayService.dropDatabase()
     flywayService.migrateDatabaseSchema
   }
