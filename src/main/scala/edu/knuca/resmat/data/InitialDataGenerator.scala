@@ -60,7 +60,7 @@ object Data {
 
     VarConf(16, "an", "", "a.n", false),
     VarConf(17, "bn", "", "b.n", false),
-    VarConf(18, "sigmaAdm", "", "sigmaAdm", false)
+    VarConf(18, "{sigma}адм", "", "sigmaAdm")
   )
 
   private val problemVarValues: List[ProblemInputVariableValue] = List(

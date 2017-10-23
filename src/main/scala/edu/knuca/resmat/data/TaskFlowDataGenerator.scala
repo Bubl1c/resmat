@@ -24,14 +24,27 @@ object TaskFlowData {
           InputSetInput(1, "w(a)", "На внутрішньому контурі", "м", M.w_a),
           InputSetInput(2, "{phi}(a)", "На внутрішньому контурі", "рад", M.fi_a),
           InputSetInput(3, "Mr(a)", "На внутрішньому контурі", "кНм/м", M.mr_a),
-          InputSetInput(200, "Qr(a)", "На внутрішньому контурі", "кН/м", M.qr_a),
+          InputSetInput(4, "Qr(a)", "На внутрішньому контурі", "кН/м", M.qr_a),
           InputSetInput(5, "w(b)", "На зовнішньому контурі", "м", M.w_b),
           InputSetInput(6, "{phi}(b)", "На зовнішньому контурі", "рад", M.fi_b),
           InputSetInput(7, "Mr(b)", "На зовнішньому контурі", "кНм/м", M.mr_b),
           InputSetInput(8, "Qr(b)", "На зовнішньому контурі", "кН/м", M.qr_b)
         )).normalised.asJson.toString()
       ),
-      TaskFlowStepConf(3, 1, "Введіть пораховані значення невідомих X", 3,
+      TaskFlowStepConf(3, 1, "Значення граничних умов", 3,
+        TaskFlowStepType.VariableValueSet, InputSet(1, "InputSetName", Seq(
+          InputSetInput(1, "w(a)", "На внутрішньому контурі", "м", M.w_a, ""),
+          InputSetInput(2, "{phi}(a)", "На внутрішньому контурі", "рад", M.fi_a, ""),
+          InputSetInput(3, "Mr(a)", "На внутрішньому контурі", "кНм/м", M.mr_a, ""),
+          InputSetInput(4, "Qr(a)", "На внутрішньому контурі", "кН/м", M.qr_a, ""),
+          InputSetInput(5, "w(b)", "На зовнішньому контурі", "м", M.w_b, ""),
+          InputSetInput(6, "{phi}(b)", "На зовнішньому контурі", "рад", M.fi_b, ""),
+          InputSetInput(7, "Mr(b)", "На зовнішньому контурі", "кНм/м", M.mr_b, ""),
+          InputSetInput(8, "Qr(b)", "На зовнішньому контурі", "кН/м", M.qr_b, "")
+        )).normalised.asJson.toString(),
+        true
+      ),
+      TaskFlowStepConf(4, 1, "Введіть пораховані значення невідомих X", 4,
         TaskFlowStepType.InputSet, InputSet(2, "InputSetName", Seq(
           InputSetInput(1, "X1", "", "м", M.x1),
           InputSetInput(2, "X2", "", "рад", M.x2),
@@ -39,8 +52,8 @@ object TaskFlowData {
           InputSetInput(4, "X4", "", "кН/м", M.x4)
         )).normalised.asJson.toString()
       ),
-      TaskFlowStepConf(4, 1, "Епюри", 4, TaskFlowStepType.Charts, M.charts.asJson.toString(), true),
-      TaskFlowStepConf(5, 1, "Введіть пораховані значення", 5,
+      TaskFlowStepConf(5, 1, "Епюри", 5, TaskFlowStepType.Charts, M.charts.asJson.toString(), true),
+      TaskFlowStepConf(6, 1, "Введіть пораховані значення", 6,
         TaskFlowStepType.InputSet, InputSet(3, "InputSetName", Seq(
           InputSetInput(1, "r", "Координати небезпечного перерізу", "м", M.r),
           InputSetInput(2, "{sigma}r", "Радіального нормального напруження", "МПа", M.sigma_r),
@@ -49,13 +62,13 @@ object TaskFlowData {
           InputSetInput(5, "{tau}max", "Максимальних дотичних напружень", "МПа", M.tau_max)
         )).normalised.asJson.toString()
       ),
-      TaskFlowStepConf(6, 1, "Чи забезпечується міцність перерізу?", 6, TaskFlowStepType.Test,
+      TaskFlowStepConf(7, 1, "Чи забезпечується міцність перерізу?", 7, TaskFlowStepType.Test,
         TaskFlowTestConf(TestConf(-1, -1, "Чи забезпечуться міцність перерізу?", None, Seq(
           TestOptionConf(0, "Не забезпечується"),
           TestOptionConf(1, "Забезпечується")
         )), Some(M.isStrengthGuranteed)).asJson.toString()
       ),
-      TaskFlowStepConf(7, 1, "Кінець", 7, TaskFlowStepType.Finished, "{}"))
+      TaskFlowStepConf(8, 1, "Кінець", 8, TaskFlowStepType.Finished, "{}"))
     )
   )
 }

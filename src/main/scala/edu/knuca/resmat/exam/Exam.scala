@@ -10,6 +10,7 @@ object TaskFlowStepType extends PimpedEnumeration {
   val Test = Value(1, "test")
   val InputSet = Value(2, "input-set")
   val Charts = Value(3, "charts")
+  val VariableValueSet = Value(4, "var-value-set")
   val Finished = Value(-1, "finished")
 }
 
@@ -183,7 +184,8 @@ case class InputSetInput(id: Int, //unique within input set
                          groupName: String,
                          units: String,
                          answerMapping: String,
-                         description: String = "")
+                         description: String = "",
+                         value: Option[Double] = None)
 
 case class TaskFlowTestConf(test: TestConf, correctOptionIdsMapping: Option[String] = None) extends TaskFlowStepData
 
