@@ -1,6 +1,6 @@
 package edu.knuca.resmat.exam
 
-import edu.knuca.resmat.core.RingPlateProblemAnswer
+import edu.knuca.resmat.core.{ProblemAnswer, RingPlateProblemAnswer}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
 import org.joda.time.DateTime
@@ -11,6 +11,7 @@ object TaskFlowStepType extends PimpedEnumeration {
   val InputSet = Value(2, "input-set")
   val Charts = Value(3, "charts")
   val VariableValueSet = Value(4, "var-value-set")
+  val EquationSet = Value(5, "equation-set")
   val Finished = Value(-1, "finished")
 }
 
@@ -186,6 +187,19 @@ case class InputSetInput(id: Int, //unique within input set
                          answerMapping: String,
                          description: String = "",
                          value: Option[Double] = None)
+
+sealed trait EquationItemValue {
+  def setValue(answer: ProblemAnswer): EquationItemValue = this
+}
+case class EquationItemInput(id: Int, answerMapping: String) extends EquationItemValue
+case class EquationItemDynamicDoubleValue(answerMapping: String, value: Double = 0.0, precision: Int = 2) extends EquationItemValue {
+  override def setValue(answer: ProblemAnswer): EquationItemValue =
+    this.copy(value = answer.getDouble(answerMapping))
+}
+case class EquationItemStaticStringValue(value: String) extends EquationItemValue
+case class EquationItem(value: EquationItemValue, prefix: String = "", suffix: String = "")
+case class InputSetEquation(id: Int, leftPart: List[EquationItem], rightPart: List[EquationItem])
+case class InputSetEquationSystem(name: String, equations: List[InputSetEquation])
 
 case class TaskFlowTestConf(test: TestConf, correctOptionIdsMapping: Option[String] = None) extends TaskFlowStepData
 

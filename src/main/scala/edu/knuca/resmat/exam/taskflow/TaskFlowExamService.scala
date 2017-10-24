@@ -234,7 +234,7 @@ class TaskFlowExamService(val db: DatabaseService)
             verifiedAnswer.answer.asJson.toString()
           )
         )
-      case TaskFlowStepType.InputSet =>
+      case TaskFlowStepType.InputSet | TaskFlowStepType.EquationSet =>
         val inputSetAnswer = decode[InputSetAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
         )
@@ -324,6 +324,20 @@ class TaskFlowExamService(val db: DatabaseService)
             input.copy(value = cd.getDoubleOpt(input.answerMapping))
           )
           stepInputSet.copy(inputs = inputs).asJson.toString()
+        case TaskFlowStepType.EquationSet =>
+          val eqSystem = decode[InputSetEquationSystem](sc.stepData).fold( e =>
+            throw new RuntimeException(s"Failed to parse InputSetEquationSystem from step data ${sc.stepData}", e),
+            r => r
+          )
+          def onlyInput(i: EquationItem) = i.value match {
+            case a: EquationItemInput => true
+            case _ => false
+          }
+          val inputs = eqSystem.equations.flatMap(e =>
+            e.leftPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemInput]) ++
+              e.rightPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemInput])
+          )
+          inputs.map(i => InputSetInputAnswer(i.id, Some(cd.getDouble(i.answerMapping)))).asJson.toString()
         case TaskFlowStepType.Charts =>
           val decoded = decode[String](sc.stepData).fold(e =>
             throw new RuntimeException(s"Failed to parse string from step data ${sc.stepData}", e),
