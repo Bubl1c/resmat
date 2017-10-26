@@ -187,6 +187,9 @@ class TaskFlowExamService(val db: DatabaseService)
   def getTaskFlowStep(taskFlowId: Long, taskFlowStepSequence: Int): Option[TaskFlowStepDto] = {
     val taskFlowStep = getTaskFlowStepBySequence(taskFlowId, taskFlowStepSequence)
     val taskFlowStepConf = getTaskFlowStepConf(taskFlowStep.taskFlowStepConfId)
+    val taskFlow = getTaskFlow(taskFlowStep.stepAttemptTaskFlowId)
+    val problemVariantConf = problemService.getProblemVariantConfById(taskFlow.problemVariantConfId)
+    val cd = problemVariantConf.calculatedData
     if(taskFlowStepConf.isHelpStep) {
       updateTaskFlowStep(taskFlowStep.copy(done = true))
       updateTaskFlowCurrentStep(taskFlowId)
@@ -203,6 +206,17 @@ class TaskFlowExamService(val db: DatabaseService)
           taskFlowStep.answer
         case TaskFlowStepType.VariableValueSet =>
           taskFlowStep.answer
+        case TaskFlowStepType.EquationSet =>
+          val eqSystem = decode[InputSetEquationSystem](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
+            throw new RuntimeException(s"Failed to parse InputSetEquationSystem in $taskFlowStepConf")
+          )
+          val withMappedValues = eqSystem.copy(equations = eqSystem.equations.map(eq =>
+            eq.copy(
+              leftPart = eq.leftPart.map(i => i.copy(value = i.value.setValue(cd))),
+              rightPart = eq.rightPart.map(i => i.copy(value = i.value.setValue(cd)))
+            )
+          ))
+          withMappedValues.asJson.toString()
         case TaskFlowStepType.Finished =>
           updateTaskFlowStep(taskFlowStep.copy(done = true))
           "Task flow has been finished successfully".asJson.toString()
@@ -330,12 +344,12 @@ class TaskFlowExamService(val db: DatabaseService)
             r => r
           )
           def onlyInput(i: EquationItem) = i.value match {
-            case a: EquationItemInput => true
+            case a: EquationItemValueInput => true
             case _ => false
           }
           val inputs = eqSystem.equations.flatMap(e =>
-            e.leftPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemInput]) ++
-              e.rightPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemInput])
+            e.leftPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemValueInput]) ++
+              e.rightPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemValueInput])
           )
           inputs.map(i => InputSetInputAnswer(i.id, Some(cd.getDouble(i.answerMapping)))).asJson.toString()
         case TaskFlowStepType.Charts =>
