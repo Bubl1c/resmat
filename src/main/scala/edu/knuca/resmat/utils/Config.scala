@@ -15,7 +15,6 @@ case class ResmatEnv(env: String) {
 trait Config {
   private val _config = ConfigFactory.load()
   private val httpConfig = _config.getConfig("http")
-  private val databaseConfig = _config.getConfig("database")
 
   object Resmat {
     private lazy val config = _config.getConfig("resmat")
