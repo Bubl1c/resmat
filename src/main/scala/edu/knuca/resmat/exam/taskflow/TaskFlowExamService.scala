@@ -212,8 +212,7 @@ class TaskFlowExamService(val db: DatabaseService)
           )
           val withMappedValues = eqSystem.copy(equations = eqSystem.equations.map(eq =>
             eq.copy(
-              leftPart = eq.leftPart.map(i => i.copy(value = i.value.setValue(cd))),
-              rightPart = eq.rightPart.map(i => i.copy(value = i.value.setValue(cd)))
+              items = eq.items.map(i => i.copy(value = i.value.setValue(cd)))
             )
           ))
           withMappedValues.asJson.toString()
@@ -255,7 +254,7 @@ class TaskFlowExamService(val db: DatabaseService)
         val correctAnswer = decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse test answer in $answer")
         )
-        val verifiedAnswer = InputSetUtils.verify(inputSetAnswer, correctAnswer)
+        val verifiedAnswer = InputSetUtils.verify(inputSetAnswer, correctAnswer, taskFlowStepConf.precision)
         updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
         if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
         Some(
@@ -348,8 +347,7 @@ class TaskFlowExamService(val db: DatabaseService)
             case _ => false
           }
           val inputs = eqSystem.equations.flatMap(e =>
-            e.leftPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemValueInput]) ++
-              e.rightPart.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemValueInput])
+            e.items.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemValueInput])
           )
           inputs.map(i => InputSetInputAnswer(i.id, Some(cd.getDouble(i.answerMapping)))).asJson.toString()
         case TaskFlowStepType.Charts =>
@@ -373,7 +371,7 @@ class TaskFlowExamService(val db: DatabaseService)
 }
 
 object TaskFlowQueries {
-  import anorm.SqlParser.{int, long, str, bool}
+  import anorm.SqlParser.{int, long, str, bool, double}
 
   object TFC {
     val table = "task_flow_confs"
@@ -390,6 +388,7 @@ object TaskFlowQueries {
     val sequence = "sequence"
     val stepType = "step_type"
     val stepData = "step_data"
+    val precision = "precisionCol"
     val isHelpStep = "is_help_step"
   }
 
@@ -426,8 +425,9 @@ object TaskFlowQueries {
     sequence <- int(TFSC.sequence)
     stepType <- int(TFSC.stepType)
     stepData <- str(TFSC.stepData)
+    precision <- double(TFSC.precision).?
     isHelpStep <- bool(TFSC.isHelpStep)
-  } yield TaskFlowStepConf(id, taskFlowConfId, name, sequence, TaskFlowStepType(stepType), stepData, isHelpStep)
+  } yield TaskFlowStepConf(id, taskFlowConfId, sequence, name, TaskFlowStepType(stepType), stepData, precision, isHelpStep)
 
   val uetfParser  = for {
     id <- long(UETF.id)
@@ -454,12 +454,12 @@ object TaskFlowQueries {
     name <- str(TFSC.name)
   } yield HelpStepDataDto(id, TaskFlowStepType(stepType), name, answer)
 
-  def createTaskFlowConf(tf: TaskFlowConf) =
+  def createTaskFlowConf(tfc: TaskFlowConf) =
     SQL(s"INSERT INTO ${TFC.table} (${TFC.problemConfId}, ${TFC.name}) VALUES ({problemConfId}, {name})")
-      .on("problemConfId" -> tf.problemConfId)
-      .on("name" -> tf.name)
+      .on("problemConfId" -> tfc.problemConfId)
+      .on("name" -> tfc.name)
 
-  def createTaskFlowStepConf(tfs: TaskFlowStepConf) =
+  def createTaskFlowStepConf(tfsc: TaskFlowStepConf) =
     SQL(
       s"""INSERT INTO ${TFSC.table} (
          |${TFSC.taskFlowConfId},
@@ -467,6 +467,7 @@ object TaskFlowQueries {
          |${TFSC.sequence},
          |${TFSC.stepType},
          |${TFSC.stepData},
+         |${TFSC.precision},
          |${TFSC.isHelpStep}
          |) VALUES (
          |{taskFlowConfId},
@@ -474,14 +475,16 @@ object TaskFlowQueries {
          |{sequence},
          |{stepType},
          |{stepData},
+         |{precision},
          |{isHelpStep}
          |)""".stripMargin)
-    .on("taskFlowConfId" -> tfs.taskFlowConfId)
-    .on("name" -> tfs.name)
-    .on("sequence" -> tfs.sequence)
-    .on("stepType" -> tfs.stepType.id)
-    .on("stepData" -> tfs.stepData)
-    .on("isHelpStep" -> tfs.isHelpStep)
+    .on("taskFlowConfId" -> tfsc.taskFlowConfId)
+    .on("name" -> tfsc.name)
+    .on("sequence" -> tfsc.sequence)
+    .on("stepType" -> tfsc.stepType.id)
+    .on("stepData" -> tfsc.stepData)
+    .on("precision" -> tfsc.precision)
+    .on("isHelpStep" -> tfsc.isHelpStep)
 
   def createTaskFlow(uetf: UserExamStepAttemptTaskFlow) =
     SQL(

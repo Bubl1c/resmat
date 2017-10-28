@@ -67,7 +67,7 @@ case class ExamStepConf(id: Long,
                         maxScore: Int, //should be within ExamConf.maxScore
                         dataSet: ExamStepConfDataSet,
                         hasToBeSubmitted: Boolean = true)
-@JsonCodec sealed trait ExamStepConfDataSet
+@JsonCodec sealed trait ExamStepConfDataSet //to make JsonCodec work
 case class ExamStepTestSetDataSet(testSetConfId: Long) extends ExamStepConfDataSet
 case class ExamStepTaskFlowDataSet(taskFlowConfId: Long, problemConfId: Long) extends ExamStepConfDataSet
 case object ExamStepResultsDataSet extends ExamStepConfDataSet
@@ -153,10 +153,11 @@ case class ProblemVariantConf(id: Long,
 case class TaskFlowConf(id: Long, problemConfId: Long, name: String)
 case class TaskFlowStepConf(id: Long,
                             taskFlowConfId: Long,
-                            name: String,
                             sequence: Int,
+                            name: String,
                             stepType: TaskFlowStepType.TaskFlowStepType,
-                            stepData: String /*JSON field*/ ,
+                            stepData: String /*JSON field*/,
+                            precision: Option[Double] = None,
                             isHelpStep: Boolean = false)
 
 case class UserExamStepAttemptTaskFlow(id: Long,
@@ -187,18 +188,20 @@ case class InputSetInput(id: Int, //unique within input set
                          answerMapping: String,
                          description: String = "",
                          value: Option[Double] = None)
-
-sealed trait EquationItemValue {
+@JsonCodec sealed trait EquationItemValue {
   def setValue(answer: ProblemAnswer): EquationItemValue = this
 }
-case class EquationItemInput(id: Int, answerMapping: String) extends EquationItemValue
-case class EquationItemDynamicDoubleValue(answerMapping: String, value: Double = 0.0, precision: Int = 2) extends EquationItemValue {
+case class EquationItemValueInput(id: Int, answerMapping: String) extends EquationItemValue
+case class EquationItemValueDynamicDouble(answerMapping: String, value: Double = 0.0, digitsAfterComma: Int = 6) extends EquationItemValue {
   override def setValue(answer: ProblemAnswer): EquationItemValue =
     this.copy(value = answer.getDouble(answerMapping))
 }
-case class EquationItemStaticStringValue(value: String) extends EquationItemValue
+case class EquationItemValueStaticString(value: String) extends EquationItemValue
+
+object EquationItemValue //to make JsonCodec work
+
 case class EquationItem(value: EquationItemValue, prefix: String = "", suffix: String = "")
-case class InputSetEquation(id: Int, leftPart: List[EquationItem], rightPart: List[EquationItem])
+case class InputSetEquation(id: Int, items: List[EquationItem])
 case class InputSetEquationSystem(name: String, equations: List[InputSetEquation])
 
 case class TaskFlowTestConf(test: TestConf, correctOptionIdsMapping: Option[String] = None) extends TaskFlowStepData

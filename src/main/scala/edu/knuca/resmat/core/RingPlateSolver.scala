@@ -76,6 +76,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
     println(extremeConditionsResult)
     val (coordinateResult, isStrengthGuaranteed) = calcCoordinates(extremeStressResult)
     println(coordinateResult)
+    printMatrix("g1", g1)
     println("Is strength guaranteed: " + isStrengthGuaranteed)
     RingPlateProblemAnswer(del_t, d_e, r1, isStrengthGuaranteed,
       gaussResult, shifAndForceResult, extremeStressResult, extremeConditionsResult, coordinateResult, g1)
@@ -102,7 +103,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
 
     val isStrengthGuaranteed = g_eq(maxi) <= conf.sigmaAdm && t_max <= conf.sigmaAdm/2
 
-    (CoordinateResult(r = r1(maxi), qr = g_r(maxi), qt = g_t(maxi), qeq = g_eq(maxi), tmax = t_t.max), isStrengthGuaranteed)
+    (CoordinateResult(r = r1(maxi), qr = g_r(maxi), qt = g_t(maxi), qeq = g_eq(maxi), tmax = t_t.map(_.abs).max), isStrengthGuaranteed)
   }
 
   def calculateExtremeConditions: ExtremeConditionsResult = {
@@ -374,6 +375,12 @@ class RingPlateSolver(input: RingPlateProblemInput) {
     v.foreach(elem => print(elem + ", "))
   }
 
+  def printMatrix(name: String, v: DenseMatrix[Double]): Unit = {
+    println(name + " = [")
+    println(v.toString())
+    println("]")
+  }
+
   implicit def denseVectorToScalaVector(input: DenseVector[Double]): Array[Double] = input.toArray
 }
 
@@ -399,7 +406,7 @@ object RingPlateProblemInput {
   }
 }
 
-trait ProblemAnswer {
+sealed trait ProblemAnswer {
   protected val mapping: Map[String, Any]
 
   def get(key: String): Any = {
@@ -512,6 +519,13 @@ case class RingPlateProblemAnswer(del_t: Double,
     M.g1_33 -> g1(3, 3),
     M.g1_34 -> g1(3, 4),
 
+    M.w1_2 -> Some(shiftAndForce.w_1(2)),
+    M.fi1_2 -> Some(shiftAndForce.fi_1(2)),
+    M.mr1_2 -> Some(shiftAndForce.mr_1(2)),
+    M.qr1_2 -> Some(shiftAndForce.qr_1(2)),
+
+    M.d_e -> Some(d_e),
+
     M.isStrengthGuranteed -> (if(isStrengthGuaranteed) 1 else 0).toString
   )
 }
@@ -561,6 +575,13 @@ object RingPlateProblemAnswer {
     val g1_32 = "g1_32"
     val g1_33 = "g1_33"
     val g1_34 = "g1_34"
+
+    val w1_2 = "w1_2"
+    val fi1_2 = "fi1_2"
+    val mr1_2 = "mr1_2"
+    val qr1_2 = "qr1_2"
+
+    val d_e = "d_e"
 
     val isStrengthGuranteed = "isStrengthGuranteed"
   }
