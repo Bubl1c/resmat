@@ -1,9 +1,14 @@
 package edu.knuca.resmat.exam
 
 import edu.knuca.resmat.core.{ProblemAnswer, RingPlateProblemAnswer}
+import edu.knuca.resmat.exam.taskflow.{TaskFlowDto, TaskFlowResultInfoStepDataDto}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
 import org.joda.time.DateTime
+
+//Both needed for UserExamStepResultStepInfo
+import io.circe.generic.auto._
+import edu.knuca.resmat.http.JsonProtocol._
 
 object TaskFlowStepType extends PimpedEnumeration {
   type TaskFlowStepType = Value
@@ -12,6 +17,7 @@ object TaskFlowStepType extends PimpedEnumeration {
   val Charts = Value(3, "charts")
   val VariableValueSet = Value(4, "var-value-set")
   val EquationSet = Value(5, "equation-set")
+  val DynamicTable = Value(6, "dynamic-table")
   val Finished = Value(-1, "finished")
 }
 
@@ -100,10 +106,16 @@ case class UserExamResult(id: Long,
                           maxScore: Int) extends StepDataDto
 case class UserExamStepResult(stepConfId: Long,
                               sequence: Int,
+                              stepType: ExamStepType.ExamStepType,
                               name: String,
                               attemptsAmount: Int,
                               mistakesAmount: Int,
-                              durationMillis: Long)
+                              durationMillis: Long,
+                              info: Option[UserExamStepResultStepInfo])
+@JsonCodec sealed trait UserExamStepResultStepInfo
+case class TaskFlowStepResultStepInfo(variant: TaskFlowDto, data: Seq[TaskFlowResultInfoStepDataDto]) extends UserExamStepResultStepInfo
+
+object UserExamStepResultStepInfo
 
 //====================TestSet====================
 
@@ -142,11 +154,17 @@ case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemT
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
 case class ProblemInputVariableValue(variableConfId: Long, value: Double)
 //todo switch calculatedData to interface to allow to work with different problems
+case class PublicProblemVariantConf(id: Long,
+                                    problemConfId: Long,
+                                    schemaUrl: String,
+                                    inputVariableValues: Seq[ProblemInputVariableValue])
 case class ProblemVariantConf(id: Long,
                               problemConfId: Long,
                               schemaUrl: String,
                               inputVariableValues: Seq[ProblemInputVariableValue],
-                              calculatedData: RingPlateProblemAnswer)
+                              calculatedData: RingPlateProblemAnswer) {
+  val withoutCalculatedData = PublicProblemVariantConf(id, problemConfId, schemaUrl, inputVariableValues)
+}
 
 //====================TaskFlow====================
 
@@ -158,7 +176,8 @@ case class TaskFlowStepConf(id: Long,
                             stepType: TaskFlowStepType.TaskFlowStepType,
                             stepData: String /*JSON field*/,
                             precision: Option[Double] = None,
-                            isHelpStep: Boolean = false)
+                            isHelpStep: Boolean = false,
+                            isResultInfoStep: Boolean = false)
 
 case class UserExamStepAttemptTaskFlow(id: Long,
                                        stepAttemptId: Long,
@@ -188,23 +207,27 @@ case class InputSetInput(id: Int, //unique within input set
                          answerMapping: String,
                          description: String = "",
                          value: Option[Double] = None)
-@JsonCodec sealed trait EquationItemValue {
-  def setValue(answer: ProblemAnswer): EquationItemValue = this
+@JsonCodec sealed trait SmartValue {
+  def setValue(answer: ProblemAnswer): SmartValue = this
 }
-case class EquationItemValueInput(id: Int, answerMapping: String) extends EquationItemValue
-case class EquationItemValueDynamicDouble(answerMapping: String, value: Double = 0.0, digitsAfterComma: Int = 6) extends EquationItemValue {
-  override def setValue(answer: ProblemAnswer): EquationItemValue =
+case class SmartValueInput(id: Int, answerMapping: String) extends SmartValue
+case class SmartValueDynamicDouble(answerMapping: String, value: Double = 0.0, digitsAfterComma: Int = 6) extends SmartValue {
+  override def setValue(answer: ProblemAnswer): SmartValue =
     this.copy(value = answer.getDouble(answerMapping))
 }
-case class EquationItemValueStaticString(value: String) extends EquationItemValue
+case class SmartValueStaticDouble(value: Double, digitsAfterComma: Int = 6) extends SmartValue
+case class SmartValueStaticString(value: String) extends SmartValue
 
-object EquationItemValue //to make JsonCodec work
+object SmartValue //to make JsonCodec work
 
-case class EquationItem(value: EquationItemValue, prefix: String = "", suffix: String = "")
+case class EquationItem(value: SmartValue, prefix: String = "", suffix: String = "")
 case class InputSetEquation(id: Int, items: List[EquationItem])
-case class InputSetEquationSystem(name: String, equations: List[InputSetEquation])
+case class InputSetEquationSystem(name: String, equations: List[InputSetEquation]) extends TaskFlowStepData
 
 case class TaskFlowTestConf(test: TestConf, correctOptionIdsMapping: Option[String] = None) extends TaskFlowStepData
 
 case class ChartData(title: String, x: Array[Double], y: Array[Double], bottom: Boolean = false, positive: Boolean = true) extends TaskFlowStepData
 case class ChartSet(title: String, charts: Seq[ChartData])
+
+case class DynamicTableRow(name: String, cells: List[SmartValue])
+case class DynamicTable(title: String, colNames: List[String], rows: List[DynamicTableRow]) extends TaskFlowStepData

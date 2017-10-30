@@ -12,7 +12,7 @@ import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 
-case class ProblemConfWithVariants(problemConf: ProblemConf, variants: Seq[ProblemVariantConf])
+case class ProblemConfWithVariants(problemConf: ProblemConf, variants: Seq[PublicProblemVariantConf])
 
 case class NewProblemVariantConfDto(schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue])
 
@@ -34,7 +34,7 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
   def getProblemConfWithVariants(id: Long): ProblemConfWithVariants = {
     val pc = getProblemConfById(id)
     val variants = findProblemVariantConfsByProblemConfId(id)
-    ProblemConfWithVariants(pc, variants)
+    ProblemConfWithVariants(pc, variants.map(_.withoutCalculatedData))
   }
 
   def getProblemVariantConfById(id: Long): ProblemVariantConf = db.run { implicit c =>

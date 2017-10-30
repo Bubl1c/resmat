@@ -12,22 +12,20 @@ import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 
+import edu.knuca.resmat.http.JsonProtocol._
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
 case class TaskFlowDto(problemConf: ProblemConf,
-                       problemVariantConf: ProblemVariantConfDto,
+                       problemVariantConf: PublicProblemVariantConf,
                        taskFlow: UserExamStepAttemptTaskFlow) extends StepDataDto
 case class TaskFlowStepDto(taskFlowStepConf: TaskFlowStepConf,
                            stepAttemptTaskFlowStep: UserExamStepAttemptTaskFlowStep,
                            taskFlowStepData: String,
                            helpSteps: Seq[HelpStepDataDto])
 case class HelpStepDataDto(id: Long, stepType: TaskFlowStepType.TaskFlowStepType, name: String, data: String)
-
-case class ProblemVariantConfDto(id: Long,
-                                 problemConfId: Long,
-                                 schemaUrl: String,
-                                 inputVariableValues: Seq[ProblemInputVariableValue])
+case class TaskFlowResultInfoStepDataDto(id: Long, stepType: TaskFlowStepType.TaskFlowStepType, name: String, data: String)
 
 case class InputSetAnswerDto(inputSetId: Long, inputAnswers: Seq[InputSetInputAnswer])
 case class InputSetInputAnswer(id: Int, value: Option[Double] = None)
@@ -45,8 +43,6 @@ class TaskFlowExamService(val db: DatabaseService)
                          (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.taskflow.{TaskFlowQueries => Q}
-
-  import edu.knuca.resmat.http.JsonProtocol._
 
   //====================TaskFlowConf====================
 
@@ -166,7 +162,7 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlow = getTaskFlowByStepAttemptId(stepAttemptId)
     val problemVariantConf = problemService.getProblemVariantConfById(taskFlow.problemVariantConfId)
     val problemConf = problemService.getProblemConfById(problemVariantConf.problemConfId)
-    val pvcDto = ProblemVariantConfDto(
+    val pvcDto = PublicProblemVariantConf(
       problemVariantConf.id,
       problemVariantConf.problemConfId,
       problemVariantConf.schemaUrl,
@@ -177,25 +173,28 @@ class TaskFlowExamService(val db: DatabaseService)
 
   def getCurrentTaskFlowStep(taskFlowId: Long): Option[TaskFlowStepDto] = {
     val taskFlow = getTaskFlow(taskFlowId)
-    getTaskFlowStep(taskFlow.id, taskFlow.currentStepSequence)
+    getTaskFlowStep(taskFlow, taskFlow.currentStepSequence)
   }
 
   def getHelpStepsUpToSequence(taskFlowId: Long, taskFlowStepSequence: Int): Seq[HelpStepDataDto] = db.run{ implicit c =>
     Q.getHelpStepsUpToSequence(taskFlowId, taskFlowStepSequence).as(Q.helpStepsUpToSequenceParser.*)
   }
 
-  def getTaskFlowStep(taskFlowId: Long, taskFlowStepSequence: Int): Option[TaskFlowStepDto] = {
-    val taskFlowStep = getTaskFlowStepBySequence(taskFlowId, taskFlowStepSequence)
+  def getTaskFlowResultInfoSteps(taskFlowId: Long): Seq[TaskFlowResultInfoStepDataDto] = db.run{ implicit c =>
+    Q.getTaskFlowResultInfoSteps(taskFlowId).as(Q.taskFlowResultInfoStepsParser.*)
+  }
+
+  def getTaskFlowStep(taskFlow: UserExamStepAttemptTaskFlow, taskFlowStepSequence: Int): Option[TaskFlowStepDto] = {
+    val taskFlowStep = getTaskFlowStepBySequence(taskFlow.id, taskFlowStepSequence)
     val taskFlowStepConf = getTaskFlowStepConf(taskFlowStep.taskFlowStepConfId)
-    val taskFlow = getTaskFlow(taskFlowStep.stepAttemptTaskFlowId)
     val problemVariantConf = problemService.getProblemVariantConfById(taskFlow.problemVariantConfId)
     val cd = problemVariantConf.calculatedData
-    if(taskFlowStepConf.isHelpStep) {
+    if(taskFlowStepConf.isHelpStep || taskFlowStepConf.isResultInfoStep) {
       updateTaskFlowStep(taskFlowStep.copy(done = true))
-      updateTaskFlowCurrentStep(taskFlowId)
-      getTaskFlowStep(taskFlowId, taskFlowStepSequence + 1)
+      updateTaskFlowCurrentStep(taskFlow.id)
+      getTaskFlowStep(taskFlow, taskFlowStepSequence + 1)
     } else {
-      val availableHelpSteps = getHelpStepsUpToSequence(taskFlowId, taskFlowStepSequence)
+      val availableHelpSteps = getHelpStepsUpToSequence(taskFlow.id, taskFlowStepSequence)
       val taskFlowStepData: String = taskFlowStepConf.stepType match {
         case TaskFlowStepType.Test =>
           val taskFlowTest = decode[TaskFlowTestConf](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
@@ -205,6 +204,8 @@ class TaskFlowExamService(val db: DatabaseService)
         case TaskFlowStepType.Charts =>
           taskFlowStep.answer
         case TaskFlowStepType.VariableValueSet =>
+          taskFlowStep.answer
+        case TaskFlowStepType.DynamicTable =>
           taskFlowStep.answer
         case TaskFlowStepType.EquationSet =>
           val eqSystem = decode[InputSetEquationSystem](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
@@ -290,7 +291,7 @@ class TaskFlowExamService(val db: DatabaseService)
     }
   }
 
-  def createTaskFlowWithSteps(stepAttemptId: Long,
+  def createTaskFlowWithSteps(userExamStepAttemptId: Long,
                               userExamId: Long,
                               examConfId: Long,
                               examStepConfId: Long,
@@ -303,7 +304,7 @@ class TaskFlowExamService(val db: DatabaseService)
     val taskFlow = createTaskFlow(
       UserExamStepAttemptTaskFlow(
         -1,
-        stepAttemptId,
+        userExamStepAttemptId,
         taskFlowConfId,
         problemVariantConf.id,
         1
@@ -343,11 +344,11 @@ class TaskFlowExamService(val db: DatabaseService)
             r => r
           )
           def onlyInput(i: EquationItem) = i.value match {
-            case a: EquationItemValueInput => true
+            case a: SmartValueInput => true
             case _ => false
           }
           val inputs = eqSystem.equations.flatMap(e =>
-            e.items.filter(onlyInput).map(i => i.value.asInstanceOf[EquationItemValueInput])
+            e.items.filter(onlyInput).map(i => i.value.asInstanceOf[SmartValueInput])
           )
           inputs.map(i => InputSetInputAnswer(i.id, Some(cd.getDouble(i.answerMapping)))).asJson.toString()
         case TaskFlowStepType.Charts =>
@@ -359,11 +360,34 @@ class TaskFlowExamService(val db: DatabaseService)
             case chartSet: ChartSet => chartSet.asJson.toString()
             case _ => throw new RuntimeException(s"Failed to get ChartSet with key ${sc.stepData}")
           }
+        case TaskFlowStepType.DynamicTable =>
+          if(sc.stepData.matches("\"\\{.+\\}\"")) {
+            val decoded = decode[DynamicTable](sc.stepData).fold(e =>
+              throw new RuntimeException(s"Failed to parse DynamicTable from step data ${sc.stepData}", e),
+              r => r
+            )
+            decoded.copy(
+              rows = decoded.rows.map(r => r.copy(
+                cells = r.cells.map(c => c.setValue(cd)))
+              )
+            ).asJson.toString()
+          } else if(sc.stepData.matches("\"[\\w-_]+\"")) {
+            val decoded = decode[String](sc.stepData).fold(e =>
+              throw new RuntimeException(s"Failed to parse DynamicTable mapping string from step data ${sc.stepData}", e),
+              r => r
+            )
+            cd.get(decoded) match {
+              case table: DynamicTable => table.asJson.toString()
+              case _ => throw new RuntimeException(s"Failed to get DynamicTable with key ${sc.stepData}")
+            }
+          } else {
+            throw new RuntimeException(s"Unknown DynamicTable step data ${sc.stepData}")
+          }
         case TaskFlowStepType.Finished =>
           "".asJson.toString()
         case st => throw new RuntimeException(s"Unhandled step type: $st")
       }
-      createTaskFlowStep(UserExamStepAttemptTaskFlowStep(-1, taskFlow.id, sc.id, sc.sequence, stepAnswer))
+      createTaskFlowStep(UserExamStepAttemptTaskFlowStep(-1, taskFlow.id, sc.id, sc.sequence, stepAnswer, sc.isResultInfoStep))
     }
 
     (taskFlow, taskFlowSteps)
@@ -388,8 +412,9 @@ object TaskFlowQueries {
     val sequence = "sequence"
     val stepType = "step_type"
     val stepData = "step_data"
-    val precision = "precisionCol"
+    val precision = "calculation_precision"
     val isHelpStep = "is_help_step"
+    val isResultInfoStep = "is_result_info_step"
   }
 
   object UETF {
@@ -427,7 +452,8 @@ object TaskFlowQueries {
     stepData <- str(TFSC.stepData)
     precision <- double(TFSC.precision).?
     isHelpStep <- bool(TFSC.isHelpStep)
-  } yield TaskFlowStepConf(id, taskFlowConfId, sequence, name, TaskFlowStepType(stepType), stepData, precision, isHelpStep)
+    isResultInfoStep <- bool(TFSC.isResultInfoStep)
+  } yield TaskFlowStepConf(id, taskFlowConfId, sequence, name, TaskFlowStepType(stepType), stepData, precision, isHelpStep, isResultInfoStep)
 
   val uetfParser  = for {
     id <- long(UETF.id)
@@ -454,6 +480,13 @@ object TaskFlowQueries {
     name <- str(TFSC.name)
   } yield HelpStepDataDto(id, TaskFlowStepType(stepType), name, answer)
 
+  val taskFlowResultInfoStepsParser  = for {
+    id <- long(UETFS.id)
+    stepType <- int(TFSC.stepType)
+    answer <- str(UETFS.answer)
+    name <- str(TFSC.name)
+  } yield TaskFlowResultInfoStepDataDto(id, TaskFlowStepType(stepType), name, answer)
+
   def createTaskFlowConf(tfc: TaskFlowConf) =
     SQL(s"INSERT INTO ${TFC.table} (${TFC.problemConfId}, ${TFC.name}) VALUES ({problemConfId}, {name})")
       .on("problemConfId" -> tfc.problemConfId)
@@ -468,7 +501,8 @@ object TaskFlowQueries {
          |${TFSC.stepType},
          |${TFSC.stepData},
          |${TFSC.precision},
-         |${TFSC.isHelpStep}
+         |${TFSC.isHelpStep},
+         |${TFSC.isResultInfoStep}
          |) VALUES (
          |{taskFlowConfId},
          |{name},
@@ -476,7 +510,8 @@ object TaskFlowQueries {
          |{stepType},
          |{stepData},
          |{precision},
-         |{isHelpStep}
+         |{isHelpStep},
+         |{isResultInfoStep}
          |)""".stripMargin)
     .on("taskFlowConfId" -> tfsc.taskFlowConfId)
     .on("name" -> tfsc.name)
@@ -485,6 +520,7 @@ object TaskFlowQueries {
     .on("stepData" -> tfsc.stepData)
     .on("precision" -> tfsc.precision)
     .on("isHelpStep" -> tfsc.isHelpStep)
+    .on("isResultInfoStep" -> tfsc.isResultInfoStep)
 
   def createTaskFlow(uetf: UserExamStepAttemptTaskFlow) =
     SQL(
@@ -585,6 +621,14 @@ object TaskFlowQueries {
          |AND s.${UETFS.sequence} <= {sequence}
          |AND s.${UETFS.stepAttemptTaskFlowId} = {stepAttemptTaskFlowId}""".stripMargin)
       .on("sequence" -> sequence)
+      .on("stepAttemptTaskFlowId" -> stepAttemptTaskFlowId)
+
+  def getTaskFlowResultInfoSteps(stepAttemptTaskFlowId: Long) =
+    SQL(
+      s"""SELECT s.id, s.${UETFS.answer}, sc.${TFSC.stepType}, sc.${TFSC.name} FROM ${UETFS.table} s
+         |INNER JOIN ${TFSC.table} sc ON sc.id = s.${UETFS.taskFlowStepConfId}
+         |WHERE sc.${TFSC.isResultInfoStep} IS TRUE
+         |AND s.${UETFS.stepAttemptTaskFlowId} = {stepAttemptTaskFlowId}""".stripMargin)
       .on("stepAttemptTaskFlowId" -> stepAttemptTaskFlowId)
 
   def findTaskFlowSteps(stepAttemptTaskFlowId: Long) =

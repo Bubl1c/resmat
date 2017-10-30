@@ -1,7 +1,7 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.{DenseMatrix, DenseVector}
-import edu.knuca.resmat.exam.{ChartData, ChartSet, ProblemInputVariableConf, ProblemInputVariableValue}
+import edu.knuca.resmat.exam._
 
 import scala.math._
 import edu.knuca.resmat.utils.PimpedEnumeration
@@ -472,7 +472,7 @@ case class RingPlateProblemAnswer(del_t: Double,
         shiftAndForce.w_1,
         true
       ),
-      ChartData("{phi}{ Кут повороту (1/1000 рад)}",
+      ChartData("{phi} Кут повороту (1/1000 рад)",
         r1,
         shiftAndForce.fi_1
       ),
@@ -481,7 +481,7 @@ case class RingPlateProblemAnswer(del_t: Double,
         shiftAndForce.mr_1,
         true
       ),
-      ChartData("{M}{theta}{ Коловий момент (кН)}",
+      ChartData("M{theta} Коловий момент (кН)",
         r1,
         shiftAndForce.mt_1,
         true
@@ -491,6 +491,15 @@ case class RingPlateProblemAnswer(del_t: Double,
         shiftAndForce.qr_1
       )
     )),
+
+    M.chartsAsTable -> DynamicTable("Епюри в табличному вигляді", List(), List(
+        DynamicTableRow("W", shiftAndForce.w_1.map(d => SmartValueStaticDouble(d)).toList),
+        DynamicTableRow("{phi}", shiftAndForce.fi_1.map(d => SmartValueStaticDouble(d)).toList),
+        DynamicTableRow("Mr", shiftAndForce.mr_1.map(d => SmartValueStaticDouble(d)).toList),
+        DynamicTableRow("M{theta}", shiftAndForce.mt_1.map(d => SmartValueStaticDouble(d)).toList),
+        DynamicTableRow("Qr", shiftAndForce.qr_1.map(d => SmartValueStaticDouble(d)).toList)
+      )
+    ),
 
     M.r -> Some(coordinateResult.r),
     M.sigma_r -> Some(coordinateResult.qr),
@@ -548,6 +557,7 @@ object RingPlateProblemAnswer {
     val x4 = "x4"
 
     val charts = "charts"
+    val chartsAsTable = "chartsAsTable"
 
     val r = "r"
     val sigma_r = "sigma_r"

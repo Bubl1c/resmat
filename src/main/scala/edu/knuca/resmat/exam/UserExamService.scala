@@ -19,6 +19,8 @@ import scala.concurrent.duration._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
+import edu.knuca.resmat.http.JsonProtocol._
+
 import scala.util.Try
 
 trait StepDataDto
@@ -544,10 +546,31 @@ class UserExamService(val db: DatabaseService)
         throw new IllegalStateException(s"$stepConf has no attempts for user exam with id: ${userExam.id}")
       }
       val mistakesAmount = currentStepConfAttempts.map(_.mistakesAmount).sum
+      val resultStepInfo = getStepResultStepInfo(stepConf, currentStepConfAttempts)
       (
-        UserExamStepResult(stepConf.id, stepConf.sequence, stepConf.name, currentStepConfAttempts.size, mistakesAmount, -1),
+        UserExamStepResult(
+          stepConf.id,
+          stepConf.sequence,
+          stepConf.stepType,
+          stepConf.name,
+          currentStepConfAttempts.size,
+          mistakesAmount,
+          -1,
+          resultStepInfo
+        ),
         stepConf
       )
+    }
+  }
+
+  def getStepResultStepInfo(stepConf: ExamStepConf, stepConfAttempts: Seq[UserExamStepAttempt]): Option[UserExamStepResultStepInfo] = {
+    val lastAttempt = stepConfAttempts.maxBy(_.attemptNumber)
+    stepConf.stepType match {
+      case ExamStepType.TaskFlow =>
+        val tfDto = taskFlowExamService.getTaskFlowDto(lastAttempt.id).get
+        val taskFlowResultInfoSteps = taskFlowExamService.getTaskFlowResultInfoSteps(tfDto.taskFlow.id)
+        Some(TaskFlowStepResultStepInfo(tfDto, taskFlowResultInfoSteps))
+      case _ => None
     }
   }
 

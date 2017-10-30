@@ -6,9 +6,9 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 
 object Utils {
-  def ei(id: Int, answerMapping: String, suffix: String = ""): EquationItem = EquationItem(EquationItemValueInput(id, answerMapping), "", suffix)
-  def es(value: String): EquationItem = EquationItem(EquationItemValueStaticString(value))
-  def ed(answerMapping: String): EquationItem = EquationItem(EquationItemValueDynamicDouble(answerMapping))
+  def ei(id: Int, answerMapping: String, suffix: String = ""): EquationItem = EquationItem(SmartValueInput(id, answerMapping), "", suffix)
+  def es(value: String): EquationItem = EquationItem(SmartValueStaticString(value))
+  def ed(answerMapping: String): EquationItem = EquationItem(SmartValueDynamicDouble(answerMapping))
 }
 
 object TaskFlowData {
@@ -108,8 +108,11 @@ object TaskFlowData {
           TestOptionConf(1, "Забезпечується")
         )), Some(M.isStrengthGuranteed)).asJson.toString()
       ),
-      TaskFlowStepConf(11, 1, 11, "Кінець", TaskFlowStepType.Finished, "{}"))
-    )
+      TaskFlowStepConf(11, 1, 11, "Кінець", TaskFlowStepType.Finished, "{}"),
+      TaskFlowStepConf(12, 1, 12, "Епюри в табличному вигляді",
+        TaskFlowStepType.DynamicTable, M.chartsAsTable.asJson.toString(), None, false, true
+      )
+    ))
   )
 }
 
