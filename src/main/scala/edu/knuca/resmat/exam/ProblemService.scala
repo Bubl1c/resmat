@@ -12,7 +12,7 @@ import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 
-case class ProblemConfWithVariants(problemConf: ProblemConf, variants: Seq[PublicProblemVariantConf])
+case class ProblemConfWithVariants(problemConf: ProblemConf, variants: Seq[ProblemVariantConf])
 
 case class NewProblemVariantConfDto(schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue])
 
@@ -34,7 +34,7 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
   def getProblemConfWithVariants(id: Long): ProblemConfWithVariants = {
     val pc = getProblemConfById(id)
     val variants = findProblemVariantConfsByProblemConfId(id)
-    ProblemConfWithVariants(pc, variants.map(_.withoutCalculatedData))
+    ProblemConfWithVariants(pc, variants)
   }
 
   def getProblemVariantConfById(id: Long): ProblemVariantConf = db.run { implicit c =>
@@ -61,6 +61,23 @@ class ProblemService(val db: DatabaseService)(implicit val executionContext: Exe
       throw new RuntimeException(s"Failed to insert problem conf: $p")
     )
     getProblemVariantConfById(insertedId)
+  }
+
+  def updateProblemVariantConf(id: Long, p: ProblemVariantConf): ProblemVariantConf = db.runTransaction { implicit c =>
+    val affectedRows = Q.updateProblemVariantConf(id, p).executeUpdate()
+    if(affectedRows != 1) {
+      throw new RuntimeException(s"Failed to update problem variant conf by id: $id, affected rows: $affectedRows")
+    }
+    getProblemVariantConfById(id)
+  }
+
+  def recalculateProblemVariantConfs(problemConfId: Long): Unit = {
+    val problemConf = getProblemConfById(problemConfId)
+    val variantConfs = findProblemVariantConfsByProblemConfId(problemConfId)
+    variantConfs.foreach(vc => {
+      val calculatedData = new RingPlateSolver(problemConf.inputVariableConfs, vc.inputVariableValues).solve()
+      updateProblemVariantConf(vc.id, vc.copy(calculatedData = calculatedData))
+    })
   }
 
   def calculateAndCreateProblemVariantConf(p: NewProblemVariantConfDto, problemConfId: Long): ProblemVariantConf = {
@@ -157,6 +174,19 @@ object ProblemQueries {
          |{calculatedData})
        """.stripMargin)
       .on("problemConfId" -> pv.problemConfId)
+      .on("schemaUrl" -> pv.schemaUrl)
+      .on("inputVariableValues" -> pv.inputVariableValues.asJson.toString)
+      .on("calculatedData" -> pv.calculatedData.asJson.toString)
+
+  def updateProblemVariantConf(id: Long, pv: ProblemVariantConf) =
+    SQL(
+      s"""UPDATE ${PV.table} SET
+         |${PV.schemaUrl} = {schemaUrl},
+         |${PV.inputVariableValues} = {inputVariableValues},
+         |${PV.calculatedData} = {calculatedData}
+         |WHERE id = {id}
+       """.stripMargin)
+      .on("id" -> id)
       .on("schemaUrl" -> pv.schemaUrl)
       .on("inputVariableValues" -> pv.inputVariableValues.asJson.toString)
       .on("calculatedData" -> pv.calculatedData.asJson.toString)

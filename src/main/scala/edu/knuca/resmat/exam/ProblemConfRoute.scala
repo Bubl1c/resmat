@@ -44,6 +44,13 @@ class ProblemConfRoute(problemService: ProblemService)
           }
         }
       } ~
+      pathPrefix("recalculate-variants") {
+        pathEndOrSingleSlash {
+          put {
+            complete(Future(recalculateProblemVariantConfs(problemConfId)))
+          }
+        }
+      } ~
       pathPrefix("with-variants") {
         (pathEndOrSingleSlash & get) {
           complete{
