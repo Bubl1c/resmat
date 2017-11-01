@@ -69,6 +69,9 @@ class RingPlateSolver(input: RingPlateProblemInput) {
 
   def solve(): RingPlateProblemAnswer = {
     matchBindingTypePrepareData()
+    val g1s = g1.copy //Save state before g1 is mutated in gaussCalculateEquations
+    println()
+    printMatrix("g1", g1)
     val gaussResult = gaussCalculateEquations
     val (shifAndForceResult, extremeStressResult) = calculateShiftAndForceAndExtremeStress
     val extremeConditionsResult = calculateExtremeConditions
@@ -76,10 +79,9 @@ class RingPlateSolver(input: RingPlateProblemInput) {
     println(extremeConditionsResult)
     val (coordinateResult, isStrengthGuaranteed) = calcCoordinates(extremeStressResult)
     println(coordinateResult)
-    printMatrix("g1", g1)
     println("Is strength guaranteed: " + isStrengthGuaranteed)
     RingPlateProblemAnswer(del_t, d_e, r1, isStrengthGuaranteed,
-      gaussResult, shifAndForceResult, extremeStressResult, extremeConditionsResult, coordinateResult, g1)
+      gaussResult, shifAndForceResult, extremeStressResult, extremeConditionsResult, coordinateResult, g1s)
   }
 
   def calcCoordinates(extremeStressResult: ExtremeStressResult): (CoordinateResult, Boolean) = {
