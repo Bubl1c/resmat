@@ -26,23 +26,23 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
           Future(findUserExamsAvailableForUser(userId.getOrElse(user.id)))
         }
       } ~
-      (parameters('userId.as[Long], 'examConfId.as[Long]) & post & authorize(user.isAdmin)) { (userId, examConfId) =>
+      (parameters('userId.as[Long], 'examConfId.as[Long]) & post & authorize(user.isAssistantOrHigher)) { (userId, examConfId) =>
         complete {
           Future(createUserExam(userId, examConfId))
         }
       }
     } ~
-    (pathPrefix("upload") & authorize(user.isAdmin)) {
+    (pathPrefix("upload") & authorize(user.isAssistantOrHigher)) {
       FileUploadUtils.toS3TmpFileUpload(s3Manager, user.id)
     } ~
-    (pathPrefix("lockAll") & authorize(user.isAdmin)) {
+    (pathPrefix("lockAll") & authorize(user.isAssistantOrHigher)) {
       (parameters('groupId.as[Long], 'hoursAmount.as[Int]) & put) { (groupId, hoursAmount) =>
         complete {
           Future(lockAllForGroup(groupId, hoursAmount))
         }
       }
     } ~
-    (pathPrefix("unlockAll") & authorize(user.isAdmin)) {
+    (pathPrefix("unlockAll") & authorize(user.isAssistantOrHigher)) {
       (parameters('groupId.as[Long]) & put) { groupId =>
         complete {
           Future(unlockAllForGroup(groupId))
@@ -66,18 +66,18 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
             Future(getUserExamDto(userExamId))
           }
         } ~
-        (delete & authorize(user.isAdmin)) {
+        (delete & authorize(user.isInstructorOrHigher)) {
           complete(Future(deleteUserExam(userExamId)))
         }
       } ~
-      (pathPrefix("unlock") & authorize(user.isAdmin)) {
+      (pathPrefix("unlock") & authorize(user.isAssistantOrHigher)) {
         put {
           complete{
             Future(unlockUserExam(userExamId))
           }
         }
       } ~
-      (pathPrefix("lock") & authorize(user.isAdmin)) {
+      (pathPrefix("lock") & authorize(user.isAssistantOrHigher)) {
         (parameters('hoursAmount.as[Int]) & put) { hoursAmount =>
           complete{
             Future(lockUserExam(userExamId, hoursAmount))
@@ -104,12 +104,7 @@ class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute
                 Future(getUserExamCurrentStepWithAttemptData(userExamId))
               }
             }
-          } /*~
-          pathPrefix("submit") {
-            pathEndOrSingleSlash {
-              (post & entity(as[])
-            }
-          }*/
+          }
         } ~
         pathPrefix(IntNumber) { stepSequence =>
           pathEndOrSingleSlash {

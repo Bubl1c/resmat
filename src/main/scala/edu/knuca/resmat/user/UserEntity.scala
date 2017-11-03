@@ -11,9 +11,10 @@ case class UserTypeData(id: Int, name: String)
   */
 object UserType extends Enumeration {
   type UserType = Value
-  val Student = Value(1, "student")
-  val Instructor = Value(2, "instructor")
-  val Admin = Value(3, "admin")
+  val Student = Value(100, "student")
+  val Assistant = Value(150, "assistant")
+  val Instructor = Value(200, "instructor")
+  val Admin = Value(300, "admin")
 
   def valuesSet: Set[UserTypeData] = values.map(v => UserTypeData(v.id, v.toString))
 }
@@ -21,6 +22,8 @@ object UserType extends Enumeration {
 case class AuthenticatedUser(id: Long, username: String, email: String, userType: UserType.UserType, userGroupId: Option[Long]) {
   val isStudent = userType == UserType.Student
   val isInstructor = userType == UserType.Instructor
+  val isInstructorOrHigher = userType >= UserType.Instructor
+  val isAssistantOrHigher = userType >= UserType.Assistant
   val isAdmin = userType == UserType.Admin
   val notStudent = userType != UserType.Student
 }

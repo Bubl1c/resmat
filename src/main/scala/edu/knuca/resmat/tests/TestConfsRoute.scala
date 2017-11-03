@@ -16,7 +16,7 @@ class TestConfsRoute(val testConfsService: TestConfsService) extends CirceSuppor
   import edu.knuca.resmat.http.JsonProtocol._
 
   def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route =
-    (pathPrefix("test-groups") & authorize(user.isAdmin)) {
+    (pathPrefix("test-groups") & authorize(user.isInstructorOrHigher)) {
       pathEndOrSingleSlash {
         (post & entity(as[TestGroupConf])) { testGroupConf =>
           complete(Future(testConfsService.createTestGroupConf(testGroupConf)))

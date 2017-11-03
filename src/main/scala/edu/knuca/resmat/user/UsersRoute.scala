@@ -42,7 +42,7 @@ class UsersRoute(val authService: AuthService, usersService: UsersService)
         }
       }
     } ~
-    authorize(user.notStudent) {
+    authorize(user.isInstructorOrHigher) {
       pathEndOrSingleSlash {
         get {
           complete(getAllNotStudents().map(_.asJson))
@@ -58,7 +58,7 @@ class UsersRoute(val authService: AuthService, usersService: UsersService)
           get {
             complete(getById(id).map(_.asJson))
           } ~
-          (put & authorize(user.notStudent)) { //TODO: authorize(user.isAdmin)
+          (put & authorize(user.isAdmin)) {
             entity(as[UserEntityUpdate]) { userUpdate =>
               complete(updateUser(id, userUpdate).map(_.asJson))
             }

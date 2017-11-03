@@ -12,53 +12,52 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class ArticleRoute(articleService: ArticleService, s3Manager: S3Manager) extends CirceSupport {
 
-  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route =
-    pathPrefix("articles") {
-      pathEndOrSingleSlash {
-        (get & parameters('own ? false, 'onlyVisible ? false, 'studentGroupId ? -1)) { (own, onlyVisible, studentGroupId) =>
-          authorize(if(onlyVisible || own) true else user.isAdmin) {
-            if(own) {
-              if(user.userGroupId.isEmpty) {
-                throw new IllegalStateException("Cannot load articles as user doesn't belong to any student group")
-              } else {
-                complete(Future(articleService.getByStudentGroupId(user.userGroupId.get, true)))
-              }
+  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = pathPrefix("articles") {
+    pathEndOrSingleSlash {
+      (get & parameters('own ? false, 'onlyVisible ? false, 'studentGroupId ? -1)) { (own, onlyVisible, studentGroupId) =>
+        authorize(if(onlyVisible || own) true else user.isAssistantOrHigher) {
+          if(own) {
+            if(user.userGroupId.isEmpty) {
+              throw new IllegalStateException("Cannot load articles as user doesn't belong to any student group")
             } else {
-              if(studentGroupId > 0)
-                complete(Future(articleService.getByStudentGroupId(studentGroupId, onlyVisible)))
-              else
-                complete(Future(articleService.get(onlyVisible)))
+              complete(Future(articleService.getByStudentGroupId(user.userGroupId.get, true)))
             }
+          } else {
+            if(studentGroupId > 0)
+              complete(Future(articleService.getByStudentGroupId(studentGroupId, onlyVisible)))
+            else
+              complete(Future(articleService.get(onlyVisible)))
           }
-        } ~
-        (post & entity(as[ArticleDto]) & authorize(user.isAdmin)) { articleToCreate =>
-          complete(Future(articleService.create(articleToCreate)))
         }
       } ~
-      pathPrefix(LongNumber) { articleId =>
-        (pathEndOrSingleSlash & authorize(user.isAdmin)) {
-          get {
-            complete(Future(articleService.getById(articleId)))
-          } ~
-          (put & entity(as[ArticleDto])) { articleToUpdate =>
-            complete(Future(articleService.update(articleId, articleToUpdate)))
-          } ~
-          delete {
-            complete(Future(articleService.delete(articleId)))
-          }
+      (post & entity(as[ArticleDto]) & authorize(user.isAssistantOrHigher)) { articleToCreate =>
+        complete(Future(articleService.create(articleToCreate)))
+      }
+    } ~
+    pathPrefix(LongNumber) { articleId =>
+      (pathEndOrSingleSlash & authorize(user.isAssistantOrHigher)) {
+        get {
+          complete(Future(articleService.getById(articleId)))
         } ~
-        pathPrefix("visible") {
-          pathEndOrSingleSlash {
-            get {
-              complete(Future(articleService.getById(articleId, !user.isAdmin)))
-            }
-          }
+        (put & entity(as[ArticleDto])) { articleToUpdate =>
+          complete(Future(articleService.update(articleId, articleToUpdate)))
         } ~
-        (pathPrefix("upload-file") & authorize(user.isAdmin)) {
-          FileUploadUtils.toS3FileUpload(s3Manager, ArticleConstants.s3ItemFolder(articleId))
+        delete {
+          complete(Future(articleService.delete(articleId)))
         }
+      } ~
+      pathPrefix("visible") {
+        pathEndOrSingleSlash {
+          get {
+            complete(Future(articleService.getById(articleId, !user.isAssistantOrHigher)))
+          }
+        }
+      } ~
+      (pathPrefix("upload-file") & authorize(user.isAssistantOrHigher)) {
+        FileUploadUtils.toS3FileUpload(s3Manager, ArticleConstants.s3ItemFolder(articleId))
       }
     }
+  }
 
   def publicRoute(implicit ec: ExecutionContext): Route =
     pathPrefix("public-articles") {

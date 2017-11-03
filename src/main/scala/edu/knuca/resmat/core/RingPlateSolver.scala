@@ -236,27 +236,26 @@ class RingPlateSolver(input: RingPlateProblemInput) {
           g1(2, 2) = 0d
           g1(2, 3) = 0d
           g1(2, 4) = q1 * r1(m - 1) / 2d + f_b
-        }else {
+        } else {
           g1(2, 0) = pow(r1(m - 1), 2) * log(r1(m - 1))
           g1(2, 1) = pow(r1(m - 1), 2)
           g1(2, 2) = log(r1(m - 1))
           g1(2, 3) = 1d
           g1(2, 4) = -q1 * pow(r1(m - 1), 4) / 64d / d_e + w_b
-          // четверте рівняння системи
-          if (fi_b == 0d) {
-            g1(3, 0) = -d_e * (2d * (1d + koef_Puas) * log(r1(m - 1)) + 3d + koef_Puas)
-            g1(3, 1) = -2d * d_e * (1d + koef_Puas)
-            g1(3, 2) = -d_e * (koef_Puas - 1d) / pow(r1(m - 1), 2)
-            g1(3, 3) = 0d
-            g1(3, 4) = q1 * (3d + koef_Puas) * pow(r1(m - 1), 2) / 16d + m_b
-          }
-          else {
-            g1(3, 0) = 2d * r1(m - 1) * log(r1(m - 1)) + r1(m - 1)
-            g1(3, 1) = 2d * r1(m - 1)
-            g1(3, 2) = 1d / r1(m - 1)
-            g1(3, 3) = 0d
-            g1(3, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e + fi_b
-          }
+        }
+        // четверте рівняння системи
+        if (fi_b == 0d) {
+          g1(3, 0) = -d_e * (2d * (1d + koef_Puas) * log(r1(m - 1)) + 3d + koef_Puas)
+          g1(3, 1) = -2d * d_e * (1d + koef_Puas)
+          g1(3, 2) = -d_e * (koef_Puas - 1d) / pow(r1(m - 1), 2)
+          g1(3, 3) = 0d
+          g1(3, 4) = q1 * (3d + koef_Puas) * pow(r1(m - 1), 2) / 16d + m_b
+        } else {
+          g1(3, 0) = 2d * r1(m - 1) * log(r1(m - 1)) + r1(m - 1)
+          g1(3, 1) = 2d * r1(m - 1)
+          g1(3, 2) = 1d / r1(m - 1)
+          g1(3, 3) = 0d
+          g1(3, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e - fi_b
         }
 
       case BindingType.Swivel =>
@@ -267,13 +266,12 @@ class RingPlateSolver(input: RingPlateProblemInput) {
           g1(2, 2) = -d_e * (koef_Puas - 1d) / pow(r1(m - 1), 2)
           g1(2, 3) = 0d
           g1(2, 4) = q1 * (3d + koef_Puas) * pow(r1(m - 1), 2) / 16d + m_b
-        }
-        else {
+        } else {
           g1(2, 0) = 2d * r1(m - 1) * log(r1(m - 1)) + r1(m - 1)
           g1(2, 1) = 2d * r1(m - 1)
           g1(2, 2) = 1d / r1(m - 1)
           g1(2, 3) = 0d
-          g1(2, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e + fi_b
+          g1(2, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e - fi_b
         }
         // четверте рівняння системи
         g1(3, 0) = pow(r1(m - 1), 2) * log(r1(m - 1))
@@ -295,7 +293,7 @@ class RingPlateSolver(input: RingPlateProblemInput) {
         g1(3, 1) = 2d * r1(m - 1)
         g1(3, 2) = 1d / r1(m - 1)
         g1(3, 3) = 0d
-        g1(3, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e + fi_b
+        g1(3, 4) = -q1 * pow(r1(m - 1), 3) / 16d / d_e - fi_b
 
     }
   }

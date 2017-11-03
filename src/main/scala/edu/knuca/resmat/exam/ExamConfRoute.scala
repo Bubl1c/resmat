@@ -17,7 +17,7 @@ class ExamConfRoute(examService: ExamService)
   import edu.knuca.resmat.http.JsonProtocol._
   import examService._
 
-  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("exam-confs") & authorize(user.isAdmin)) {
+  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("exam-confs") & authorize(user.isAssistantOrHigher)) {
     pathEndOrSingleSlash{
       get {
         complete {
@@ -25,7 +25,7 @@ class ExamConfRoute(examService: ExamService)
         }
       }
     } ~
-    pathPrefix(LongNumber) { examConfId =>
+    (pathPrefix(LongNumber) & authorize(user.isAdmin)) { examConfId =>
       (pathEndOrSingleSlash & get) {
         complete {
           Future(getExamConf(examConfId))

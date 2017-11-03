@@ -8,7 +8,7 @@ import io.circe.syntax._
 object Utils {
   def ei(id: Int, answerMapping: String, suffix: String = ""): EquationItem = EquationItem(SmartValueInput(id, answerMapping), "", suffix)
   def es(value: String): EquationItem = EquationItem(SmartValueStaticString(value))
-  def ed(answerMapping: String): EquationItem = EquationItem(SmartValueDynamicDouble(answerMapping))
+  def ed(answerMapping: String, suffix: String = ""): EquationItem = EquationItem(SmartValueDynamicDouble(answerMapping), "", suffix)
 }
 
 object TaskFlowData {
@@ -61,16 +61,16 @@ object TaskFlowData {
       TaskFlowStepConf(5, 1, 5, "Заповніть коефіцієнти системи рівнянь",
         TaskFlowStepType.EquationSet, InputSetEquationSystem("Заповніть коефіцієнти системи рівнянь", List(
           InputSetEquation(1, List[EquationItem](
-            ei(11, M.g1_00, "X1"), es("+"), ei(12, M.g1_01, "X2"), es("+"), ei(13, M.g1_02, "X3"), es("+"), ei(14, M.g1_03, "X4"), es("="), ed(M.g1_04)
+            ed(M.g1_00, "X1"), es("+"), ei(12, M.g1_01, "X2"), es("+"), ei(13, M.g1_02, "X3"), es("+"), ei(14, M.g1_03, "X4"), es("="), ed(M.g1_04)
           )),
           InputSetEquation(2, List[EquationItem](
-            ei(21, M.g1_10, "X1"), es("+"), ei(22, M.g1_11, "X2"), es("+"), ei(23, M.g1_12, "X3"), es("+"), ei(24, M.g1_13, "X4"), es("="), ed(M.g1_14)
+            ed(M.g1_10, "X1"), es("+"), ei(22, M.g1_11, "X2"), es("+"), ei(23, M.g1_12, "X3"), es("+"), ei(24, M.g1_13, "X4"), es("="), ed(M.g1_14)
           )),
           InputSetEquation(3, List[EquationItem](
-            ei(31, M.g1_20, "X1"), es("+"), ei(32, M.g1_21, "X2"), es("+"), ei(33, M.g1_22, "X3"), es("+"), ei(34, M.g1_23, "X4"), es("="), ed(M.g1_24)
+            ed(M.g1_20, "X1"), es("+"), ei(32, M.g1_21, "X2"), es("+"), ei(33, M.g1_22, "X3"), es("+"), ei(34, M.g1_23, "X4"), es("="), ed(M.g1_24)
           )),
           InputSetEquation(4, List[EquationItem](
-            ei(41, M.g1_30, "X1"), es("+"), ei(42, M.g1_31, "X2"), es("+"), ei(43, M.g1_32, "X3"), es("+"), ei(44, M.g1_33, "X4"), es("="), ed(M.g1_34)
+            ed(M.g1_30, "X1"), es("+"), ei(42, M.g1_31, "X2"), es("+"), ei(43, M.g1_32, "X3"), es("+"), ei(44, M.g1_33, "X4"), es("="), ed(M.g1_34)
           ))
         )).asJson.toString()
       ),

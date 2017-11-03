@@ -70,8 +70,13 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
-  def updateUser(id: Long, userUpdate: UserEntityUpdate): Future[Option[UserEntity]] = getById(id).flatMap {
+  def updateUser(id: Long, userUpdate: UserEntityUpdate, requireUserType: Option[UserType.UserType] = None): Future[Option[UserEntity]] = getById(id).flatMap {
     case Some(userEntity) =>
+      if(requireUserType.isDefined && userEntity.userType != requireUserType.get) {
+        throw new IllegalArgumentException(
+          s"Cannot update user with type ${userEntity.userType.toString}, required user type ${requireUserType.get.toString}"
+        )
+      }
       logger.debug(s"Updating user. id: $id, update: $userUpdate")
       db.runTransaction{implicit c =>
         val updatedUser = userUpdate.merge(userEntity)

@@ -20,7 +20,7 @@ class StudentsRoute(usersService: UsersService)
 
   import edu.knuca.resmat.http.JsonProtocol._
 
-  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("student-groups") & authorize(user.notStudent)) {
+  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("student-groups") & authorize(user.isAssistantOrHigher)) {
     pathEndOrSingleSlash {
       get {
         complete(getAllStudentGroups().map(_.asJson))
@@ -69,13 +69,18 @@ class StudentsRoute(usersService: UsersService)
             get {
               complete(getByIdInStudentGroup(studentId, studentGroupId))
             } ~
-            delete {
+            put {
+              entity(as[UserEntityUpdate]) { userEntity =>
+                complete(updateUser(studentId, userEntity).map(_.asJson))
+              }
+            } ~
+            (delete & authorize(user.isInstructorOrHigher)) {
               onSuccess(deleteUser(studentId, Some(UserType.Student))) { ignored =>
                 complete(NoContent)
               }
             }
           } ~
-          path("move") {
+          (path("move") & authorize(user.isInstructorOrHigher)) {
             post {
               entity(as[MoveStudentToAnotherGroup]) { moveToGroup =>
                 complete(moveStudentToGroup(studentId, moveToGroup.groupId))

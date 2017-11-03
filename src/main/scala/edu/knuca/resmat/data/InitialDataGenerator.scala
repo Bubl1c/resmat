@@ -23,6 +23,7 @@ object Data {
   val group2 = StudentGroupEntity(None, "ІО-41")
 
   val userAdmin = UserEntity(None, "admin", "root", "Андрій", "Можаровський", "admin@email.com", UserType.Admin, "admin", None)
+  val userAssistant = UserEntity(None, "assistant", "root", "Лаборант", "Лаборант", "assistant@email.com", UserType.Assistant, "assistant", None)
   val userInstructor = UserEntity(None, "instructor", "root", "Дмитро", "Левківський", "instructor@email.com", UserType.Instructor, "instructor", None)
 
   def userToken(userId: Long) =
@@ -185,6 +186,7 @@ class InitialDataGenerator(db: DatabaseService,
       usersService.createUser(Data.student(group2.id.get, "student3", "Максим Максименко", "3"))
     )
     val admin = await(usersService.createUser(Data.userAdmin))
+    val assistant = await(usersService.createUser(Data.userAssistant))
     val instructor = await(usersService.createUser(Data.userInstructor))
 
     //b3FhdWpiamg1Y2F2c2c0ZXQ0MmVpbXVhOWh2cWUzaTlxNWhoYzVoaW9hNXV2YWd2dGg5bXUwM2htMCYxJjE0ODU1MzUxMDQwMDA
