@@ -156,6 +156,7 @@ object TestConfsQueries {
     val table = "test_group_confs"
     val id = "id"
     val name = "name"
+    val parentGroupId = "parent_group_id"
   }
 
   object TSTG {
@@ -185,8 +186,9 @@ object TestConfsQueries {
 
   val tgcParser  = for {
     id <- long(TG.id)
+    parentGroupId <- long(TG.parentGroupId).?
     name <- str(TG.name)
-  } yield TestGroupConf(id, name)
+  } yield TestGroupConf(id, name, parentGroupId)
 
   val tsctgcParser  = for {
     id <- long(TG.id)

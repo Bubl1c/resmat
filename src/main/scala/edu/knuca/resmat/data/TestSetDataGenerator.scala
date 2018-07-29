@@ -254,7 +254,7 @@ object TestSetData {
         cond(-0.006, -0.003, null, null,   -0d, null, 0d, null)
       ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec24.png"),
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
-        cond(0d, 0d, null, null,   0d, 0.01, null, null, true),
+        cond(0d, 0d, null, null,   0d, 0.01, null, null, true), //kg
         cond(0d, null, null, null,   0d, 0.01, 0d, null),
         cond(0d, -0.01, null, null,   0d, null, 0d, null)
       ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec25.png"),
@@ -263,8 +263,9 @@ object TestSetData {
         cond(0d, 0d, null, 0d,   null, -0.01, null, 0d),
         cond(0d, 0d, null, null,   null, 0.01, null, 0d)
       ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png")
-
-    ))
+    )),
+    (TestGroupConf(4, "Батьківська група"), Seq()),
+    (TestGroupConf(5, "Дочірня група", Some(4)), Seq())
   )
 
   type D = java.lang.Double

@@ -30,12 +30,15 @@ trait Config {
   object MySql {
     private lazy val config = _config.getConfig("resmat.mysql-database")
 
+    val databaseHost = config.getString("host")
+    val allowDropAndGenerate = databaseHost == "localhost"
+
     val migrateOnStartup = config.getBoolean("migrateOnStartup")
-    val generateDataOnStartup = config.getBoolean("generateDataOnStartup")
-    val dropSchemaOnStartup = config.getBoolean("dropSchemaOnStartup")
+    val generateDataOnStartup = config.getBoolean("generateDataOnStartup")  && allowDropAndGenerate
+    val dropSchemaOnStartup = config.getBoolean("dropSchemaOnStartup") && allowDropAndGenerate
 
     val options = "jdbcCompliantTruncation=false&characterEncoding=UTF-8&serverTimezone=GMT&useSSL=false"
-    val host = config.getString("host")
+    val host = databaseHost
     val port = config.getString("port")
     val db = config.getString("database")
     val user = config.getString("user")

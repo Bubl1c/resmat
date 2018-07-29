@@ -1,0 +1,40 @@
+resmat {
+  env: "local"
+
+  mysql-database {
+    user = "root"
+    password = "root"
+    host = "localhost"
+    port = "3306"
+    database = "resmat"
+    connections = 50
+    driver = "com.mysql.cj.jdbc.Driver"
+
+    dropSchemaOnStartup = true
+    migrateOnStartup = true
+    generateDataOnStartup = true
+  }
+}
+
+akka {
+  loglevel = DEBUG
+
+  stdout-loglevel = DEBUG
+
+  http {
+    server.request-timeout = 5min
+    server.parsing.max-content-length = 50m
+    server.parsing.illegal-header-warnings = off
+  }
+}
+
+logging {
+  requestResultLogs = true
+}
+
+http {
+  interface = "0.0.0.0"
+  port = 9000
+}
+
+cors.allowed-origin = "*"
