@@ -248,11 +248,8 @@ class InitialDataGenerator(db: DatabaseService,
   }
 
   def generateExamConf(ec: ExamConf, esc: Seq[ExamStepConf]): ExamConf = {
-    val newEC = examService.createExamConf(ec)
-    esc.foreach{case (esc: ExamStepConf) => {
-      val newESC = examService.createExamStepConf(esc.copy(examConfId = newEC.id))
-    }}
-    newEC
+    val newEC = examService.createExamConfWithSteps(ExamConfDto(ec, esc))
+    newEC.examConf
   }
 
   def generateProblemConf(pc: ProblemConf, pvcs: Seq[ProblemVariantConf]) = {

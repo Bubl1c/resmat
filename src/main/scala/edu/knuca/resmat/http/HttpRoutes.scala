@@ -1,5 +1,7 @@
 package edu.knuca.resmat.http
 
+import java.util.concurrent.Executors
+
 import akka.http.scaladsl.model.{HttpMethod, HttpMethods}
 import akka.http.scaladsl.server.Directives.{complete, _}
 import edu.knuca.resmat.auth.{AuthRoute, AuthService, TestConfsRoute}
@@ -28,10 +30,13 @@ class HttpRoutes(usersService: UsersService,
                  val articleService: ArticleService,
                  val s3Manager: S3Manager)
                 (val dataGenerator: InitialDataGenerator)
-                (implicit executionContext: ExecutionContext)
     extends ApiExceptionHandlers
     with ApiRejectionHandler
     with SecurityDirectives {
+
+  implicit val separateCtxForBusinessLogic: ExecutionContext =
+    ExecutionContext
+      .fromExecutorService(Executors.newCachedThreadPool)
 
   val usersRouter = new UsersRoute(authService, usersService)
   val authRouter = new AuthRoute(authService, usersService)

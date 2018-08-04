@@ -215,11 +215,17 @@ object TestConfsQueries {
       .on("name" -> tsc.name)
       .on("maxTestsAmount" -> tsc.maxTestsAmount)
 
-  def createTestGroupConf(tsc: TestGroupConf) =
-    SQL(s"INSERT INTO ${TG.table} (${TG.name}) VALUES ({name})").on("name" -> tsc.name)
+  def createTestGroupConf(tsc: TestGroupConf) = {
+    SQL(s"INSERT INTO ${TG.table} (${TG.name}, ${TG.parentGroupId}) VALUES ({name}, {parentGroupId})")
+      .on("name" -> tsc.name)
+      .on("parentGroupId" -> tsc.parentGroupId.map(java.lang.Long.valueOf(_)).orNull)
+  }
 
   def editTestGroupConf(id: Long, tsc: TestGroupConf) =
-    SQL(s"UPDATE ${TG.table} SET ${TG.name} = {name} WHERE ${TG.id} = {id}").on("id" -> id).on("name" -> tsc.name)
+    SQL(s"UPDATE ${TG.table} SET ${TG.name} = {name}, ${TG.parentGroupId} = {parentGroupId} WHERE ${TG.id} = {id}")
+      .on("id" -> id)
+      .on("name" -> tsc.name)
+      .on("parentGroupId" -> tsc.parentGroupId.map(java.lang.Long.valueOf(_)).orNull)
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup) =
     SQL(

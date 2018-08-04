@@ -1,5 +1,7 @@
 package edu.knuca.resmat.exam
 
+import java.sql.Connection
+
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
@@ -15,23 +17,52 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
 
   import edu.knuca.resmat.exam.{ExamQueries => Q}
 
-  def createExamConf(ec: ExamConf): ExamConf = db.run{ implicit c =>
+  // todo optimise to save all steps at once
+  def createExamConfWithSteps(ec: ExamConfDto): ExamConfDto = db.runTransaction{ implicit c =>
+    val createdExamConf = createExamConfTransact(ec.examConf)
+    val steps = ec.stepConfs.map(esc => createExamStepConfTransact(createdExamConf.id, esc))
+    ExamConfDto(createdExamConf, steps)
+  }
+
+  def updateExamConfWithSteps(id: Long, ec: ExamConfDto): ExamConfDto = db.runTransaction{ implicit c =>
+    val createdExamConf = updateExamConfTransact(id, ec.examConf)
+    val steps = ec.stepConfs.map(esc => updateExamStepConfTransact(esc.id, esc))
+    ExamConfDto(createdExamConf, steps)
+  }
+
+  private def createExamConfTransact(ec: ExamConf)(implicit c: Connection): ExamConf = {
     val insertedIdOpt: Option[Long] = Q.createExamConf(ec).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to insert exam conf: $ec")
     )
-    getExamConf(insertedId)
+    getExamConfTransact(insertedId)
   }
 
-  def createExamStepConf(esc: ExamStepConf): ExamStepConf = db.run{ implicit c =>
-    val insertedIdOpt: Option[Long] = Q.createExamStepConf(esc).executeInsert()
+  private def updateExamConfTransact(id: Long, ec: ExamConf)(implicit c: Connection): ExamConf = {
+    val rowsUpdated = Q.updateExamConf(id, ec).executeUpdate()
+    if (rowsUpdated != 1) throw new RuntimeException(s"Failed to update exam conf with id $id, rows updated: " + rowsUpdated)
+    getExamConfTransact(id)
+  }
+
+  private def createExamStepConfTransact(examConfId: Long, esc: ExamStepConf)(implicit c: Connection): ExamStepConf = {
+    val insertedIdOpt: Option[Long] = Q.createExamStepConf(examConfId, esc).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to insert exam step conf: $esc")
     )
-    getExamStepConf(insertedId)
+    getExamStepConfTransact(insertedId)
+  }
+
+  private def updateExamStepConfTransact(id: Long, esc: ExamStepConf)(implicit c: Connection): ExamStepConf = {
+    val rowsUpdated = Q.updateExamStepConf(id, esc).executeUpdate()
+    if (rowsUpdated != 1) throw new RuntimeException(s"Failed to update exam step conf with id $id, rows updated: " + rowsUpdated)
+    getExamStepConfTransact(id)
   }
 
   def getExamConf(id: Long): ExamConf = db.run{ implicit c =>
+    getExamConfTransact(id)
+  }
+
+  private def getExamConfTransact(id: Long)(implicit c: Connection): ExamConf = {
     Q.getExamConf(id).as(Q.examConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Cannot find exam conf by id: $id")
     )
@@ -48,6 +79,10 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
   }
 
   def getExamStepConf(id: Long): ExamStepConf = db.run { implicit c =>
+    getExamStepConfTransact(id)
+  }
+
+  private def getExamStepConfTransact(id: Long)(implicit c: Connection): ExamStepConf = {
     Q.getExamStepConf(id).as(Q.examStepConfParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Exam step conf with id: $id not found.")
     )
@@ -71,16 +106,16 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
 
 object ExamQueries {
   import anorm.SqlParser.{int, long, str, bool}
-  
-  object E {
+
+  object EC {
     val table = "exam_confs"
     val id = "id"
     val name = "name"
     val description = "description"
     val maxScore = "max_score"
   }
-  
-  object ES {
+
+  object ESC {
     val table = "exam_step_confs"
     val id = "id"
     val examConfId = "exam_conf_id"
@@ -97,25 +132,25 @@ object ExamQueries {
   }
 
   val examConfParser  = for {
-    id <- long(E.id)
-    name <- str(E.name)
-    description <- str(E.description)
-    maxScore <- int(E.maxScore)
+    id <- long(EC.id)
+    name <- str(EC.name)
+    description <- str(EC.description)
+    maxScore <- int(EC.maxScore)
   } yield ExamConf(id, name, description, maxScore)
 
   val examStepConfParser = for {
-    id <- long(ES.id)
-    examConfId <- long(ES.examConfId)
-    sequence <- int(ES.sequence)
-    name <- str(ES.name)
-    stepType <- int(ES.stepType)
-    mistakesPerAttemptLimit <- int(ES.mistakesPerAttemptLimit)
-    mistakeValue <- int(ES.mistakeValuePercents)
-    attemptsLimit <- int(ES.attemptsLimit)
-    attemptValue <- int(ES.attemptValuePercents)
-    maxScore <- int(ES.maxScore)
-    dataSet <- str(ES.dataSet)
-    hasToBeSubmitted <- bool(ES.hasToBeSubmitted)
+    id <- long(ESC.id)
+    examConfId <- long(ESC.examConfId)
+    sequence <- int(ESC.sequence)
+    name <- str(ESC.name)
+    stepType <- int(ESC.stepType)
+    mistakesPerAttemptLimit <- int(ESC.mistakesPerAttemptLimit)
+    mistakeValue <- int(ESC.mistakeValuePercents)
+    attemptsLimit <- int(ESC.attemptsLimit)
+    attemptValue <- int(ESC.attemptValuePercents)
+    maxScore <- int(ESC.maxScore)
+    dataSet <- str(ESC.dataSet)
+    hasToBeSubmitted <- bool(ESC.hasToBeSubmitted)
   } yield ExamStepConf(
     id,
     examConfId,
@@ -139,25 +174,38 @@ object ExamQueries {
   }
 
   def createExamConf(ec: ExamConf) =
-    SQL(s"INSERT INTO ${E.table} (${E.name}, ${E.description}, ${E.maxScore}) VALUES ({name}, {description}, {maxScore})")
+    SQL(s"INSERT INTO ${EC.table} (${EC.name}, ${EC.description}, ${EC.maxScore}) VALUES ({name}, {description}, {maxScore})")
       .on("name" -> ec.name)
       .on("description" -> ec.description)
       .on("maxScore" -> ec.maxScore)
 
-  def createExamStepConf(esc: ExamStepConf) =
+  def updateExamConf(id: Long, ec: ExamConf) =
     SQL(
-      s"""INSERT INTO ${ES.table} (
-         |${ES.examConfId},
-         |${ES.sequence},
-         |${ES.name},
-         |${ES.stepType},
-         |${ES.mistakesPerAttemptLimit},
-         |${ES.mistakeValuePercents},
-         |${ES.attemptsLimit},
-         |${ES.attemptValuePercents},
-         |${ES.maxScore},
-         |${ES.dataSet},
-         |${ES.hasToBeSubmitted}
+      s"""UPDATE ${EC.table} SET
+         |${EC.name} = {name},
+         |${EC.description} = {description},
+         |${EC.maxScore} = {maxScore}
+         |WHERE id = {id}
+       """.stripMargin)
+      .on("id" -> id)
+      .on("name" -> ec.name)
+      .on("description" -> ec.description)
+      .on("maxScore" -> ec.maxScore)
+
+  def createExamStepConf(examConfId: Long, esc: ExamStepConf) =
+    SQL(
+      s"""INSERT INTO ${ESC.table} (
+         |${ESC.examConfId},
+         |${ESC.sequence},
+         |${ESC.name},
+         |${ESC.stepType},
+         |${ESC.mistakesPerAttemptLimit},
+         |${ESC.mistakeValuePercents},
+         |${ESC.attemptsLimit},
+         |${ESC.attemptValuePercents},
+         |${ESC.maxScore},
+         |${ESC.dataSet},
+         |${ESC.hasToBeSubmitted}
          |)
          |VALUES (
          |{examConfId},
@@ -173,7 +221,7 @@ object ExamQueries {
          |{hasToBeSubmitted}
          |)
        """.stripMargin)
-      .on("examConfId" -> esc.examConfId)
+      .on("examConfId" -> examConfId)
       .on("sequence" -> esc.sequence)
       .on("name" -> esc.name)
       .on("stepType" -> esc.stepType.id)
@@ -185,23 +233,50 @@ object ExamQueries {
       .on("dataSet" -> esc.dataSet.asJson.noSpaces)
       .on("hasToBeSubmitted" -> esc.hasToBeSubmitted)
 
-  def getExamConf(id: Long) = SQL(s"SELECT * FROM ${E.table} WHERE ${E.id} = {id}").on("id" -> id)
+  def updateExamStepConf(id: Long, esc: ExamStepConf) =
+    SQL(
+      s"""UPDATE ${ESC.table} SET
+         |${ESC.sequence} = {sequence},
+         |${ESC.name} = {name},
+         |${ESC.stepType} = {stepType},
+         |${ESC.mistakesPerAttemptLimit} = {mistakesPerAttemptLimit},
+         |${ESC.mistakeValuePercents} = {mistakeValuePercents},
+         |${ESC.attemptsLimit} = {attemptsLimit},
+         |${ESC.attemptValuePercents} = {attemptValuePercents},
+         |${ESC.maxScore} = {maxScore},
+         |${ESC.dataSet} = {dataSet},
+         |${ESC.hasToBeSubmitted} = {hasToBeSubmitted}
+         |WHERE id = {id}
+       """.stripMargin)
+      .on("id" -> id)
+      .on("sequence" -> esc.sequence)
+      .on("name" -> esc.name)
+      .on("stepType" -> esc.stepType.id)
+      .on("mistakesPerAttemptLimit" -> esc.mistakesPerAttemptLimit)
+      .on("mistakeValuePercents" -> esc.mistakeValuePercents)
+      .on("attemptsLimit" -> esc.attemptsLimit)
+      .on("attemptValuePercents" -> esc.attemptValuePercents)
+      .on("maxScore" -> esc.maxScore)
+      .on("dataSet" -> esc.dataSet.asJson.noSpaces)
+      .on("hasToBeSubmitted" -> esc.hasToBeSubmitted)
 
-  def findExamConfs = SQL(s"SELECT * FROM ${E.table}")
+  def getExamConf(id: Long) = SQL(s"SELECT * FROM ${EC.table} WHERE ${EC.id} = {id}").on("id" -> id)
 
-  def getExamStepConf(id: Long) = SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.id} = {id}").on("id" -> id)
+  def findExamConfs = SQL(s"SELECT * FROM ${EC.table}")
+
+  def getExamStepConf(id: Long) = SQL(s"SELECT * FROM ${ESC.table} WHERE ${ESC.id} = {id}").on("id" -> id)
 
   def findExamStepConfsByExamConfId(examConfId: Long) =
-    SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.examConfId} = {examConfId}")
+    SQL(s"SELECT * FROM ${ESC.table} WHERE ${ESC.examConfId} = {examConfId}")
       .on("examConfId" -> examConfId)
 
   def findSubmittableExamStepConf(examConfId: Long) =
-    SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.examConfId} = {examConfId} AND ${ES.hasToBeSubmitted} IS TRUE")
+    SQL(s"SELECT * FROM ${ESC.table} WHERE ${ESC.examConfId} = {examConfId} AND ${ESC.hasToBeSubmitted} IS TRUE")
       .on("examConfId" -> examConfId)
 
   def getExamStepConfByExamConfIdAndSequence(examConfId: Long, stepSequence: Int) =
-    SQL(s"SELECT * FROM ${ES.table} WHERE ${ES.examConfId} = {examConfId} AND ${ES.sequence} = {sequence}")
+    SQL(s"SELECT * FROM ${ESC.table} WHERE ${ESC.examConfId} = {examConfId} AND ${ESC.sequence} = {sequence}")
       .on("examConfId" -> examConfId)
       .on("sequence" -> stepSequence)
-  
+
 }
