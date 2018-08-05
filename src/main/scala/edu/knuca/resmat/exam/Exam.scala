@@ -72,7 +72,11 @@ case class ExamStepConf(id: Long,
                         attemptValuePercents: Int, //influence to result
                         maxScore: Int, //should be within ExamConf.maxScore
                         dataSet: ExamStepConfDataSet,
-                        hasToBeSubmitted: Boolean = true)
+                        hasToBeSubmitted: Boolean = true) {
+  def isReadonly(): Boolean = {
+    stepType == ExamStepType.Results
+  }
+}
 @JsonCodec sealed trait ExamStepConfDataSet //to make JsonCodec work
 case class ExamStepTestSetDataSet(testSetConfId: Long) extends ExamStepConfDataSet
 case class ExamStepTaskFlowDataSet(taskFlowConfId: Long, problemConfId: Long) extends ExamStepConfDataSet
