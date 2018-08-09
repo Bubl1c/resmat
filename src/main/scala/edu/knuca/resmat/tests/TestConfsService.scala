@@ -29,6 +29,12 @@ class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
     )
   }
 
+  def getTestSetConfDto(testSetConfId: Long): TestSetConfDto = {
+    val tsc = getTestSetConf(testSetConfId)
+    val testGroups = findTestSetConfGroups(testSetConfId)
+    TestSetConfDto(tsc.id, tsc.name, tsc.maxTestsAmount, testGroups)
+  }
+
   //====================TestGroupConf====================
 
   def createTestGroupConf(testGroupConf: TestGroupConf): TestGroupConf = db.run { implicit c =>
