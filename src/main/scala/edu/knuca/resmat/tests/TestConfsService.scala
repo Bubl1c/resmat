@@ -1,6 +1,8 @@
 package edu.knuca.resmat.tests
 
-import anorm.SQL
+import java.sql.Connection
+
+import anorm.{BatchSql, NamedParameter, SQL}
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
@@ -16,11 +18,36 @@ class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
   //====================TestSetConf====================
 
   def createTestSetConf(testSetConf: TestSetConf): TestSetConf = db.run { implicit c =>
+    val insertedId = createTestSetConfTransact(testSetConf)
+    getTestSetConf(insertedId)
+  }
+
+  def createTestSetConfTransact(testSetConf: TestSetConf)(implicit c: Connection): Long = {
     val insertedIdOpt: Option[Long] = Q.createTestSetConf(testSetConf).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to create $testSetConf")
     )
-    getTestSetConf(insertedId)
+    insertedId
+  }
+
+  def updateTestSetConfTransact(id: Long, testSetConf: TestSetConf)(implicit c: Connection): Unit = {
+    val updatedRows: Int = Q.updateTestSetConf(id, testSetConf).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to update $testSetConf by id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Updated $updatedRows rows while updating $testSetConf by id $id")
+    }
+  }
+
+  def deleteTestSetConfTransact(id: Long)(implicit c: Connection): Unit = {
+    val updatedRows: Int = Q.deleteTestSetConf(id).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to delete test set conf by id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Deleted $updatedRows rows while deleting test set conf by id $id")
+    }
   }
 
   def getTestSetConf(id: Long): TestSetConf = db.run { implicit c =>
@@ -32,7 +59,7 @@ class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
   def getTestSetConfDto(testSetConfId: Long): TestSetConfDto = {
     val tsc = getTestSetConf(testSetConfId)
     val testGroups = findTestSetConfGroups(testSetConfId)
-    TestSetConfDto(tsc.id, tsc.name, tsc.maxTestsAmount, testGroups)
+    TestSetConfDto(tsc, testGroups)
   }
 
   //====================TestGroupConf====================
@@ -45,8 +72,8 @@ class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
     getTestGroupConf(insertedId)
   }
 
-  def editTestGroupConf(id: Long, testGroupConf: TestGroupConf) = db.run { implicit c =>
-    Q.editTestGroupConf(id, testGroupConf).executeUpdate()
+  def updateTestGroupConf(id: Long, testGroupConf: TestGroupConf) = db.run { implicit c =>
+    Q.updateTestGroupConf(id, testGroupConf).executeUpdate()
     getTestGroupConf(id)
   }
 
@@ -63,11 +90,24 @@ class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
   //====================TestSetConfTestGroup====================
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup): TestSetConfTestGroup = db.run { implicit c =>
+    val insertedId = createTestSetConfTestGroupTransact(tsctg)
+    getTestSetConfTestGroup(insertedId)
+  }
+
+  def createTestSetConfTestGroupTransact(tsctg: TestSetConfTestGroup)(implicit c: Connection): Long = {
     val insertedIdOpt: Option[Long] = Q.createTestSetConfTestGroup(tsctg).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to create $tsctg")
     )
-    getTestSetConfTestGroup(insertedId)
+    insertedId
+  }
+
+  def createTestSetConfTestGroupsTransact(tsctgs: Seq[TestSetConfTestGroup])(implicit c: Connection): Unit = {
+    Q.createTestSetConfTestGroups(tsctgs).execute()
+  }
+
+  def deleteTestSetConfTestGroupsTransact(testSetConfId: Long)(implicit c: Connection): Unit = {
+    Q.deleteTestSetConfTestGroupsByTestSetConfId(testSetConfId).executeUpdate()
   }
 
   def getTestSetConfTestGroup(id: Long): TestSetConfTestGroup = db.run { implicit c =>
@@ -151,7 +191,7 @@ object TestConfsQueries {
 
   import anorm.SqlParser.{int, long, str, bool}
 
-  object TS {
+  object TSC {
     val table = "test_set_confs"
     val id = "id"
     val name = "name"
@@ -185,9 +225,9 @@ object TestConfsQueries {
   }
 
   val tscParser  = for {
-    id <- long(TS.id)
-    name <- str(TS.name)
-    maxTestsAmount <- int(TS.maxTestsAmount)
+    id <- long(TSC.id)
+    name <- str(TSC.name)
+    maxTestsAmount <- int(TSC.maxTestsAmount)
   } yield TestSetConf(id, name, maxTestsAmount)
 
   val tgcParser  = for {
@@ -217,9 +257,19 @@ object TestConfsQueries {
   )
 
   def createTestSetConf(tsc: TestSetConf) =
-    SQL(s"INSERT INTO ${TS.table} (${TS.name}, ${TS.maxTestsAmount}) VALUES ({name}, {maxTestsAmount})")
+    SQL(s"INSERT INTO ${TSC.table} (${TSC.name}, ${TSC.maxTestsAmount}) VALUES ({name}, {maxTestsAmount})")
       .on("name" -> tsc.name)
       .on("maxTestsAmount" -> tsc.maxTestsAmount)
+
+  def updateTestSetConf(id: Long, tsc: TestSetConf) =
+    SQL(s"UPDATE ${TSC.table} SET ${TSC.name} = {name}, ${TSC.maxTestsAmount} = {maxTestsAmount} WHERE ${TSC.id} = {id}")
+      .on("id" -> id)
+      .on("name" -> tsc.name)
+      .on("maxTestsAmount" -> tsc.maxTestsAmount)
+
+  def deleteTestSetConf(id: Long) =
+    SQL(s"DELETE FROM ${TSC.table} WHERE ${TSC.id} = {id}")
+      .on("id" -> id)
 
   def createTestGroupConf(tsc: TestGroupConf) = {
     SQL(s"INSERT INTO ${TG.table} (${TG.name}, ${TG.parentGroupId}) VALUES ({name}, {parentGroupId})")
@@ -227,7 +277,7 @@ object TestConfsQueries {
       .on("parentGroupId" -> tsc.parentGroupId.map(java.lang.Long.valueOf(_)).orNull)
   }
 
-  def editTestGroupConf(id: Long, tsc: TestGroupConf) =
+  def updateTestGroupConf(id: Long, tsc: TestGroupConf) =
     SQL(s"UPDATE ${TG.table} SET ${TG.name} = {name}, ${TG.parentGroupId} = {parentGroupId} WHERE ${TG.id} = {id}")
       .on("id" -> id)
       .on("name" -> tsc.name)
@@ -247,6 +297,33 @@ object TestConfsQueries {
       .on("testSetConfId" -> tsctg.testSetConfId)
       .on("testGroupConfId" -> tsctg.testGroupConfId)
       .on("proportionPercents" -> tsctg.proportionPercents)
+
+  def createTestSetConfTestGroups(tsctgs: Seq[TestSetConfTestGroup]): BatchSql = {
+    val values = tsctgs.map( tg =>
+      Seq[NamedParameter](
+        "testSetConfId" -> tg.testSetConfId,
+        "testGroupConfId" -> tg.testGroupConfId,
+        "proportionPercents" -> tg.proportionPercents
+      )
+    )
+    BatchSql(
+      s"""INSERT INTO ${TSTG.table} (
+         |${TSTG.testSetConfId},
+         |${TSTG.testGroupConfId},
+         |${TSTG.proportionPercents}
+         |) VALUES (
+         |{testSetConfId},
+         |{testGroupConfId},
+         |{proportionPercents}
+         |)""".stripMargin,
+      values.head,
+      values.tail : _*
+    )
+  }
+
+  def deleteTestSetConfTestGroupsByTestSetConfId(testSetConfId: Long) =
+    SQL(s"DELETE FROM ${TSTG.table} WHERE ${TSTG.testSetConfId} = {testSetConfId}")
+      .on("testSetConfId" -> testSetConfId)
 
   def createTestConf(tc: TestConf) =
     SQL(
@@ -294,7 +371,7 @@ object TestConfsQueries {
   def deleteTestConf(testConfId: Long) =
     SQL(s"DELETE FROM ${T.table} WHERE ${T.id} = {id}").on("id" -> testConfId)
 
-  def getTestSetConf(id: Long) = SqlUtils.get(TS.table, id)
+  def getTestSetConf(id: Long) = SqlUtils.get(TSC.table, id)
 
   def getTestGroupConf(id: Long) = SqlUtils.get(TG.table, id)
 

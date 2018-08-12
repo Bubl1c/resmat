@@ -83,6 +83,22 @@ case class ExamStepTaskFlowDataSet(taskFlowConfId: Long, problemConfId: Long) ex
 case object ExamStepResultsDataSet extends ExamStepConfDataSet
 object ExamStepConfDataSet
 
+case class ExamConfWithStepsDto(examConf: ExamConf, stepConfs: Seq[ExamStepConf])
+
+case class ExamConfCreateDto(examConf: ExamConf, stepConfs: Seq[ExamStepConfCreateDto])
+case class ExamConfUpdateDto(examConf: ExamConf, stepConfs: Seq[ExamStepConfUpdateDto])
+case class ExamStepConfCreateDto(examStepConf: ExamStepConf, stepDataConf: ExamStepDataConf)
+/**
+  * @param stepDataConf None if not updated
+  */
+case class ExamStepConfUpdateDto(examStepConf: ExamStepConf, stepDataConf: Option[ExamStepDataConf])
+
+@JsonCodec sealed trait ExamStepDataConf
+case class TestSetConfDto(testSetConf: TestSetConf, testGroups: Seq[TestSetConfTestGroup]) extends ExamStepDataConf
+case class TaskFlowConfDto(taskFlowConf: TaskFlowConf, taskFlowSteps: Seq[TaskFlowStepConf]) extends ExamStepConfDataSet
+case object ResultsConf extends ExamStepDataConf
+object ExamStepDataConf // to make JsonCodex work
+
 case class UserExam(id: Long,
                     userId: Long,
                     examConfId: Long,
@@ -125,10 +141,6 @@ object UserExamStepResultStepInfo
 
 case class TestSetConf(id: Long, name: String, maxTestsAmount: Int)
 case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupConfId: Long, proportionPercents: Int)
-case class TestSetConfDto(id: Long,
-                          name: String,
-                          maxTestsAmount: Int,
-                          testGroups: Seq[TestSetConfTestGroup])
 
 case class TestGroupConf(id: Long, name: String, parentGroupId: Option[Long] = None)
 case class TestConf(id: Long,

@@ -33,7 +33,7 @@ class TestConfsRoute(val testConfsService: TestConfsService) extends CirceSuppor
       pathPrefix(LongNumber) { testGroupConfId =>
         pathEndOrSingleSlash {
           (put & entity(as[TestGroupConf])) { testGroupConf =>
-            complete(Future(testConfsService.editTestGroupConf(testGroupConfId, testGroupConf)))
+            complete(Future(testConfsService.updateTestGroupConf(testGroupConfId, testGroupConf)))
           }
         } ~
         pathPrefix("tests") {

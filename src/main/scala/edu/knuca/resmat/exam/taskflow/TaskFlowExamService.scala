@@ -1,5 +1,7 @@
 package edu.knuca.resmat.exam.taskflow
 
+import java.sql.Connection
+
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.core._
@@ -11,7 +13,6 @@ import io.circe.Decoder
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
-
 import edu.knuca.resmat.http.JsonProtocol._
 
 import scala.collection.mutable.ListBuffer
@@ -58,6 +59,16 @@ class TaskFlowExamService(val db: DatabaseService)
     Q.getTaskFlowConf(id).as(Q.tfcParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Task flow step conf with id: $id not found!")
     )
+  }
+
+   def deleteTaskFlowConfTransact(id: Long)(implicit c: Connection): Unit = {
+    val updatedRows: Int = Q.deleteTaskFlowConf(id).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to delete task flow conf by id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Deleted $updatedRows rows while deleting task flow conf by id $id")
+    }
   }
 
   //====================TaskFlowStepConf====================
@@ -491,6 +502,10 @@ object TaskFlowQueries {
     SQL(s"INSERT INTO ${TFC.table} (${TFC.problemConfId}, ${TFC.name}) VALUES ({problemConfId}, {name})")
       .on("problemConfId" -> tfc.problemConfId)
       .on("name" -> tfc.name)
+
+  def deleteTaskFlowConf(id: Long) =
+    SQL(s"DELTE FROM ${TFC.table} WHERE ${TFC.id} = {id}")
+      .on("id" -> id)
 
   def createTaskFlowStepConf(tfsc: TaskFlowStepConf) =
     SQL(

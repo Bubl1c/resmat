@@ -24,7 +24,7 @@ class ExamConfRoute(examService: ExamService)
         complete {
           Future(findExamConfs())
         }
-      } ~ (post & entity(as[ExamConfDto])) { examConfDto =>
+      } ~ (post & entity(as[ExamConfCreateDto])) { examConfDto =>
         complete {
           Future(examService.createExamConfWithSteps(examConfDto))
         }
@@ -36,7 +36,7 @@ class ExamConfRoute(examService: ExamService)
           complete {
             Future(getExamConf(examConfId))
           }
-        } ~ (put & entity(as[ExamConfDto])) { examConfDto =>
+        } ~ (put & entity(as[ExamConfUpdateDto])) { examConfDto =>
           complete {
             Future(examService.updateExamConfWithSteps(examConfId, examConfDto))
           }

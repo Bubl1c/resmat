@@ -5,37 +5,65 @@ import java.sql.Connection
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
+import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
+import edu.knuca.resmat.exam.testset.TestSetExamService
+import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.utils.CollectionUtils
 
 import scala.concurrent.ExecutionContext
 import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
-case class ExamConfDto(examConf: ExamConf, stepConfs: Seq[ExamStepConf])
-
-class ExamService(val db: DatabaseService)(implicit val executionContext: ExecutionContext) extends LazyLogging {
+class ExamService(val db: DatabaseService, testConfsService: TestConfsService, taskFlowExamService: TaskFlowExamService)
+                 (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.{ExamQueries => Q}
 
   // todo optimise to save all steps at once
-  def createExamConfWithSteps(ec: ExamConfDto): ExamConfDto = db.runTransaction{ implicit c =>
-    val createdExamConf = createExamConfTransact(ec.examConf)
-    val steps = ec.stepConfs.map(esc => createExamStepConfTransact(createdExamConf.id, esc))
-    ExamConfDto(createdExamConf, steps)
+  def createExamConfWithSteps(ec: ExamConfCreateDto): ExamConfWithStepsDto = db.runTransaction{ implicit c =>
+    val createdExamConfId = createExamConfTransact(ec.examConf)
+    val steps = ec.stepConfs.map(esc => createExamStepConfTransact(createdExamConfId, esc))
+    getExamConfDtoTransact(createdExamConfId)
   }
 
-  def updateExamConfWithSteps(id: Long, ec: ExamConfDto): ExamConfDto = db.runTransaction{ implicit c =>
-    val createdExamConf = updateExamConfTransact(id, ec.examConf)
-    val steps = ec.stepConfs.map(esc => updateExamStepConfTransact(esc.id, esc))
-    ExamConfDto(createdExamConf, steps)
+  def updateExamConfWithSteps(id: Long, ec: ExamConfUpdateDto): ExamConfWithStepsDto = db.runTransaction{ implicit c =>
+    updateExamConfTransact(id, ec.examConf)
+    val currentSteps = findExamStepConfsByExamConfId(id)
+    val diff = CollectionUtils.diff[ExamStepConf, ExamStepConfUpdateDto](
+      currentSteps,
+      ec.stepConfs,
+      (a, b) => a.id == b.examStepConf.id
+    )
+    val created = diff.added.map(esc =>
+      createExamStepConfTransact(
+        id,
+        ExamStepConfCreateDto(
+          esc.examStepConf,
+          esc.stepDataConf.getOrElse(
+            throw new IllegalArgumentException("New exam conf step must have step data defined")
+          )
+        )
+      )
+    )
+    diff.same.foreach(esc => updateExamStepConfTransact(esc.examStepConf.id, esc))
+    diff.removed.foreach(esc => deleteExamStepConfDataTransact(esc.id))
+
+    getExamConfDtoTransact(id)
   }
 
-  private def createExamConfTransact(ec: ExamConf)(implicit c: Connection): ExamConf = {
+  def deleteExamConf(examConfId: Long): Unit = db.runTransaction{ implicit c =>
+    val dto = getExamConfDto(examConfId)
+    dto.stepConfs.foreach(esc => deleteExamStepConfDataTransact(esc.id))
+    Q.deleteExamConf(examConfId).executeUpdate()
+  }
+
+  private def createExamConfTransact(ec: ExamConf)(implicit c: Connection): Long = {
     val insertedIdOpt: Option[Long] = Q.createExamConf(ec).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to insert exam conf: $ec")
     )
-    getExamConfTransact(insertedId)
+    insertedId
   }
 
   private def updateExamConfTransact(id: Long, ec: ExamConf)(implicit c: Connection): ExamConf = {
@@ -44,18 +72,56 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
     getExamConfTransact(id)
   }
 
-  private def createExamStepConfTransact(examConfId: Long, esc: ExamStepConf)(implicit c: Connection): ExamStepConf = {
-    val insertedIdOpt: Option[Long] = Q.createExamStepConf(examConfId, esc).executeInsert()
+  private def createExamStepConfTransact(examConfId: Long, esc: ExamStepConfCreateDto)(implicit c: Connection): Long = {
+    val stepDataSet: ExamStepConfDataSet = esc.examStepConf.stepType match {
+      case ExamStepType.TestSet =>
+        val data: TestSetConfDto = esc.stepDataConf.asInstanceOf[TestSetConfDto]
+        val createdId = testConfsService.createTestSetConfTransact(data.testSetConf)
+        testConfsService.createTestSetConfTestGroupsTransact(data.testGroups)
+        ExamStepTestSetDataSet(createdId)
+      case ExamStepType.TaskFlow =>
+        val data = esc.stepDataConf.asInstanceOf[TaskFlowConfDto]
+        //TODO: create task flow
+        ExamStepTaskFlowDataSet(-1, data.taskFlowConf.problemConfId)
+      case ExamStepType.Results => ExamStepResultsDataSet
+    }
+    val insertedIdOpt: Option[Long] = Q.createExamStepConf(examConfId, esc.examStepConf.copy(dataSet = stepDataSet)).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to insert exam step conf: $esc")
     )
-    getExamStepConfTransact(insertedId)
+    insertedId
   }
 
-  private def updateExamStepConfTransact(id: Long, esc: ExamStepConf)(implicit c: Connection): ExamStepConf = {
-    val rowsUpdated = Q.updateExamStepConf(id, esc).executeUpdate()
+  private def updateExamStepConfTransact(id: Long, esc: ExamStepConfUpdateDto)(implicit c: Connection): Unit = {
+    val stepDataSet: ExamStepConfDataSet = esc.examStepConf.stepType match {
+      case ExamStepType.TestSet =>
+        val data: TestSetConfDto = esc.stepDataConf.asInstanceOf[TestSetConfDto]
+        testConfsService.updateTestSetConfTransact(data.testSetConf.id, data.testSetConf)
+        testConfsService.deleteTestSetConfTestGroupsTransact(data.testSetConf.id)
+        testConfsService.createTestSetConfTestGroupsTransact(data.testGroups)
+        ExamStepTestSetDataSet(data.testSetConf.id)
+      case ExamStepType.TaskFlow =>
+        val data = esc.stepDataConf.asInstanceOf[TaskFlowConfDto]
+        //TODO: update task flow
+        ExamStepTaskFlowDataSet(data.taskFlowConf.id, data.taskFlowConf.problemConfId)
+      case ExamStepType.Results => ExamStepResultsDataSet
+    }
+    val rowsUpdated = Q.updateExamStepConf(id, esc.examStepConf.copy(dataSet = stepDataSet)).executeUpdate()
     if (rowsUpdated != 1) throw new RuntimeException(s"Failed to update exam step conf with id $id, rows updated: " + rowsUpdated)
-    getExamStepConfTransact(id)
+  }
+
+  private def deleteExamStepConfDataTransact(examStepConfId: Long)(implicit c: Connection): Unit = {
+    val esc = getExamStepConfTransact(examStepConfId)
+    esc.stepType match {
+      case ExamStepType.TestSet =>
+        val data = esc.dataSet.asInstanceOf[ExamStepTestSetDataSet]
+        testConfsService.deleteTestSetConfTransact(data.testSetConfId)
+      case ExamStepType.TaskFlow =>
+        val data = esc.dataSet.asInstanceOf[ExamStepTaskFlowDataSet]
+        taskFlowExamService.deleteTaskFlowConfTransact(data.taskFlowConfId)
+      case ExamStepType.Results => //do nothing
+      case _ => throw new IllegalArgumentException(s"Invalid exam step type ${esc.stepType}")
+    }
   }
 
   def getExamConf(id: Long): ExamConf = db.run{ implicit c =>
@@ -72,10 +138,16 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
     Q.findExamConfs.as(Q.examConfParser.*)
   }
 
-  def getExamConfDto(id: Long): ExamConfDto = {
+  def getExamConfDto(id: Long): ExamConfWithStepsDto = {
     val examConf = getExamConf(id)
     val stepConfs = findExamStepConfsByExamConfId(id)
-    ExamConfDto(examConf, stepConfs)
+    ExamConfWithStepsDto(examConf, stepConfs)
+  }
+
+  def getExamConfDtoTransact(id: Long)(implicit c: Connection): ExamConfWithStepsDto = {
+    val examConf = getExamConfTransact(id)
+    val stepConfs = findExamStepConfsByExamConfIdTransact(id)
+    ExamConfWithStepsDto(examConf, stepConfs)
   }
 
   def getExamStepConf(id: Long): ExamStepConf = db.run { implicit c =>
@@ -89,6 +161,10 @@ class ExamService(val db: DatabaseService)(implicit val executionContext: Execut
   }
 
   def findExamStepConfsByExamConfId(examConfId: Long): Seq[ExamStepConf] = db.run{ implicit c =>
+    findExamStepConfsByExamConfIdTransact(examConfId)
+  }
+
+  def findExamStepConfsByExamConfIdTransact(examConfId: Long)(implicit c: Connection): Seq[ExamStepConf] = {
     Q.findExamStepConfsByExamConfId(examConfId).as(Q.examStepConfParser.*)
   }
 
@@ -191,6 +267,10 @@ object ExamQueries {
       .on("name" -> ec.name)
       .on("description" -> ec.description)
       .on("maxScore" -> ec.maxScore)
+
+  def deleteExamConf(id: Long) =
+    SQL(s"DELETE FROM ${EC.table} WHERE id = {id}")
+      .on("id" -> id)
 
   def createExamStepConf(examConfId: Long, esc: ExamStepConf) =
     SQL(
