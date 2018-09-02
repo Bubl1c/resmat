@@ -18,8 +18,7 @@ object TaskFlowData {
 
   import edu.knuca.resmat.http.JsonProtocol._
 
-  val taskFlows: Seq[TaskFlowConfDto] = Seq(
-    TaskFlowConfDto(TaskFlowConf(1, 1, "Порядок виконання задачі"), Seq(
+  val defaultTaskFlowConf: TaskFlowConfDto = TaskFlowConfDto(TaskFlowConf(1, 1, "Порядок виконання задачі"), Seq(
       TaskFlowStepConf(1, 1, 1, "Визначення типу пластини",
         TaskFlowStepType.Test, TaskFlowTestConf(TestConf(-1, -1, "Визначте тип ластини", None, Seq(
           TestOptionConf(1, "Тонкі", true),
@@ -112,15 +111,10 @@ object TaskFlowData {
       TaskFlowStepConf(12, 1, 12, "Епюри в табличному вигляді",
         TaskFlowStepType.DynamicTable, M.chartsAsTable.asJson.toString(), None, false, true
       )
-    ))
+    )
   )
 }
 
 class TaskFlowDataGenerator(taskFlowConfAndExamService: TaskFlowConfAndExamService) {
-  private val taskFlowsWithSteps: Seq[TaskFlowConfDto] = TaskFlowData.taskFlows.map{ tfwsDto =>
-    val created = taskFlowConfAndExamService.createTaskFlowConfWithSteps(tfwsDto)
-    created
-  }
-
-  val defaultTaskFlowConfDto: TaskFlowConfDto = taskFlowsWithSteps.head
+  val defaultNotInsertedTaskFlowConfDto: TaskFlowConfDto = TaskFlowData.defaultTaskFlowConf
 }

@@ -76,13 +76,13 @@ class ExamConfService(val db: DatabaseService, testConfsService: TestConfService
     val stepDataSet: ExamStepConfDataSet = esc.examStepConf.stepType match {
       case ExamStepType.TestSet =>
         val data: TestSetConfDto = esc.stepDataConf.asInstanceOf[TestSetConfDto]
-        val createdId = testConfsService.createTestSetConfTransact(data.testSetConf)
-        testConfsService.createTestSetConfTestGroupsTransact(data.testGroups)
-        ExamStepTestSetDataSet(createdId)
+        val testSetConfId = testConfsService.createTestSetConfTransact(data.testSetConf)
+        testConfsService.createTestSetConfTestGroupsTransact(data.testGroups.map(_.copy(testSetConfId = testSetConfId)))
+        ExamStepTestSetDataSet(testSetConfId)
       case ExamStepType.TaskFlow =>
         val data = esc.stepDataConf.asInstanceOf[TaskFlowConfDto]
-        val createdTfcId = taskFlowExamService.createTaskFlowConfWithStepsTransact(data)
-        ExamStepTaskFlowDataSet(createdTfcId, data.taskFlowConf.problemConfId)
+        val taskFlowConfId = taskFlowExamService.createTaskFlowConfWithStepsTransact(data)
+        ExamStepTaskFlowDataSet(taskFlowConfId, data.taskFlowConf.problemConfId)
       case ExamStepType.Results => ExamStepResultsDataSet
     }
     val insertedIdOpt: Option[Long] = Q.createExamStepConf(examConfId, esc.examStepConf.copy(dataSet = stepDataSet)).executeInsert()

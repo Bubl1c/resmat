@@ -11,7 +11,7 @@ import edu.knuca.resmat.user.{AuthenticatedUser, TmpFileUploadRoute, UsersRoute,
 import ch.megard.akka.http.cors.CorsDirectives._
 import ch.megard.akka.http.cors.CorsSettings
 import edu.knuca.resmat.data.InitialDataGenerator
-import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
+import edu.knuca.resmat.exam.taskflow.{TaskFlowConfAndExamService, TaskFlowConfRoute, TaskFlowExamRoute}
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 import akka.http.scaladsl.model.HttpMethods._
 import edu.knuca.resmat.articles.{ArticleRoute, ArticleService}
@@ -26,6 +26,7 @@ class HttpRoutes(usersService: UsersService,
                  val examService: ExamConfService,
                  val testConfsService: TestConfService,
                  val testSetExamService: TestSetExamService,
+                 val taskFlowConfAndExamService: TaskFlowConfAndExamService,
                  val problemService: ProblemConfService,
                  val articleService: ArticleService,
                  val s3Manager: S3Manager)
@@ -44,6 +45,7 @@ class HttpRoutes(usersService: UsersService,
   val testConfsRoute = new TestConfsRoute(testConfsService)
   val testSetExamRouter = new TestSetExamRoute(userExamService)
   val taskFlowExamRouter = new TaskFlowExamRoute(userExamService)
+  val taskFlowConfRouter = new TaskFlowConfRoute(taskFlowConfAndExamService)
   val examRouter = new UserExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter, s3Manager)
   val examConfRouter = new ExamConfRoute(examService)
   val problemConfRoute = new ProblemConfRoute(problemService)
@@ -79,6 +81,7 @@ class HttpRoutes(usersService: UsersService,
                   examConfRouter.route ~
                   problemConfRoute.route ~
                   testConfsRoute.route ~
+                  taskFlowConfRouter.route ~
                   tmpFileUploadRouter.route ~
                   articlesRouter.route
               }

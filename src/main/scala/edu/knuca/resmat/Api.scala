@@ -54,13 +54,13 @@ object Api extends App with Config with LazyLogging {
   lazy val testConfService: TestConfService = new TestConfService(databaseService, s3Manager)
   lazy val testSetExamService: TestSetExamService = new TestSetExamService(databaseService, testConfService)
   lazy val problemConfService: ProblemConfService = new ProblemConfService(databaseService)
-  lazy val taskFlowExamService: TaskFlowConfAndExamService = new TaskFlowConfAndExamService(databaseService)(problemConfService)
-  lazy val examConfService: ExamConfService = new ExamConfService(databaseService, testConfService, taskFlowExamService)
-  lazy val userExamService: UserExamService = new UserExamService(databaseService)(examConfService, usersService, testConfService, testSetExamService, taskFlowExamService)
+  lazy val taskFlowConfAndExamService: TaskFlowConfAndExamService = new TaskFlowConfAndExamService(databaseService)(problemConfService)
+  lazy val examConfService: ExamConfService = new ExamConfService(databaseService, testConfService, taskFlowConfAndExamService)
+  lazy val userExamService: UserExamService = new UserExamService(databaseService)(examConfService, usersService, testConfService, testSetExamService, taskFlowConfAndExamService)
   lazy val articleService: ArticleService = new ArticleService(databaseService, s3Manager)
 
   val dataGenerator = new InitialDataGenerator(
-    databaseService, usersService, authService, examConfService, problemConfService, userExamService, testSetExamService, taskFlowExamService, testConfService, articleService
+    databaseService, usersService, authService, examConfService, problemConfService, userExamService, testSetExamService, taskFlowConfAndExamService, testConfService, articleService
   )
   if(MySql.generateDataOnStartup) {
     dataGenerator.generate()
@@ -73,6 +73,7 @@ object Api extends App with Config with LazyLogging {
     examConfService,
     testConfService,
     testSetExamService,
+    taskFlowConfAndExamService,
     problemConfService,
     articleService,
     s3Manager

@@ -8,9 +8,7 @@ import edu.knuca.resmat.tests.TestConfService
 object TestSetData {
   val awsBucketName = ConfigFactory.load("aws").getConfig("s3").getString("bucket")
 
-  val testSetConfs: List[TestSetConf] = List(
-    TestSetConf(1, "Набір тестів для крутих студентів", 9)
-  )
+  val defaultTestSetConf: TestSetConf = TestSetConf(1, "Набір тестів для крутих студентів", 9)
 
   val testGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(
     (TestGroupConf(-1, "Знання змінних та коефіцієнтів, гіпотез та об’єктів теорії пружності"), Seq(
@@ -306,21 +304,19 @@ class TestSetDataGenerator(testConfsService: TestConfService) {
   val groupConfs: Seq[TestGroupConf] = groupsWithTests.map(_._1)
   val testConfs: Seq[TestConf] = groupsWithTests.flatMap(_._2)
 
-  val testSetConfDtos: Seq[TestSetConfDto] = TestSetData.testSetConfs.map(tsc => {
-    val created = testConfsService.createTestSetConf(tsc)
-    val createdGroupMappings = addGroupsToTestSet(created, groupConfs)
+  val defaultNotInsertedTestSetConfDto: TestSetConfDto = {
+    val tsc = TestSetData.defaultTestSetConf
+    val groups = makeGroupsForTestSetConf(groupConfs)
     TestSetConfDto(
-      created,
-      createdGroupMappings
+      tsc,
+      groups
     )
-  })
+  }
 
-  val defaultTestSetConfDto: TestSetConfDto = testSetConfDtos.head
-
-  def addGroupsToTestSet(testSetConf: TestSetConf, groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
+  def makeGroupsForTestSetConf(groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
     val balancedProportion = 100 / groups.size
     groups.map(gc =>
-      testConfsService.createTestSetConfTestGroup(TestSetConfTestGroup(-1, testSetConf.id, gc.id, balancedProportion))
+      TestSetConfTestGroup(-1, -1, gc.id, balancedProportion)
     )
   }
 }

@@ -202,8 +202,8 @@ class InitialDataGenerator(db: DatabaseService,
 
     val defaultExamConf: ExamConfWithStepsDto = {
       val steps = Seq(
-        ExamStepConfCreateDto(Data.DefaultExamConf.testSetStep, testSet.defaultTestSetConfDto),
-        ExamStepConfCreateDto(Data.DefaultExamConf.taskFlowStep, taskFlow.defaultTaskFlowConfDto),
+        ExamStepConfCreateDto(Data.DefaultExamConf.testSetStep, testSet.defaultNotInsertedTestSetConfDto),
+        ExamStepConfCreateDto(Data.DefaultExamConf.taskFlowStep, taskFlow.defaultNotInsertedTaskFlowConfDto),
         ExamStepConfCreateDto(Data.DefaultExamConf.resultsStep, ResultsConf)
       )
       val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.DefaultExamConf.ec, steps))

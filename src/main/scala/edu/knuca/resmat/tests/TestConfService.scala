@@ -17,8 +17,10 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
 
   //====================TestSetConf====================
 
-  def createTestSetConf(testSetConf: TestSetConf): TestSetConf = db.run { implicit c =>
-    val insertedId = createTestSetConfTransact(testSetConf)
+  def createTestSetConf(testSetConf: TestSetConf): TestSetConf = {
+    val insertedId = db.run { implicit c =>
+      createTestSetConfTransact(testSetConf)
+    }
     getTestSetConf(insertedId)
   }
 
