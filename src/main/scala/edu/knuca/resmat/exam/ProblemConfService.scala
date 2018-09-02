@@ -16,7 +16,7 @@ case class ProblemConfWithVariants(problemConf: ProblemConf, variants: Seq[Probl
 
 case class NewProblemVariantConfDto(schemaUrl: String, inputVariableValues: Seq[ProblemInputVariableValue])
 
-class ProblemService(val db: DatabaseService)(implicit val executionContext: ExecutionContext) extends LazyLogging {
+class ProblemConfService(val db: DatabaseService)(implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.http.JsonProtocol._
   import edu.knuca.resmat.exam.{ProblemQueries => Q}

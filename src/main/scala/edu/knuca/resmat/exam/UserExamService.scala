@@ -6,10 +6,10 @@ import edu.knuca.resmat.GeneralHelpers
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam.ExamStepType.ExamStepType
-import edu.knuca.resmat.exam.taskflow.{TaskFlowExamService, TaskFlowStepDto, VerifiedTaskFlowStepAnswer}
+import edu.knuca.resmat.exam.taskflow.{TaskFlowConfAndExamService, TaskFlowStepDto, VerifiedTaskFlowStepAnswer}
 import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestSetExamService, VerifiedTestAnswerDto}
 import edu.knuca.resmat.http.{NotAuthorized, ResourceLocked}
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersService}
 import org.joda.time.DateTime
 
@@ -33,11 +33,11 @@ case class UserExamStepAttemptDto(stepConf: ExamStepConf, attempt: UserExamStepA
 case class NI(data: String = "not implemented") extends StepDataDto
 
 class UserExamService(val db: DatabaseService)
-                     (examService: ExamService,
+                     (examService: ExamConfService,
                       usersService: UsersService,
-                      testConfsService: TestConfsService,
+                      testConfsService: TestConfService,
                       testSetExamService: TestSetExamService,
-                      taskFlowExamService: TaskFlowExamService)
+                      taskFlowExamService: TaskFlowConfAndExamService)
                      (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.{UserExamQueries => Q}

@@ -13,8 +13,8 @@ import edu.knuca.resmat.utils.{FileUploadUtils, S3Manager}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute, s3Manager: S3Manager)
-               (implicit executionContext: ExecutionContext) extends CirceSupport {
+class UserExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamRoute, taskFlowExamRoute: TaskFlowExamRoute, s3Manager: S3Manager)
+                   (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
   import examService._

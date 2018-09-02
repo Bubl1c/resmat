@@ -5,9 +5,9 @@ import java.sql.Connection
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
-import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
+import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.utils.CollectionUtils
 
 import scala.concurrent.ExecutionContext
@@ -15,8 +15,8 @@ import io.circe.parser._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
-class ExamService(val db: DatabaseService, testConfsService: TestConfsService, taskFlowExamService: TaskFlowExamService)
-                 (implicit val executionContext: ExecutionContext) extends LazyLogging {
+class ExamConfService(val db: DatabaseService, testConfsService: TestConfService, taskFlowExamService: TaskFlowConfAndExamService)
+                     (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.{ExamQueries => Q}
 
@@ -81,8 +81,8 @@ class ExamService(val db: DatabaseService, testConfsService: TestConfsService, t
         ExamStepTestSetDataSet(createdId)
       case ExamStepType.TaskFlow =>
         val data = esc.stepDataConf.asInstanceOf[TaskFlowConfDto]
-        //TODO: create task flow
-        ExamStepTaskFlowDataSet(-1, data.taskFlowConf.problemConfId)
+        val createdTfcId = taskFlowExamService.createTaskFlowConfWithStepsTransact(data)
+        ExamStepTaskFlowDataSet(createdTfcId, data.taskFlowConf.problemConfId)
       case ExamStepType.Results => ExamStepResultsDataSet
     }
     val insertedIdOpt: Option[Long] = Q.createExamStepConf(examConfId, esc.examStepConf.copy(dataSet = stepDataSet)).executeInsert()
@@ -102,7 +102,7 @@ class ExamService(val db: DatabaseService, testConfsService: TestConfsService, t
         ExamStepTestSetDataSet(data.testSetConf.id)
       case ExamStepType.TaskFlow =>
         val data = esc.stepDataConf.asInstanceOf[TaskFlowConfDto]
-        //TODO: update task flow
+        taskFlowExamService.updateTaskFlowConfWithStepsTransact(data.taskFlowConf.id, data)
         ExamStepTaskFlowDataSet(data.taskFlowConf.id, data.taskFlowConf.problemConfId)
       case ExamStepType.Results => ExamStepResultsDataSet
     }

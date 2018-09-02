@@ -1,7 +1,7 @@
 package edu.knuca.resmat.data
 
 import edu.knuca.resmat.exam._
-import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
+import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import io.circe.generic.auto._
 import io.circe.syntax._
 
@@ -18,8 +18,8 @@ object TaskFlowData {
 
   import edu.knuca.resmat.http.JsonProtocol._
 
-  val taskFlows: Seq[(TaskFlowConf, Seq[TaskFlowStepConf])] = Seq(
-    (TaskFlowConf(1, 1, "Порядок виконання задачі"), Seq(
+  val taskFlows: Seq[TaskFlowConfDto] = Seq(
+    TaskFlowConfDto(TaskFlowConf(1, 1, "Порядок виконання задачі"), Seq(
       TaskFlowStepConf(1, 1, 1, "Визначення типу пластини",
         TaskFlowStepType.Test, TaskFlowTestConf(TestConf(-1, -1, "Визначте тип ластини", None, Seq(
           TestOptionConf(1, "Тонкі", true),
@@ -116,18 +116,11 @@ object TaskFlowData {
   )
 }
 
-class TaskFlowDataGenerator(taskFlowExamService: TaskFlowExamService) {
-  private val taskFlowsWithSteps = TaskFlowData.taskFlows.map{ case(tfConf, tfsConfs) =>
-    val createdTfc = taskFlowExamService.createTaskFlowConf(tfConf)
-    val createdTfsConfs = tfsConfs.map( tfsc =>
-      taskFlowExamService.createTaskFlowStepConf(
-        tfsc.copy(taskFlowConfId = createdTfc.id)
-      )
-    )
-    (createdTfc, createdTfsConfs)
+class TaskFlowDataGenerator(taskFlowConfAndExamService: TaskFlowConfAndExamService) {
+  private val taskFlowsWithSteps: Seq[TaskFlowConfDto] = TaskFlowData.taskFlows.map{ tfwsDto =>
+    val created = taskFlowConfAndExamService.createTaskFlowConfWithSteps(tfwsDto)
+    created
   }
 
-  val taskFlowConfs: Seq[TaskFlowConf] = taskFlowsWithSteps.map(_._1)
-
-  val taskFlowStepConfs: Seq[TaskFlowStepConf] = taskFlowsWithSteps.flatMap(_._2)
+  val defaultTaskFlowConfDto: TaskFlowConfDto = taskFlowsWithSteps.head
 }

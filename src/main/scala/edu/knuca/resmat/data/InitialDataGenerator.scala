@@ -7,10 +7,10 @@ import edu.knuca.resmat.core.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam._
-import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
+import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf, ProblemInputVariableValue => VarVal}
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
 import io.circe.parser.parse
@@ -32,13 +32,12 @@ object Data {
   def student(goupId: Long, username: String, name: String, accessKey: String) =
     UserEntity(None, username, "root", name.split(" ")(0), name.split(" ")(1), s"$username@email.com", UserType.Student, accessKey, Some(goupId))
 
-  val examConfs: Seq[(ExamConf, Seq[ExamStepConf])] = Seq(
-    (ExamConf(1, "Назва залікової роботи", "Тет має бути детальний опис роботи та інструкції для студентів", 100), Seq(
-      ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(1)),
-      ExamStepConf(-1, -1, 2, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1)),
-      ExamStepConf(-1, -1, 3, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
-    ))
-  )
+  object DefaultExamConf {
+    val ec: ExamConf = ExamConf(1, "Назва залікової роботи", "Тет має бути детальний опис роботи та інструкції для студентів", 100)
+    val testSetStep: ExamStepConf = ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(1))
+    val taskFlowStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1))
+    val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 3, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
+  }
 
   private val problemVariableConfs = Seq(
     VarConf(2, "Fa", "кН/м", "a.f"),
@@ -156,12 +155,12 @@ object Data {
 class InitialDataGenerator(db: DatabaseService,
                            usersService: UsersService,
                            authService: AuthService,
-                           examService: ExamService,
-                           problemService: ProblemService,
+                           examService: ExamConfService,
+                           problemService: ProblemConfService,
                            userExamService: UserExamService,
                            testSetExamService: TestSetExamService,
-                           taskFlowExamService: TaskFlowExamService,
-                           testConfsService: TestConfsService,
+                           taskFlowExamService: TaskFlowConfAndExamService,
+                           testConfsService: TestConfService,
                            articleService: ArticleService) extends LazyLogging {
 
   def generate()(implicit executionContext: ExecutionContext) = {
@@ -169,7 +168,12 @@ class InitialDataGenerator(db: DatabaseService,
     val article = articleService.create(Data.article)
     val article2 = articleService.create(Data.article2)
 
+    Data.problemConfs.foreach{ case((pc: ProblemConf, pvcs: Seq[ProblemVariantConf])) =>
+      generateProblemConf(pc, pvcs)
+    }
+
     val testSet = new TestSetDataGenerator(testConfsService)
+    val taskFlow = new TaskFlowDataGenerator(taskFlowExamService)
 
     val group = await(usersService.createStudentGroup(Data.group1))
     usersService.setArticlesToGroup(group.id.get, Seq(article.id))
@@ -196,48 +200,49 @@ class InitialDataGenerator(db: DatabaseService,
     //b3FhdWpiamg1Y2F2c2c0ZXQ0MmVpbXVhOWh2cWUzaTlxNWhoYzVoaW9hNXV2YWd2dGg5bXUwM2htMCYzJjE0ODU1MzUyMjQwMDA
     val instructorToken = insertToken(Data.userToken(instructor.id.get))
 
-    val examConfs = Data.examConfs.map{ case((ec: ExamConf, steps: Seq[ExamStepConf])) =>
-      generateExamConf(ec, steps)
+    val defaultExamConf: ExamConfWithStepsDto = {
+      val steps = Seq(
+        ExamStepConfCreateDto(Data.DefaultExamConf.testSetStep, testSet.defaultTestSetConfDto),
+        ExamStepConfCreateDto(Data.DefaultExamConf.taskFlowStep, taskFlow.defaultTaskFlowConfDto),
+        ExamStepConfCreateDto(Data.DefaultExamConf.resultsStep, ResultsConf)
+      )
+      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.DefaultExamConf.ec, steps))
+      newEC
     }
 
-    Data.problemConfs.foreach{ case((pc: ProblemConf, pvcs: Seq[ProblemVariantConf])) =>
-      generateProblemConf(pc, pvcs)
-    }
-
-    val taskFlow = new TaskFlowDataGenerator(taskFlowExamService)
-
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConfs.head.id, student1.id.get))
+    val examConf = defaultExamConf.examConf
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {
@@ -245,11 +250,6 @@ class InitialDataGenerator(db: DatabaseService,
       val createdId: Option[Long] = TokensQueries.insert(token.userId, token.token, token.created, token.expires).executeInsert()
       token.copy(id = createdId)
     }
-  }
-
-  def generateExamConf(ec: ExamConf, esc: Seq[ExamStepConf]): ExamConf = {
-    val newEC = examService.createExamConfWithSteps(ExamConfDto(ec, esc))
-    newEC.examConf
   }
 
   def generateProblemConf(pc: ProblemConf, pvcs: Seq[ProblemVariantConf]) = {

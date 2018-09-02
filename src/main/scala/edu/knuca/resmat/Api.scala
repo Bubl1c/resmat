@@ -14,10 +14,10 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.articles.ArticleService
 import edu.knuca.resmat.data.InitialDataGenerator
-import edu.knuca.resmat.exam.taskflow.TaskFlowExamService
+import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
-import edu.knuca.resmat.exam.{ExamService, ProblemService, UserExamService}
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.exam.{ExamConfService, ProblemConfService, UserExamService}
+import edu.knuca.resmat.tests.TestConfService
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -49,18 +49,18 @@ object Api extends App with Config with LazyLogging {
 
   val tokenGenerator = new UUIDTokenGenerator
 
-  val usersService: UsersService = new DefaultUsersService(databaseService)
-  val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
-  val testConfsService: TestConfsService = new TestConfsService(databaseService, s3Manager)
-  val testSetExamService: TestSetExamService = new TestSetExamService(databaseService, testConfsService)
-  val problemService: ProblemService = new ProblemService(databaseService)
-  val taskFlowExamService: TaskFlowExamService = new TaskFlowExamService(databaseService)(problemService)
-  val examService: ExamService = new ExamService(databaseService)
-  val userExamService: UserExamService = new UserExamService(databaseService)(examService, usersService, testConfsService, testSetExamService, taskFlowExamService)
-  val articleService: ArticleService = new ArticleService(databaseService, s3Manager)
+  lazy val usersService: UsersService = new DefaultUsersService(databaseService)
+  lazy val authService: AuthService = new DefaultAuthService(databaseService)(tokenGenerator, usersService)
+  lazy val testConfService: TestConfService = new TestConfService(databaseService, s3Manager)
+  lazy val testSetExamService: TestSetExamService = new TestSetExamService(databaseService, testConfService)
+  lazy val problemConfService: ProblemConfService = new ProblemConfService(databaseService)
+  lazy val taskFlowExamService: TaskFlowConfAndExamService = new TaskFlowConfAndExamService(databaseService)(problemConfService)
+  lazy val examConfService: ExamConfService = new ExamConfService(databaseService, testConfService, taskFlowExamService)
+  lazy val userExamService: UserExamService = new UserExamService(databaseService)(examConfService, usersService, testConfService, testSetExamService, taskFlowExamService)
+  lazy val articleService: ArticleService = new ArticleService(databaseService, s3Manager)
 
   val dataGenerator = new InitialDataGenerator(
-    databaseService, usersService, authService, examService, problemService, userExamService, testSetExamService, taskFlowExamService, testConfsService, articleService
+    databaseService, usersService, authService, examConfService, problemConfService, userExamService, testSetExamService, taskFlowExamService, testConfService, articleService
   )
   if(MySql.generateDataOnStartup) {
     dataGenerator.generate()
@@ -70,10 +70,10 @@ object Api extends App with Config with LazyLogging {
     usersService,
     authService,
     userExamService,
-    examService,
-    testConfsService,
+    examConfService,
+    testConfService,
     testSetExamService,
-    problemService,
+    problemConfService,
     articleService,
     s3Manager
   )(dataGenerator)

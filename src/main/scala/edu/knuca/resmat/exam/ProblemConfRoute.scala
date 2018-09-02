@@ -8,7 +8,7 @@ import io.circe.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ProblemConfRoute(problemService: ProblemService)
+class ProblemConfRoute(problemService: ProblemConfService)
                       (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._

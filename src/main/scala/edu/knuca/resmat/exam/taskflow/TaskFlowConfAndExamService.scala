@@ -8,7 +8,7 @@ import edu.knuca.resmat.core._
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestUtils}
-import edu.knuca.resmat.utils.SqlUtils
+import edu.knuca.resmat.utils.{CollectionUtils, SqlUtils}
 import io.circe.Decoder
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -39,29 +39,84 @@ case class ResourceNotFoundException(message: String) extends IllegalArgumentExc
   override def getMessage: String = super.getMessage + " " + message
 }
 
-class TaskFlowExamService(val db: DatabaseService)
-                         (val problemService: ProblemService)
-                         (implicit val executionContext: ExecutionContext) extends LazyLogging {
+class TaskFlowConfAndExamService(val db: DatabaseService)
+                                (val problemService: ProblemConfService)
+                                (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.taskflow.{TaskFlowQueries => Q}
 
   //====================TaskFlowConf====================
 
+  def createTaskFlowConfWithSteps(data: TaskFlowConfDto): TaskFlowConfDto = {
+    val createdId = db.runTransaction { implicit c =>
+      createTaskFlowConfWithStepsTransact(data)
+    }
+    getTaskFlowConfDto(createdId)
+  }
+
+  def createTaskFlowConfWithStepsTransact(data: TaskFlowConfDto)(implicit c: Connection): Long = {
+    val createdTfcId = createTaskFlowConfTransact(data.taskFlowConf)
+    val createdTfsConfIds = data.taskFlowSteps.map( tfsc =>
+      createTaskFlowStepConfTransact(
+        tfsc.copy(taskFlowConfId = createdTfcId)
+      )
+    )
+    createdTfcId
+  }
+
   def createTaskFlowConf(taskFlowConf: TaskFlowConf): TaskFlowConf = db.run { implicit c =>
+    val insertedId = createTaskFlowConfTransact(taskFlowConf)
+    getTaskFlowConf(insertedId)
+  }
+
+  def createTaskFlowConfTransact(taskFlowConf: TaskFlowConf)(implicit c: Connection): Long = {
     val insertedIdOpt: Option[Long] = Q.createTaskFlowConf(taskFlowConf).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to create $taskFlowConf")
     )
-    getTaskFlowConf(insertedId)
+    insertedId
+  }
+
+  def updateTaskFlowConfWithStepsTransact(taskFlowConfId: Long, data: TaskFlowConfDto)(implicit c: Connection): Unit = {
+    updateTaskFlowConfTransact(taskFlowConfId, data.taskFlowConf)
+    val currentStepConfs = findTaskFlowStepConfsTransact(taskFlowConfId)
+    val diff = CollectionUtils.diff[TaskFlowStepConf, TaskFlowStepConf](
+      currentStepConfs,
+      data.taskFlowSteps,
+      (a, b) => a.id == b.id
+    )
+    val createdIds = diff.added.map(tfsc => createTaskFlowStepConfTransact(tfsc))
+    diff.same.foreach(tfsc => updateTaskFlowStepConfTransact(tfsc.id, tfsc))
+    deleteTaskFlowStepConfsTransact(diff.removed.map(_.id))
+  }
+
+  def updateTaskFlowConfTransact(id: Long, taskFlowConf: TaskFlowConf)(implicit c: Connection): Unit = {
+    val updatedRows: Int = Q.updateTaskFlowConf(id, taskFlowConf).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to update task flow conf by id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Updated $updatedRows rows while updating task flow conf by id $id")
+    }
+  }
+
+  def getTaskFlowConfDto(id: Long): TaskFlowConfDto = db.run { implicit c =>
+    val tfc = getTaskFlowConfTransact(id)
+    val steps = findTaskFlowStepConfs(id)
+    TaskFlowConfDto(tfc, steps)
   }
 
   def getTaskFlowConf(id: Long): TaskFlowConf = db.run { implicit c =>
+    getTaskFlowConfTransact(id)
+  }
+
+  def getTaskFlowConfTransact(id: Long)(implicit c: Connection): TaskFlowConf = {
     Q.getTaskFlowConf(id).as(Q.tfcParser.singleOpt).getOrElse(
-      throw new RuntimeException(s"Task flow step conf with id: $id not found!")
+      throw new RuntimeException(s"Task flow conf with id: $id not found!")
     )
   }
 
-   def deleteTaskFlowConfTransact(id: Long)(implicit c: Connection): Unit = {
+  def deleteTaskFlowConfTransact(id: Long)(implicit c: Connection): Unit = {
     val updatedRows: Int = Q.deleteTaskFlowConf(id).executeUpdate()
     if(updatedRows == 0) {
       throw new RuntimeException(s"Failed to delete task flow conf by id $id")
@@ -74,20 +129,50 @@ class TaskFlowExamService(val db: DatabaseService)
   //====================TaskFlowStepConf====================
 
   def createTaskFlowStepConf(taskFlowStepConf: TaskFlowStepConf): TaskFlowStepConf = db.run { implicit c =>
+    val insertedId = createTaskFlowStepConfTransact(taskFlowStepConf)
+    getTaskFlowStepConf(insertedId)
+  }
+
+  def createTaskFlowStepConfTransact(taskFlowStepConf: TaskFlowStepConf)(implicit c: Connection): Long = {
     val insertedIdOpt: Option[Long] = Q.createTaskFlowStepConf(taskFlowStepConf).executeInsert()
     val insertedId = insertedIdOpt.getOrElse(
       throw new RuntimeException(s"Failed to create $taskFlowStepConf")
     )
-    getTaskFlowStepConf(insertedId)
+    insertedId
+  }
+
+  def updateTaskFlowStepConfTransact(id: Long, taskFlowStepConf: TaskFlowStepConf)(implicit c: Connection): Unit = {
+    val updatedRows: Int = Q.updateTaskFlowStepConf(id, taskFlowStepConf).executeUpdate()
+    if(updatedRows == 0) {
+      throw new RuntimeException(s"Failed to update task flow step conf by id $id")
+    }
+    if(updatedRows > 1) {
+      throw new RuntimeException(s"Updated $updatedRows rows while updating task flow step conf by id $id")
+    }
+  }
+
+  def deleteTaskFlowStepConfsTransact(ids: Seq[Long])(implicit c: Connection): Unit = {
+    val deletedRows: Int = Q.deleteTaskFlowStepConfs(ids).executeUpdate()
+    if(deletedRows != ids.size) {
+      throw new RuntimeException(s"Failed to delete task flow step confs by ids [${ids.mkString(", ")}]")
+    }
   }
 
   def getTaskFlowStepConf(id: Long): TaskFlowStepConf = db.run { implicit c =>
+    getTaskFlowStepConfTransact(id)
+  }
+
+  def getTaskFlowStepConfTransact(id: Long)(implicit c: Connection): TaskFlowStepConf = {
     Q.getTaskFlowStepConf(id).as(Q.tfscParser.singleOpt).getOrElse(
       throw new RuntimeException(s"Task flow step conf with id: $id not found!")
     )
   }
 
   def findTaskFlowStepConfs(taskFlowConfId: Long): Seq[TaskFlowStepConf] = db.run { implicit c =>
+    Q.findTaskFlowStepConfs(taskFlowConfId).as(Q.tfscParser.*)
+  }
+
+  def findTaskFlowStepConfsTransact(taskFlowConfId: Long)(implicit c: Connection): Seq[TaskFlowStepConf] = {
     Q.findTaskFlowStepConfs(taskFlowConfId).as(Q.tfscParser.*)
   }
 
@@ -503,6 +588,12 @@ object TaskFlowQueries {
       .on("problemConfId" -> tfc.problemConfId)
       .on("name" -> tfc.name)
 
+  def updateTaskFlowConf(id: Long, tfc: TaskFlowConf) =
+    SQL(s"UPDATE ${TFC.table} SET ${TFC.problemConfId} = {problemConfId}, ${TFC.name} = {name} WHERE ${TFC.id} = {id}")
+      .on("id" -> id)
+      .on("problemConfId" -> tfc.problemConfId)
+      .on("name" -> tfc.name)
+
   def deleteTaskFlowConf(id: Long) =
     SQL(s"DELTE FROM ${TFC.table} WHERE ${TFC.id} = {id}")
       .on("id" -> id)
@@ -536,6 +627,29 @@ object TaskFlowQueries {
     .on("precision" -> tfsc.precision)
     .on("isHelpStep" -> tfsc.isHelpStep)
     .on("isResultInfoStep" -> tfsc.isResultInfoStep)
+
+  def updateTaskFlowStepConf(id: Long, tfsc: TaskFlowStepConf) =
+    SQL(
+      s"""UPDATE ${TFSC.table} SET
+         |${TFSC.name} = {name},
+         |${TFSC.sequence} = {sequence},
+         |${TFSC.stepType} = {stepType},
+         |${TFSC.stepData} = {stepData},
+         |${TFSC.precision} = {precision},
+         |${TFSC.isHelpStep} = {isHelpStep},
+         |${TFSC.isResultInfoStep} = {isResultInfoStep}
+         |WHERE ${TFSC.id} = {id}""".stripMargin)
+      .on("id" -> id)
+      .on("name" -> tfsc.name)
+      .on("sequence" -> tfsc.sequence)
+      .on("stepType" -> tfsc.stepType.id)
+      .on("stepData" -> tfsc.stepData)
+      .on("precision" -> tfsc.precision)
+      .on("isHelpStep" -> tfsc.isHelpStep)
+      .on("isResultInfoStep" -> tfsc.isResultInfoStep)
+
+  def deleteTaskFlowStepConfs(ids: Seq[Long]) =
+    SQL(s"DELETE FROM ${TFSC.table} WHERE ${TFSC.id} IN (${if (ids.nonEmpty) ids.mkString(", ") else "0"})")
 
   def createTaskFlow(uetf: UserExamStepAttemptTaskFlow) =
     SQL(

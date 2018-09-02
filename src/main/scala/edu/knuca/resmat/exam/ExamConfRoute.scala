@@ -12,21 +12,20 @@ import io.circe.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExamConfRoute(examService: ExamService)
+class ExamConfRoute(examConfService: ExamConfService)
                    (implicit executionContext: ExecutionContext) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
-  import examService._
 
-  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("exam-confs") & authorize(user.isAssistantOrHigher)) {
+  def route(implicit user: AuthenticatedUser): Route = (pathPrefix("exam-confs") & authorize(user.isAssistantOrHigher)) {
     pathEndOrSingleSlash{
       get {
         complete {
-          Future(findExamConfs())
+          Future(examConfService.findExamConfs())
         }
       } ~ (post & entity(as[ExamConfCreateDto])) { examConfDto =>
         complete {
-          Future(examService.createExamConfWithSteps(examConfDto))
+          Future(examConfService.createExamConfWithSteps(examConfDto))
         }
       }
     } ~
@@ -34,18 +33,23 @@ class ExamConfRoute(examService: ExamService)
       pathEndOrSingleSlash {
         get {
           complete {
-            Future(getExamConf(examConfId))
+            Future(examConfService.getExamConf(examConfId))
           }
         } ~ (put & entity(as[ExamConfUpdateDto])) { examConfDto =>
           complete {
-            Future(examService.updateExamConfWithSteps(examConfId, examConfDto))
+            Future(examConfService.updateExamConfWithSteps(examConfId, examConfDto))
+          }
+        } ~
+        delete {
+          complete {
+            Future(examConfService.deleteExamConf(examConfId))
           }
         }
       } ~
       pathPrefix("dto") {
         (pathEndOrSingleSlash & get) {
           complete {
-            Future(getExamConfDto(examConfId))
+            Future(examConfService.getExamConfDto(examConfId))
           }
         }
       }

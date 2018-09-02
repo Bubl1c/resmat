@@ -3,7 +3,7 @@ package edu.knuca.resmat.data
 import com.typesafe.config.ConfigFactory
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.testset.TestSetExamService
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 
 object TestSetData {
   val awsBucketName = ConfigFactory.load("aws").getConfig("s3").getString("bucket")
@@ -293,26 +293,29 @@ object TestSetData {
   def opt(value: String, correct: Boolean = false): TestOptionConf = TestOptionConf(-1, value, correct)
 }
 
-class TestSetDataGenerator(testConfsService: TestConfsService) {
+class TestSetDataGenerator(testConfsService: TestConfService) {
 
-  val testSetConfs: Seq[TestSetConf] = TestSetData.testSetConfs.map(testConfsService.createTestSetConf)
-
-  private val groupsWithTests = generateGroupsWithTests
+  private val groupsWithTests = TestSetData.testGroupConfs.map{ case(tgConf, tConfs) =>
+    val tgc = testConfsService.createTestGroupConf(tgConf)
+    val testConfs = tConfs.map(tc =>
+      testConfsService.createTestConf(tc.copy(groupId = tgc.id))
+    )
+    (tgc, testConfs)
+  }
 
   val groupConfs: Seq[TestGroupConf] = groupsWithTests.map(_._1)
   val testConfs: Seq[TestConf] = groupsWithTests.flatMap(_._2)
 
-  val testSetConfGroups: Seq[TestSetConfTestGroup] = addGroupsToTestSet(testSetConfs.head, groupConfs)
+  val testSetConfDtos: Seq[TestSetConfDto] = TestSetData.testSetConfs.map(tsc => {
+    val created = testConfsService.createTestSetConf(tsc)
+    val createdGroupMappings = addGroupsToTestSet(created, groupConfs)
+    TestSetConfDto(
+      created,
+      createdGroupMappings
+    )
+  })
 
-  def generateGroupsWithTests: Seq[(TestGroupConf, Seq[TestConf])] = {
-    TestSetData.testGroupConfs.map{ case(tgConf, tConfs) =>
-      val tgc = testConfsService.createTestGroupConf(tgConf)
-      val testConfs = tConfs.map(tc =>
-        testConfsService.createTestConf(tc.copy(groupId = tgc.id))
-      )
-      (tgc, testConfs)
-    }
-  }
+  val defaultTestSetConfDto: TestSetConfDto = testSetConfDtos.head
 
   def addGroupsToTestSet(testSetConf: TestSetConf, groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
     val balancedProportion = 100 / groups.size

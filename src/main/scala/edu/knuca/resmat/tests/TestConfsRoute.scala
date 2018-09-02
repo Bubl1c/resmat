@@ -4,14 +4,14 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.CirceSupport
 import edu.knuca.resmat.exam.{TestConf, TestGroupConf}
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.user.AuthenticatedUser
 import io.circe.generic.auto._
 import io.circe.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class TestConfsRoute(val testConfsService: TestConfsService) extends CirceSupport {
+class TestConfsRoute(val testConfsService: TestConfService) extends CirceSupport {
 
   import edu.knuca.resmat.http.JsonProtocol._
 

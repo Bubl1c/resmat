@@ -6,7 +6,7 @@ object CollectionUtils {
 
   def diff[AT, BT](a: Seq[AT], b: Seq[BT], areTheSame: (AT, BT) => Boolean): DiffResult[AT, BT] = {
     val r = a.foldLeft(DiffResult[AT, BT](Seq(), Seq(), Seq()))((diff, ai) => {
-      val biOpt = b.find(areTheSame(_, ai))
+      val biOpt = b.find(areTheSame(ai, _))
       biOpt.fold(
         diff.copy(removed = diff.removed :+ ai)
       )(bi =>

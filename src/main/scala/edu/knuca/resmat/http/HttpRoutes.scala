@@ -15,7 +15,7 @@ import edu.knuca.resmat.exam.taskflow.TaskFlowExamRoute
 import edu.knuca.resmat.exam.testset.{TestSetExamRoute, TestSetExamService}
 import akka.http.scaladsl.model.HttpMethods._
 import edu.knuca.resmat.articles.{ArticleRoute, ArticleService}
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.utils.S3Manager
 
 import scala.concurrent.ExecutionContext
@@ -23,10 +23,10 @@ import scala.concurrent.ExecutionContext
 class HttpRoutes(usersService: UsersService,
                  val authService: AuthService,
                  val userExamService: UserExamService,
-                 val examService: ExamService,
-                 val testConfsService: TestConfsService,
+                 val examService: ExamConfService,
+                 val testConfsService: TestConfService,
                  val testSetExamService: TestSetExamService,
-                 val problemService: ProblemService,
+                 val problemService: ProblemConfService,
                  val articleService: ArticleService,
                  val s3Manager: S3Manager)
                 (val dataGenerator: InitialDataGenerator)
@@ -44,7 +44,7 @@ class HttpRoutes(usersService: UsersService,
   val testConfsRoute = new TestConfsRoute(testConfsService)
   val testSetExamRouter = new TestSetExamRoute(userExamService)
   val taskFlowExamRouter = new TaskFlowExamRoute(userExamService)
-  val examRouter = new ExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter, s3Manager)
+  val examRouter = new UserExamRoute(userExamService, testSetExamRouter, taskFlowExamRouter, s3Manager)
   val examConfRouter = new ExamConfRoute(examService)
   val problemConfRoute = new ProblemConfRoute(problemService)
   val tmpFileUploadRouter = new TmpFileUploadRoute(s3Manager)

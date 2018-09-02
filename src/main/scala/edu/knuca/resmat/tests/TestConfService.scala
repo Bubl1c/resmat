@@ -10,8 +10,8 @@ import edu.knuca.resmat.utils.{S3Manager, SqlUtils}
 
 import scala.concurrent.ExecutionContext
 
-class TestConfsService (val db: DatabaseService, s3Manager: S3Manager)
-                       (implicit val executionContext: ExecutionContext) extends LazyLogging {
+class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
+                     (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.tests.{TestConfsQueries => Q}
 

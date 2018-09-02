@@ -95,7 +95,7 @@ case class ExamStepConfUpdateDto(examStepConf: ExamStepConf, stepDataConf: Optio
 
 @JsonCodec sealed trait ExamStepDataConf
 case class TestSetConfDto(testSetConf: TestSetConf, testGroups: Seq[TestSetConfTestGroup]) extends ExamStepDataConf
-case class TaskFlowConfDto(taskFlowConf: TaskFlowConf, taskFlowSteps: Seq[TaskFlowStepConf]) extends ExamStepConfDataSet
+case class TaskFlowConfDto(taskFlowConf: TaskFlowConf, taskFlowSteps: Seq[TaskFlowStepConf]) extends ExamStepDataConf
 case object ResultsConf extends ExamStepDataConf
 object ExamStepDataConf // to make JsonCodex work
 

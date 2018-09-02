@@ -4,7 +4,7 @@ import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
-import edu.knuca.resmat.tests.TestConfsService
+import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.utils.SqlUtils
 
 import scala.collection.mutable.ListBuffer
@@ -19,7 +19,7 @@ case class TestSetDto(conf: TestSetConf,  tests: Seq[TestDto]) extends StepDataD
 case class TestAnswerDto(testId: Long, submittedOptions: Seq[Long])
 case class VerifiedTestAnswerDto(testId: Long, isCorrectAnswer: Boolean, mistakesAmount: Int, answer: Map[Long, Boolean])
 
-class TestSetExamService(val db: DatabaseService, val testConfsService: TestConfsService)
+class TestSetExamService(val db: DatabaseService, val testConfsService: TestConfService)
                         (implicit val executionContext: ExecutionContext) extends LazyLogging {
 
   import edu.knuca.resmat.exam.testset.{TestSetQueries => Q}
