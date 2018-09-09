@@ -1,3 +1,4 @@
+import edu.knuca.resmat.data.TaskFlowData
 import edu.knuca.resmat.data.Utils._
 import edu.knuca.resmat.exam._
 import org.scalatest.{FlatSpec, FunSpec}
@@ -26,6 +27,128 @@ class TestJsonProtocol extends FunSpec {
     )).asJson.toString()
 
     println(json)
+  }
+
+  describe("sdrsg") {
+    import edu.knuca.resmat.http.JsonProtocol._
+    val json =
+      """
+        |{
+        |  "examConf": {
+        |    "id": 1,
+        |    "name": "Назва залікової роботи",
+        |    "description": "Тет має бути детальний опис роботи та інструкції для студентів",
+        |    "maxScore": 100
+        |  },
+        |  "stepConfs": [
+        |    {
+        |      "examStepConf": {
+        |        "id": 1,
+        |        "examConfId": 1,
+        |        "sequence": 1,
+        |        "name": "Тестування",
+        |        "stepType": "test-set",
+        |        "mistakesPerAttemptLimit": 5,
+        |        "mistakeValuePercents": 1,
+        |        "attemptsLimit": 3,
+        |        "attemptValuePercents": 5,
+        |        "maxScore": 20,
+        |        "dataSet": {
+        |          "ExamStepTestSetDataSet": {
+        |            "testSetConfId": 1
+        |          }
+        |        },
+        |        "hasToBeSubmitted": true
+        |      },
+        |      "stepDataConf": {
+        |        "TestSetConfDto" : {
+        |          "testSetConf": {
+        |          "id": 1,
+        |          "name": "Набір тестів для крутих студентів",
+        |          "maxTestsAmount": 9
+        |        },
+        |        "testGroups": [
+        |          {
+        |            "id": 1,
+        |            "testSetConfId": 1,
+        |            "testGroupConfId": 1,
+        |            "proportionPercents": 20
+        |          },
+        |          {
+        |            "id": 2,
+        |            "testSetConfId": 1,
+        |            "testGroupConfId": 2,
+        |            "proportionPercents": 20
+        |          },
+        |          {
+        |            "id": 3,
+        |            "testSetConfId": 1,
+        |            "testGroupConfId": 3,
+        |            "proportionPercents": 20
+        |          },
+        |          {
+        |            "id": 4,
+        |            "testSetConfId": 1,
+        |            "testGroupConfId": 4,
+        |            "proportionPercents": 20
+        |          },
+        |          {
+        |            "id": 5,
+        |            "testSetConfId": 1,
+        |            "testGroupConfId": 5,
+        |            "proportionPercents": 20
+        |          }
+        |        ]
+        |        }
+        |      }
+        |    },
+        |    {
+        |      "examStepConf": {
+        |        "id": 2,
+        |        "examConfId": 1,
+        |        "sequence": 2,
+        |        "name": "Розв'язання задачі",
+        |        "stepType": "task-flow",
+        |        "mistakesPerAttemptLimit": -1,
+        |        "mistakeValuePercents": 1,
+        |        "attemptsLimit": -1,
+        |        "attemptValuePercents": 0,
+        |        "maxScore": 80,
+        |        "dataSet": {
+        |          "ExamStepTaskFlowDataSet": {
+        |            "taskFlowConfId": 1,
+        |            "problemConfId": 1
+        |          }
+        |        },
+        |        "hasToBeSubmitted": true
+        |      }
+        |    },
+        |    {
+        |      "examStepConf": {
+        |        "id": 3,
+        |        "examConfId": 1,
+        |        "sequence": 3,
+        |        "name": "Результати",
+        |        "stepType": "results",
+        |        "mistakesPerAttemptLimit": -1,
+        |        "mistakeValuePercents": 0,
+        |        "attemptsLimit": -1,
+        |        "attemptValuePercents": 0,
+        |        "maxScore": 0,
+        |        "dataSet": {
+        |          "ExamStepResultsDataSet": {}
+        |        },
+        |        "hasToBeSubmitted": false
+        |      }
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+    val res = decode[ExamConfUpdateDto](json).fold(e => {
+      None
+    }, res => {
+      res
+    })
   }
 
   describe("interfaces") {

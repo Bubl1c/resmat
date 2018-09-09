@@ -105,7 +105,9 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
   }
 
   def createTestSetConfTestGroupsTransact(tsctgs: Seq[TestSetConfTestGroup])(implicit c: Connection): Unit = {
-    Q.createTestSetConfTestGroups(tsctgs).execute()
+    if (tsctgs.nonEmpty) {
+      Q.createTestSetConfTestGroups(tsctgs).execute()
+    }
   }
 
   def deleteTestSetConfTestGroupsTransact(testSetConfId: Long)(implicit c: Connection): Unit = {

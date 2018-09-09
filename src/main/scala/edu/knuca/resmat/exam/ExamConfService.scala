@@ -93,19 +93,19 @@ class ExamConfService(val db: DatabaseService, testConfsService: TestConfService
   }
 
   private def updateExamStepConfTransact(id: Long, esc: ExamStepConfUpdateDto)(implicit c: Connection): Unit = {
-    val stepDataSet: ExamStepConfDataSet = esc.examStepConf.stepType match {
+    val stepDataSet: ExamStepConfDataSet = esc.stepDataConf.map(stepDataConf => esc.examStepConf.stepType match {
       case ExamStepType.TestSet =>
-        val data: TestSetConfDto = esc.stepDataConf.asInstanceOf[TestSetConfDto]
+        val data: TestSetConfDto = stepDataConf.asInstanceOf[TestSetConfDto]
         testConfsService.updateTestSetConfTransact(data.testSetConf.id, data.testSetConf)
         testConfsService.deleteTestSetConfTestGroupsTransact(data.testSetConf.id)
         testConfsService.createTestSetConfTestGroupsTransact(data.testGroups)
         ExamStepTestSetDataSet(data.testSetConf.id)
       case ExamStepType.TaskFlow =>
-        val data = esc.stepDataConf.asInstanceOf[TaskFlowConfDto]
+        val data = stepDataConf.asInstanceOf[TaskFlowConfDto]
         taskFlowExamService.updateTaskFlowConfWithStepsTransact(data.taskFlowConf.id, data)
         ExamStepTaskFlowDataSet(data.taskFlowConf.id, data.taskFlowConf.problemConfId)
       case ExamStepType.Results => ExamStepResultsDataSet
-    }
+    }).getOrElse(esc.examStepConf.dataSet)
     val rowsUpdated = Q.updateExamStepConf(id, esc.examStepConf.copy(dataSet = stepDataSet)).executeUpdate()
     if (rowsUpdated != 1) throw new RuntimeException(s"Failed to update exam step conf with id $id, rows updated: " + rowsUpdated)
   }
