@@ -89,6 +89,10 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
     Q.getTestGroupConfs.as(Q.tgcParser.*)
   }
 
+  def getTestGroupConfsWithAmountOfTests(): Seq[TestGroupConfWithAmountOfTestsDto] = db.run { implicit c =>
+    Q.getTestGroupConfsWithAmountOfTests.as(Q.tgcWithAmountOftestsParser.*)
+  }
+
   //====================TestSetConfTestGroup====================
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup): TestSetConfTestGroup = db.run { implicit c =>
@@ -193,7 +197,7 @@ object TestConfsQueries {
   import io.circe.generic.auto._
   import edu.knuca.resmat.http.JsonProtocol._
 
-  import anorm.SqlParser.{int, long, str, bool}
+  import anorm.SqlParser.{int, long, str, bool, get}
 
   object TSC {
     val table = "test_set_confs"
@@ -239,6 +243,13 @@ object TestConfsQueries {
     parentGroupId <- long(TG.parentGroupId).?
     name <- str(TG.name)
   } yield TestGroupConf(id, name, parentGroupId)
+
+  val tgcWithAmountOftestsParser  = for {
+    id <- long(TG.id)
+    parentGroupId <- long(TG.parentGroupId).?
+    name <- str(TG.name)
+    amountOfTests <- int("amountOfTests")
+  } yield TestGroupConfWithAmountOfTestsDto(TestGroupConf(id, name, parentGroupId), amountOfTests)
 
   val tsctgcParser  = for {
     id <- long(TG.id)
@@ -380,6 +391,14 @@ object TestConfsQueries {
   def getTestGroupConf(id: Long) = SqlUtils.get(TG.table, id)
 
   def getTestGroupConfs = SqlUtils.get(TG.table)
+
+  def getTestGroupConfsWithAmountOfTests =
+    SQL(
+      s""" SELECT tg.*, COUNT(t.id) amountOfTests FROM ${TG.table} tg
+         | LEFT JOIN ${T.table} t ON t.${T.groupConfId} = tg.${TG.id}
+         | GROUP BY tg.id
+       """.stripMargin
+    )
 
   def getTestSetConfTestGroup(id: Long) = SqlUtils.get(TSTG.table, id)
 

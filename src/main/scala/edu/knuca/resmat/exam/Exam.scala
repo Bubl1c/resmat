@@ -145,6 +145,7 @@ case class TestSetConf(id: Long, name: String, maxTestsAmount: Int)
 case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupConfId: Long, proportionPercents: Int)
 
 case class TestGroupConf(id: Long, name: String, parentGroupId: Option[Long] = None)
+case class TestGroupConfWithAmountOfTestsDto(testGroupConf: TestGroupConf, amountOfTests: Int)
 case class TestConf(id: Long,
                     groupId: Long,
                     question: String,

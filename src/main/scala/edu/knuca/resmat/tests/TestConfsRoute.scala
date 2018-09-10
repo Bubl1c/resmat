@@ -30,6 +30,13 @@ class TestConfsRoute(val testConfsService: TestConfService) extends CirceSupport
           complete(Future(testConfsService.getTestGroupConfs()))
         }
       } ~
+      pathPrefix("with-amount-of-tests") {
+        pathEndOrSingleSlash {
+          get {
+            complete(Future(testConfsService.getTestGroupConfsWithAmountOfTests()))
+          }
+        }
+      } ~
       pathPrefix(LongNumber) { testGroupConfId =>
         pathEndOrSingleSlash {
           (put & entity(as[TestGroupConf])) { testGroupConf =>
