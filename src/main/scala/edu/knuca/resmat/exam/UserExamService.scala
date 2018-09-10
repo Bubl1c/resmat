@@ -4,24 +4,22 @@ import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.GeneralHelpers
 import edu.knuca.resmat.db.DatabaseService
-import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam.ExamStepType.ExamStepType
 import edu.knuca.resmat.exam.taskflow.{TaskFlowConfAndExamService, TaskFlowStepDto, VerifiedTaskFlowStepAnswer}
-import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestSetExamService, VerifiedTestAnswerDto}
+import edu.knuca.resmat.exam.testset._
 import edu.knuca.resmat.http.{NotAuthorized, ResourceLocked}
 import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.user.{AuthenticatedUser, UsersService}
 import org.joda.time.DateTime
 
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.Try
+
 import io.circe.syntax._
 import io.circe.generic.auto._
-
 import edu.knuca.resmat.http.JsonProtocol._
 
-import scala.util.Try
 
 trait StepDataDto
 
@@ -393,7 +391,14 @@ class UserExamService(val db: DatabaseService)
     examStepConf.stepType match {
       case ExamStepType.TestSet =>
         val testSetDto = testSetExamService.getTestSetDto(attempt.id)
-        Some(UserExamStepAttemptDto(examStepConf, attempt, testSetDto))
+        val copiedTestSetDto = testSetDto.copy(tests = testSetDto.tests.map(test => { // To remove value from SingleInput to not show it on UI
+          if (test.testType == TestType.SingleInput) {
+            test.copy(options = test.options.map(_.copy(value = "")))
+          } else {
+            test
+          }
+        }))
+        Some(UserExamStepAttemptDto(examStepConf, attempt, copiedTestSetDto))
       case ExamStepType.TaskFlow =>
         val taskFlowDto = taskFlowExamService.getTaskFlowDto(attempt.id).getOrElse(
           throw new RuntimeException(s"Task flow data not found. Attempt: $attempt")
@@ -414,8 +419,8 @@ class UserExamService(val db: DatabaseService)
   def verifyTestSetAnswer(userExamId: Long,
                           stepSequence: Int,
                           stepAttemptId: Long,
-                          testId: Long,
-                          submittedOptions: Seq[Long]): VerifiedTestAnswerDto = {
+                          testConfId: Long,
+                          answer: TestSubmittedAnswer): VerifiedTestAnswerDto = {
     val userExam = getUserExam(userExamId)
     val examStepConf = examService.getExamStepConfByExamConfIdAndSequence(userExam.examConfId, stepSequence)
     val allStepAttempts = findUserExamStepAttempts(userExam.id, examStepConf.id)
@@ -424,7 +429,7 @@ class UserExamService(val db: DatabaseService)
     )
     val stepAttemptTestSet = testSetExamService.getUserExamTestSetByAttemptId(currentStepAttempt.id)
 
-    val va = testSetExamService.verifyTestSetTestAnswer(stepAttemptTestSet.id, TestAnswerDto(testId, submittedOptions))
+    val va = testSetExamService.verifyTestSetTestAnswer(stepAttemptTestSet.id, testConfId, answer)
     updateAttemptData(userExam, examStepConf, currentStepAttempt, allStepAttempts, va.mistakesAmount, va.isCorrectAnswer)
     va
   }
@@ -587,9 +592,8 @@ class UserExamService(val db: DatabaseService)
 
 object UserExamQueries {
 
+  import anorm.SqlParser.{date, int, long, str}
   import io.circe.parser._
-
-  import anorm.SqlParser.{int, long, str, bool, date}
 
   object UE {
     val table = "user_exams"

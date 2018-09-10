@@ -7,7 +7,6 @@ import edu.knuca.resmat.exam._
 import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.utils.SqlUtils
 
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
 case class TestOptionDto(id: Long, value: String, valueType: TestOptionValueType.TestOptionValueType) {
@@ -16,7 +15,9 @@ case class TestOptionDto(id: Long, value: String, valueType: TestOptionValueType
 case class TestDto(id: Long, groupId: Long, testType: TestType.TestType, question: String, imageUrl: Option[String], help: Option[String], options: Seq[TestOptionDto])
 case class TestSetDto(conf: TestSetConf,  tests: Seq[TestDto]) extends StepDataDto
 
-case class TestAnswerDto(testId: Long, submittedOptions: Seq[Long])
+sealed trait TestSubmittedAnswer
+case class TestSubmittedAnswerDto(testConfId: Long, submittedOptions: Seq[Long]) extends TestSubmittedAnswer
+case class TestSingleInputSubmittedAnswer(submittedAnswer: String) extends TestSubmittedAnswer
 case class VerifiedTestAnswerDto(testId: Long, isCorrectAnswer: Boolean, mistakesAmount: Int, answer: Map[Long, Boolean])
 
 class TestSetExamService(val db: DatabaseService, val testConfsService: TestConfService)
@@ -127,10 +128,13 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
   }
 
   def verifyTestSetTestAnswer(stepAttemptTestSetId: Long,
-                              testAnswer: TestAnswerDto): VerifiedTestAnswerDto = {
-    val testId = testAnswer.testId
+                              testConfId: Long,
+                              answer: TestSubmittedAnswer): VerifiedTestAnswerDto = {
+    val testId = testConfId
     val testSetTest = getTestSetTest(stepAttemptTestSetId, testId)
-    val verifiedTestAnswer = verifyTestAnswer(testAnswer)
+    val testConf = testConfsService.getTestConf(testConfId)
+    val correctOptions = testConf.options.filter(_.correct)
+    val verifiedTestAnswer = verifyTestAnswer(testConfId, answer, correctOptions, testConf.testType)
     //Update information about test submission
     if(verifiedTestAnswer.isCorrectAnswer) {
       updateTestSetTest(testSetTest.copy(done = true))
@@ -140,10 +144,23 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
     verifiedTestAnswer
   }
 
-  def verifyTestAnswer(testAnswer: TestAnswerDto): VerifiedTestAnswerDto = {
-    val testConf = testConfsService.getTestConf(testAnswer.testId)
-    val correctOptions = testConf.options.filter(_.correct)
-    TestUtils.verify(testAnswer, correctOptions.map(_.id))
+  private def verifyTestAnswer(testConfId: Long,
+                               answer: TestSubmittedAnswer,
+                               correctOptions: Seq[TestOptionConf],
+                               testType: TestType.TestType): VerifiedTestAnswerDto = {
+    testType match {
+      case TestType.SingleInput =>
+        val submitted = answer.asInstanceOf[TestSingleInputSubmittedAnswer]
+        val correct = correctOptions.headOption.getOrElse(
+          throw new IllegalStateException(s"No correct options for test conf with id $testConfId")
+        )
+        TestUtils.verifySingleInputTest(testConfId, submitted.submittedAnswer, correct)
+      case TestType.Radio | TestType.Checkbox =>
+        val submitted = answer.asInstanceOf[TestSubmittedAnswerDto]
+        TestUtils.verifyTraditionalTest(submitted, correctOptions.map(_.id))
+      case _ =>
+        throw new IllegalStateException(s"Unsupported TestType $testType while verifying test answer")
+    }
   }
 
   private def testToDto(t: TestConf): TestDto =
@@ -152,7 +169,7 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
 }
 
 object TestSetQueries {
-  import anorm.SqlParser.{int, long, str, bool}
+  import anorm.SqlParser.{bool, int, long}
 
   object UETS {
     val table = "user_exam_step_attempt_test_sets"

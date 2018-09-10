@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.core._
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
-import edu.knuca.resmat.exam.testset.{TestAnswerDto, TestUtils}
+import edu.knuca.resmat.exam.testset.{TestSingleInputSubmittedAnswer, TestSubmittedAnswerDto, TestUtils}
 import edu.knuca.resmat.utils.{CollectionUtils, SqlUtils}
 import io.circe.Decoder
 import io.circe.generic.auto._
@@ -296,7 +296,12 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           val taskFlowTest = decode[TaskFlowTestConf](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse test in $taskFlowStepConf")
           )
-          taskFlowTest.test.asJson.toString()
+          val test: TestConf = if (taskFlowTest.test.testType == TestType.SingleInput) {
+            taskFlowTest.test.copy(options = taskFlowTest.test.options.map(_.copy(value = ""))) //Single input option values shouldn't be passed to the UI
+          } else {
+            taskFlowTest.test
+          }
+          test.asJson.toString()
         case TaskFlowStepType.Charts =>
           taskFlowStep.answer
         case TaskFlowStepType.VariableValueSet =>
@@ -328,13 +333,29 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
     val taskFlowStepConf = getTaskFlowStepConf(taskFlowStep.taskFlowStepConfId)
     taskFlowStepConf.stepType match {
       case TaskFlowStepType.Test =>
-        val testAnswer = decode[TestAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test answer in $answer")
+        val stepTestConf = decode[TaskFlowTestConf](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
+          throw new RuntimeException(s"Failed to parse TaskFlowTestConf from step data ${taskFlowStepConf.stepData}")
         )
-        val correctAnswer = decode[Seq[Long]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test answer in $answer")
-        )
-        val verifiedAnswer = TestUtils.verify(testAnswer, correctAnswer)
+        val verifiedAnswer = stepTestConf.test.testType match {
+          case TestType.SingleInput =>
+            val submittedAnswer = decode[TestSingleInputSubmittedAnswer](answer).fold(_=>None,Some(_)).getOrElse(
+              throw new RuntimeException(s"Failed to parse test answer in $answer")
+            )
+            val correctOption = decode[TestOptionConf](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
+              throw new RuntimeException(s"Failed to parse correct option in $answer")
+            )
+            TestUtils.verifySingleInputTest(stepTestConf.test.id, submittedAnswer.submittedAnswer, correctOption)
+          case TestType.Radio | TestType.Checkbox =>
+            val submittedAnswer = decode[TestSubmittedAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
+              throw new RuntimeException(s"Failed to parse test answer in $answer")
+            )
+            val correctAnswer = decode[Seq[Long]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
+              throw new RuntimeException(s"Failed to parse correct answer in $answer")
+            )
+            TestUtils.verifyTraditionalTest(submittedAnswer, correctAnswer)
+          case _ =>
+            throw new IllegalArgumentException(s"Unsupported test type ${stepTestConf.test.testType} while verifying task flow step answer")
+        }
         updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
         if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
         Some(
@@ -413,10 +434,20 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           val stepTestConf = decode[TaskFlowTestConf](sc.stepData).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse TaskFlowTestConf from step data ${sc.stepData}")
           )
-          stepTestConf.correctOptionIdsMapping
-            .fold(stepTestConf.test.getCorrectOptionIds)(mapping =>
-              cd.getString(mapping).split(",").map(_.toLong)
-            ).asJson.toString()
+          stepTestConf.test.testType match {
+            case TestType.SingleInput =>
+              val correctOption = stepTestConf.test.options.find(_.correct).getOrElse(
+                throw new IllegalArgumentException("SingleInput test has to have at least one option")
+              )
+              correctOption.asJson.toString()
+            case TestType.Radio | TestType.Checkbox =>
+              stepTestConf.correctOptionIdsMapping
+                .fold(stepTestConf.test.getCorrectOptionIds)(mapping =>
+                  cd.getString(mapping).split(",").map(_.toLong)
+                ).asJson.toString()
+            case _ =>
+              throw new IllegalArgumentException(s"Unsupported test type ${stepTestConf.test.testType} while saving task flow step")
+          }
         case TaskFlowStepType.InputSet =>
           val stepInputSet = decode[InputSet](sc.stepData).fold( e =>
             throw new RuntimeException(s"Failed to parse InputSet from step data ${sc.stepData}", e),

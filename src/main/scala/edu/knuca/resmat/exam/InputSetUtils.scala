@@ -1,6 +1,7 @@
 package edu.knuca.resmat.exam
 
 import edu.knuca.resmat.exam.taskflow.{InputSetAnswerDto, InputSetInputAnswer, VerifiedInputSetAnswer}
+import edu.knuca.resmat.utils.NumberUtils
 
 object InputSetUtils {
 
@@ -12,7 +13,7 @@ object InputSetUtils {
         case Some(submittedInputAnswer) =>
           val areEqual = submittedInputAnswer.value match {
             case Some(sia) => correctAnswer.value match {
-              case Some(ca) => areAlmostEqual(ca, sia, precision)
+              case Some(ca) => NumberUtils.areAlmostEqual(ca, sia, precision)
               case None => false
             }
             case None => correctAnswer.value match {
@@ -34,15 +35,6 @@ object InputSetUtils {
       }
     }.toMap
     VerifiedInputSetAnswer(submittedAnswer.inputSetId, isCorrectAnswer, mistakesAmount, verifiedAnswers)
-  }
-
-  def areAlmostEqual(ethalon: Double, toVerify: Double, precision: Option[Double] = None): Boolean = {
-    val diff = (ethalon - toVerify).abs
-    if(ethalon == 0.0 || ethalon.abs < 0.00000001) {
-      toVerify == 0.0
-    } else {
-      (diff / ethalon).abs <= precision.getOrElse(0.01)
-    }
   }
 
 }

@@ -37,6 +37,7 @@ object TestType extends PimpedEnumeration {
   type TestType = Value
   val Radio = Value(1, "radio")
   val Checkbox = Value(2, "checkbox")
+  val SingleInput = Value(3, "single-input")
 }
 
 object ExamStatus extends PimpedEnumeration {
@@ -58,6 +59,7 @@ object TestOptionValueType extends PimpedEnumeration {
   type TestOptionValueType = Value
   val Image = Value(1, "img")
   val Text = Value(2, "words")
+  val Number = Value(3, "number") // for SingleInput only
 }
 
 case class ExamConf(id: Long, name: String, description: String, maxScore: Int)

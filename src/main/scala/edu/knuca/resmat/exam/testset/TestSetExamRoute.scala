@@ -14,11 +14,24 @@ class TestSetExamRoute(examService: UserExamService) extends CirceSupport {
 
   def route(userExamId: Long, stepSequence: Int, attemptId: Long)
            (implicit user: AuthenticatedUser, ec: ExecutionContext): Route =
-    pathPrefix("tests" / LongNumber) { testId =>
+    pathPrefix("tests" / LongNumber) { testConfId =>
       pathPrefix("verify") {
         pathEndOrSingleSlash {
           (post & entity(as[Seq[Long]])) { submittedOptions =>
-            complete(Future(examService.verifyTestSetAnswer(userExamId, stepSequence, attemptId, testId, submittedOptions)))
+            complete(Future(examService.verifyTestSetAnswer(
+              userExamId,
+              stepSequence,
+              attemptId,
+              testConfId,
+              TestSubmittedAnswerDto(testConfId, submittedOptions)
+            )))
+          }
+        }
+      } ~
+      pathPrefix("verify-single-input") {
+        pathEndOrSingleSlash {
+          (post & entity(as[TestSingleInputSubmittedAnswer])) { submittedAnswer =>
+            complete(Future(examService.verifyTestSetAnswer(userExamId, stepSequence, attemptId, testConfId, submittedAnswer)))
           }
         }
       }

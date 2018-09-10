@@ -263,7 +263,11 @@ object TestSetData {
       ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png")
     )),
     (TestGroupConf(4, "Батьківська група"), Seq()),
-    (TestGroupConf(5, "Дочірня група", Some(4)), Seq())
+    (TestGroupConf(5, "Дочірня група", Some(4)), Seq()),
+    (TestGroupConf(6, "Питання", None), Seq(
+      testSI("Текст", "текст", TestOptionValueType.Text),
+      testSI("Число", "77.77", TestOptionValueType.Number)
+    ))
   )
 
   type D = java.lang.Double
@@ -286,6 +290,10 @@ object TestSetData {
 
   def test(question: String, options: Seq[TestOptionConf], imageUrl: String = null): TestConf = {
     TestConf(-1, -1, question, Option(imageUrl), options).normalised
+  }
+
+  def testSI(question: String, answer: String, answerType: TestOptionValueType.TestOptionValueType, imageUrl: String = null): TestConf = {
+    TestConf(-1, -1, question, Option(imageUrl), Seq(TestOptionConf(1, answer, correct = true, answerType)), TestType.SingleInput).normalised
   }
 
   def opt(value: String, correct: Boolean = false): TestOptionConf = TestOptionConf(-1, value, correct)
