@@ -183,11 +183,11 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
     Q.findTestConfsByGroup(groupConfId).as(Q.tcParser(s3Manager).*)
   }
 
-  def takeTestConfsFromGroups(groupIdsWithProportions: Seq[(Long, Int)]): Seq[TestConf] =
-    groupIdsWithProportions.flatMap{ case(groupId, proportion) =>
-      val groupTests = findTestConfsByGroup(groupId)
+  def takeTestConfsFromGroups(testGroupConfs: Seq[(TestSetConfTestGroup, Int)]): Seq[(TestSetConfTestGroup, Seq[TestConf])] =
+    testGroupConfs.map{ case(g, proportion) =>
+      val groupTests = findTestConfsByGroup(g.testGroupConfId)
       val withProportion = scala.util.Random.shuffle(groupTests).take(proportion)
-      withProportion
+      (g, withProportion)
     }
 }
 
@@ -197,7 +197,7 @@ object TestConfsQueries {
   import io.circe.generic.auto._
   import edu.knuca.resmat.http.JsonProtocol._
 
-  import anorm.SqlParser.{int, long, str, bool, get}
+  import anorm.SqlParser.{int, long, str, double}
 
   object TSC {
     val table = "test_set_confs"
@@ -213,12 +213,13 @@ object TestConfsQueries {
     val parentGroupId = "parent_group_id"
   }
 
-  object TSTG {
+  object TSCTGC {
     val table = "test_set_conf_test_group_confs"
     val id = "id"
     val testSetConfId = "test_set_conf_id"
     val testGroupConfId = "test_group_conf_id"
     val proportionPercents = "proportion_percents"
+    val mistakeValue = "mistake_value"
   }
 
   object T {
@@ -229,6 +230,7 @@ object TestConfsQueries {
     val imageUrl = "image_url"
     val options = "options"
     val testType = "test_type"
+    val precision = "calculation_precision"
     val help = "help"
   }
 
@@ -253,10 +255,11 @@ object TestConfsQueries {
 
   val tsctgcParser  = for {
     id <- long(TG.id)
-    testSetConfId <- long(TSTG.testSetConfId)
-    testGroupConfId <- long(TSTG.testGroupConfId)
-    proportionPercents <- int(TSTG.proportionPercents)
-  } yield TestSetConfTestGroup(id, testSetConfId, testGroupConfId, proportionPercents)
+    testSetConfId <- long(TSCTGC.testSetConfId)
+    testGroupConfId <- long(TSCTGC.testGroupConfId)
+    proportionPercents <- int(TSCTGC.proportionPercents)
+    mistakeValue <- double(TSCTGC.mistakeValue).?
+  } yield TestSetConfTestGroup(id, testSetConfId, testGroupConfId, proportionPercents, mistakeValue)
 
   def tcParser(s3Manager: S3Manager)  = for {
     id <- long(T.id)
@@ -266,8 +269,9 @@ object TestConfsQueries {
     options <- str(T.options)
     testType <- int(T.testType)
     help <- str(T.help).?
+    precision <- double(T.precision).?
   } yield updateS3KeysToUrls(
-    TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help),
+    TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help, precision),
     s3Manager
   )
 
@@ -300,36 +304,42 @@ object TestConfsQueries {
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup) =
     SQL(
-      s"""INSERT INTO ${TSTG.table} (
-         |${TSTG.testSetConfId},
-         |${TSTG.testGroupConfId},
-         |${TSTG.proportionPercents}
+      s"""INSERT INTO ${TSCTGC.table} (
+         |${TSCTGC.testSetConfId},
+         |${TSCTGC.testGroupConfId},
+         |${TSCTGC.proportionPercents},
+         |${TSCTGC.mistakeValue}
          |) VALUES (
          |{testSetConfId},
          |{testGroupConfId},
-         |{proportionPercents}
+         |{proportionPercents},
+         |{mistakeValue}
          |)""".stripMargin)
       .on("testSetConfId" -> tsctg.testSetConfId)
       .on("testGroupConfId" -> tsctg.testGroupConfId)
       .on("proportionPercents" -> tsctg.proportionPercents)
+      .on("mistakeValue" -> tsctg.mistakeValue)
 
   def createTestSetConfTestGroups(tsctgs: Seq[TestSetConfTestGroup]): BatchSql = {
     val values = tsctgs.map( tg =>
       Seq[NamedParameter](
         "testSetConfId" -> tg.testSetConfId,
         "testGroupConfId" -> tg.testGroupConfId,
-        "proportionPercents" -> tg.proportionPercents
+        "proportionPercents" -> tg.proportionPercents,
+        "mistakeValue" -> tg.mistakeValue
       )
     )
     BatchSql(
-      s"""INSERT INTO ${TSTG.table} (
-         |${TSTG.testSetConfId},
-         |${TSTG.testGroupConfId},
-         |${TSTG.proportionPercents}
+      s"""INSERT INTO ${TSCTGC.table} (
+         |${TSCTGC.testSetConfId},
+         |${TSCTGC.testGroupConfId},
+         |${TSCTGC.proportionPercents},
+         |${TSCTGC.mistakeValue}
          |) VALUES (
          |{testSetConfId},
          |{testGroupConfId},
-         |{proportionPercents}
+         |{proportionPercents},
+         |{mistakeValue}
          |)""".stripMargin,
       values.head,
       values.tail : _*
@@ -337,7 +347,7 @@ object TestConfsQueries {
   }
 
   def deleteTestSetConfTestGroupsByTestSetConfId(testSetConfId: Long) =
-    SQL(s"DELETE FROM ${TSTG.table} WHERE ${TSTG.testSetConfId} = {testSetConfId}")
+    SQL(s"DELETE FROM ${TSCTGC.table} WHERE ${TSCTGC.testSetConfId} = {testSetConfId}")
       .on("testSetConfId" -> testSetConfId)
 
   def createTestConf(tc: TestConf) =
@@ -348,14 +358,16 @@ object TestConfsQueries {
          |${T.imageUrl},
          |${T.options},
          |${T.testType},
-         |${T.help}
+         |${T.help},
+         |${T.precision}
          |) VALUES (
          |{groupConfId},
          |{question},
          |{imageUrl},
          |{options},
          |{testType},
-         |{help}
+         |{help},
+         |{precision}
          |)""".stripMargin)
       .on("groupConfId" -> tc.groupId)
       .on("question" -> tc.question)
@@ -363,6 +375,7 @@ object TestConfsQueries {
       .on("options" -> tc.options.asJson.toString)
       .on("testType" -> tc.testType.id)
       .on("help" -> tc.help)
+      .on("precision" -> tc.precision)
 
   def updateTestConf(id: Long, tc: TestConf) =
     SQL(
@@ -372,7 +385,8 @@ object TestConfsQueries {
          |${T.imageUrl} = {imageUrl},
          |${T.options} = {options},
          |${T.testType} = {testType},
-         |${T.help} = {help}
+         |${T.help} = {help},
+         |${T.precision} = {precision}
          |WHERE ${T.id} = {id}
          |""".stripMargin)
       .on("id" -> id)
@@ -382,6 +396,7 @@ object TestConfsQueries {
       .on("options" -> tc.options.asJson.toString)
       .on("testType" -> tc.testType.id)
       .on("help" -> tc.help)
+      .on("precision" -> tc.precision)
 
   def deleteTestConf(testConfId: Long) =
     SQL(s"DELETE FROM ${T.table} WHERE ${T.id} = {id}").on("id" -> testConfId)
@@ -400,10 +415,10 @@ object TestConfsQueries {
        """.stripMargin
     )
 
-  def getTestSetConfTestGroup(id: Long) = SqlUtils.get(TSTG.table, id)
+  def getTestSetConfTestGroup(id: Long) = SqlUtils.get(TSCTGC.table, id)
 
   def findTestSetConfGroups(testSetConfId: Long) =
-    SQL(s"SELECT * FROM ${TSTG.table} WHERE ${TSTG.testSetConfId} = {testSetConfId}").on("testSetConfId" -> testSetConfId)
+    SQL(s"SELECT * FROM ${TSCTGC.table} WHERE ${TSCTGC.testSetConfId} = {testSetConfId}").on("testSetConfId" -> testSetConfId)
 
   def getTestConf(id: Long) = SqlUtils.get(T.table, id)
 

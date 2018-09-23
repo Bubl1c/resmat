@@ -33,10 +33,16 @@ object Data {
     UserEntity(None, username, "root", name.split(" ")(0), name.split(" ")(1), s"$username@email.com", UserType.Student, accessKey, Some(goupId))
 
   object DefaultExamConf {
-    val ec: ExamConf = ExamConf(1, "Назва залікової роботи", "Тет має бути детальний опис роботи та інструкції для студентів", 100)
+    val ec: ExamConf = ExamConf(1, "Назва залікової роботи", "Тут має бути детальний опис роботи та інструкції для студентів", 100)
     val testSetStep: ExamStepConf = ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(1))
     val taskFlowStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1))
     val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 3, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
+  }
+
+  object SimpleTestExamConf {
+    val ec: ExamConf = ExamConf(2, "Тести питання", "Тут має бути детальний опис", 100)
+    val testSetStep: ExamStepConf = ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(2))
+    val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
   }
 
   private val problemVariableConfs = Seq(
@@ -210,39 +216,20 @@ class InitialDataGenerator(db: DatabaseService,
       newEC
     }
 
-    val examConf = defaultExamConf.examConf
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(examConf.id, student1.id.get))
+    val simpleTestExamConf: ExamConfWithStepsDto = {
+      val steps = Seq(
+        ExamStepConfCreateDto(Data.SimpleTestExamConf.testSetStep, testSet.simpleNotInsertedTestSetConfDto),
+        ExamStepConfCreateDto(Data.SimpleTestExamConf.resultsStep, ResultsConf)
+      )
+      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.SimpleTestExamConf.ec, steps))
+      newEC
+    }
+
+    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get))
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {

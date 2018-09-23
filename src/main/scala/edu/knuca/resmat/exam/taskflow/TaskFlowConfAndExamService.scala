@@ -344,7 +344,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             val correctOption = decode[TestOptionConf](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
               throw new RuntimeException(s"Failed to parse correct option in $answer")
             )
-            TestUtils.verifySingleInputTest(stepTestConf.test.id, submittedAnswer.submittedAnswer, correctOption)
+            TestUtils.verifySingleInputTest(stepTestConf.test.id, submittedAnswer.submittedAnswer, correctOption, stepTestConf.test.precision)
           case TestType.Radio | TestType.Checkbox =>
             val submittedAnswer = decode[TestSubmittedAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
               throw new RuntimeException(s"Failed to parse test answer in $answer")

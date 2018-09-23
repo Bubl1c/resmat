@@ -93,6 +93,14 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
     )
   }
 
+  def findTestSetTests(stepAttemptIds: Seq[Long]): Seq[UserExamStepAttemptTestSetTest] = db.run { implicit c =>
+    if (stepAttemptIds.isEmpty) {
+      Seq.empty
+    } else {
+      Q.findUserExamTestSetTestsByStepAttemptIds(stepAttemptIds).as(Q.uetstParser.*)
+    }
+  }
+
   def updateTestSetTest(test: UserExamStepAttemptTestSetTest): UserExamStepAttemptTestSetTest = db.run { implicit c =>
     val affectedRows = Q.updateUserExamTestSetTest(test).executeUpdate()
     if(affectedRows != 1) {
@@ -104,8 +112,8 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
   def getTestSetDto(stepAttemptId: Long): TestSetDto = {
     val testSet = getUserExamTestSetByAttemptId(stepAttemptId)
     val testSetConf = testConfsService.getTestSetConf(testSet.testSetConfId)
-    val testSetTests = getTestConfsByTestSet(testSet.id)
-    val testDtos = testSetTests.map(testToDto)
+    val testSetTestConfs = getTestConfsByTestSet(testSet.id)
+    val testDtos = testSetTestConfs.map(testToDto)
     TestSetDto(testSetConf, testDtos)
   }
 
@@ -113,18 +121,20 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
     val newTestSet = createUserExamTestSet(testSet)
 
     val tscTestGroups = testConfsService.findTestSetConfGroups(newTestSet.testSetConfId)
-    val testSetTestsFromGroups: Seq[TestConf] = testConfsService.takeTestConfsFromGroups(
+    val testSetTestsFromGroups: Seq[(TestSetConfTestGroup, Seq[TestConf])] = testConfsService.takeTestConfsFromGroups(
       tscTestGroups.map { tg =>
         val proportion = tg.proportionPercents / 100.0
-        (tg.testGroupConfId, Math.ceil(testsAmount * proportion).toInt)
+        (tg, Math.ceil(testsAmount * proportion).toInt)
       }
     )
 
     testSetTestsFromGroups
-      .map(t => UserExamStepAttemptTestSetTest(-1, newTestSet.id, t.id))
+      .flatMap{ case (testGroup, testConfs) =>
+        testConfs.map(testConf => UserExamStepAttemptTestSetTest(-1, newTestSet.id, testConf.id, testGroup.mistakeValue))
+      }
       .foreach(createUserExamTestSetTest)
 
-    (newTestSet, testSetTestsFromGroups)
+    (newTestSet, testSetTestsFromGroups.flatMap(_._2))
   }
 
   def verifyTestSetTestAnswer(stepAttemptTestSetId: Long,
@@ -134,7 +144,7 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
     val testSetTest = getTestSetTest(stepAttemptTestSetId, testId)
     val testConf = testConfsService.getTestConf(testConfId)
     val correctOptions = testConf.options.filter(_.correct)
-    val verifiedTestAnswer = verifyTestAnswer(testConfId, answer, correctOptions, testConf.testType)
+    val verifiedTestAnswer = verifyTestAnswer(testConf, answer, correctOptions)
     //Update information about test submission
     if(verifiedTestAnswer.isCorrectAnswer) {
       updateTestSetTest(testSetTest.copy(done = true))
@@ -144,22 +154,21 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
     verifiedTestAnswer
   }
 
-  private def verifyTestAnswer(testConfId: Long,
+  private def verifyTestAnswer(testConf: TestConf,
                                answer: TestSubmittedAnswer,
-                               correctOptions: Seq[TestOptionConf],
-                               testType: TestType.TestType): VerifiedTestAnswerDto = {
-    testType match {
+                               correctOptions: Seq[TestOptionConf]): VerifiedTestAnswerDto = {
+    testConf.testType match {
       case TestType.SingleInput =>
         val submitted = answer.asInstanceOf[TestSingleInputSubmittedAnswer]
         val correct = correctOptions.headOption.getOrElse(
-          throw new IllegalStateException(s"No correct options for test conf with id $testConfId")
+          throw new IllegalStateException(s"No correct options for test conf with id ${testConf.id}")
         )
-        TestUtils.verifySingleInputTest(testConfId, submitted.submittedAnswer, correct)
+        TestUtils.verifySingleInputTest(testConf.id, submitted.submittedAnswer, correct, testConf.precision)
       case TestType.Radio | TestType.Checkbox =>
         val submitted = answer.asInstanceOf[TestSubmittedAnswerDto]
         TestUtils.verifyTraditionalTest(submitted, correctOptions.map(_.id))
       case _ =>
-        throw new IllegalStateException(s"Unsupported TestType $testType while verifying test answer")
+        throw new IllegalStateException(s"Unsupported TestType ${testConf.testType} while verifying test answer")
     }
   }
 
@@ -169,7 +178,7 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
 }
 
 object TestSetQueries {
-  import anorm.SqlParser.{bool, int, long}
+  import anorm.SqlParser.{bool, double, int, long}
 
   object UETS {
     val table = "user_exam_step_attempt_test_sets"
@@ -183,6 +192,7 @@ object TestSetQueries {
     val id = "id"
     val stepAttemptTestSetId = "step_attempt_test_set_id"
     val testConfId = "test_conf_id"
+    val mistakeValue = "mistake_value"
     val done = "done"
     val mistakes = "mistakes"
   }
@@ -197,9 +207,10 @@ object TestSetQueries {
     id <- long(UETST.id)
     stepAttemptTestSetId <- long(UETST.stepAttemptTestSetId)
     testConfId <- long(UETST.testConfId)
+    mistakeValue <- double(UETST.mistakeValue).?
     done <- bool(UETST.done)
     mistakes <- int(UETST.mistakes)
-  } yield UserExamStepAttemptTestSetTest(id, stepAttemptTestSetId, testConfId, done, mistakes)
+  } yield UserExamStepAttemptTestSetTest(id, stepAttemptTestSetId, testConfId, mistakeValue, done, mistakes)
 
   def createUserExamTestSet(uets: UserExamStepAttemptTestSet) =
     SQL(
@@ -218,16 +229,19 @@ object TestSetQueries {
       s"""INSERT INTO ${UETST.table} (
          |${UETST.stepAttemptTestSetId},
          |${UETST.testConfId},
+         |${UETST.mistakeValue},
          |${UETST.done},
          |${UETST.mistakes}
          |) VALUES (
          |{stepAttemptTestSetId},
          |{testConfId},
+         |{mistakeValue},
          |{done},
          |{mistakes}
          |)""".stripMargin)
       .on("stepAttemptTestSetId" -> uetst.stepAttemptTestSetId)
       .on("testConfId" -> uetst.testConfId)
+      .on("mistakeValue" -> uetst.mistakeValue)
       .on("done" -> uetst.done)
       .on("mistakes" -> uetst.mistakes)
 
@@ -254,6 +268,15 @@ object TestSetQueries {
   def getUserExamTestSet(id: Long) = SqlUtils.get(UETS.table, id)
 
   def getUserExamTestSetTest(id: Long) = SqlUtils.get(UETST.table, id)
+
+  def findUserExamTestSetTestsByStepAttemptIds(stepAttemptIds: Seq[Long]) =
+    SQL(
+      s"""
+         |SELECT * FROM ${UETST.table} uetst
+         |JOIN ${UETS.table} uets ON uets.id = uetst.${UETST.stepAttemptTestSetId}
+         |WHERE ${UETS.stepAttemptId} IN ({stepAttemptIds})
+       """.stripMargin
+    ).on("stepAttemptIds" -> stepAttemptIds)
 
   def getUserExamTestSetByAttemptId(stepAttemptId: Long) =
     SQL(s"SELECT * FROM ${UETS.table} WHERE ${UETS.stepAttemptId} = {stepAttemptId}").on("stepAttemptId" -> stepAttemptId)

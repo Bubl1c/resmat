@@ -136,13 +136,13 @@ case class UserExamStepResult(stepConfId: Long,
                               info: Option[UserExamStepResultStepInfo])
 @JsonCodec sealed trait UserExamStepResultStepInfo
 case class TaskFlowStepResultStepInfo(variant: TaskFlowDto, data: Seq[TaskFlowResultInfoStepDataDto]) extends UserExamStepResultStepInfo
-
+case class TestSetStepResultStepInfo(testSetTests: Seq[UserExamStepAttemptTestSetTest]) extends UserExamStepResultStepInfo
 object UserExamStepResultStepInfo
 
 //====================TestSet====================
 
 case class TestSetConf(id: Long, name: String, maxTestsAmount: Int)
-case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupConfId: Long, proportionPercents: Int)
+case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupConfId: Long, proportionPercents: Int, mistakeValue: Option[Double])
 
 case class TestGroupConf(id: Long, name: String, parentGroupId: Option[Long] = None)
 case class TestGroupConfWithAmountOfTestsDto(testGroupConf: TestGroupConf, amountOfTests: Int)
@@ -152,7 +152,8 @@ case class TestConf(id: Long,
                     imageUrl: Option[String],
                     options: Seq[TestOptionConf],
                     testType: TestType.TestType = TestType.Radio,
-                    help: Option[String] = None) {
+                    help: Option[String] = None,
+                    precision: Option[Double]= None) {
   def getCorrectOptionIds: Seq[Long] = options.filter(_.correct).map(_.id)
   def normalised: TestConf = {
     val optionsWithNormalisedIds = options.zipWithIndex.map{ case(opt, i) => opt.copy(id = i) }
@@ -168,6 +169,7 @@ case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, testSetConf
 case class UserExamStepAttemptTestSetTest(id: Long,
                                           stepAttemptTestSetId: Long,
                                           testConfId: Long,
+                                          mistakeValue: Option[Double],
                                           done: Boolean = false,
                                           mistakes: Int = 0)
 

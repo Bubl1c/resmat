@@ -10,7 +10,7 @@ object TestSetData {
 
   val defaultTestSetConf: TestSetConf = TestSetConf(1, "Набір тестів для крутих студентів", 9)
 
-  val testGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(
+  val defaultTestSetTestGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(
     (TestGroupConf(-1, "Знання змінних та коефіцієнтів, гіпотез та об’єктів теорії пружності"), Seq(
       test("Коефіцієнт Пуассона – це", Seq(
         opt("Міра зміни поперечних розмірів ізотропного тіла при деформації розтягу", true),
@@ -263,10 +263,14 @@ object TestSetData {
       ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png")
     )),
     (TestGroupConf(4, "Батьківська група"), Seq()),
-    (TestGroupConf(5, "Дочірня група", Some(4)), Seq()),
+    (TestGroupConf(5, "Дочірня група", Some(4)), Seq())
+  )
+
+  val simpleTestSetConf: TestSetConf = TestSetConf(2, "Набір тестів з питаннями", 9)
+  val simpleTestSetTestGroups: List[(TestGroupConf, Seq[TestConf])] = List(
     (TestGroupConf(6, "Питання", None), Seq(
       testSI("Текст", "текст", TestOptionValueType.Text),
-      testSI("Число", "77.77", TestOptionValueType.Number)
+      testSI("Число", "77.77", TestOptionValueType.Number, Some(0.001))
     ))
   )
 
@@ -292,8 +296,8 @@ object TestSetData {
     TestConf(-1, -1, question, Option(imageUrl), options).normalised
   }
 
-  def testSI(question: String, answer: String, answerType: TestOptionValueType.TestOptionValueType, imageUrl: String = null): TestConf = {
-    TestConf(-1, -1, question, Option(imageUrl), Seq(TestOptionConf(1, answer, correct = true, answerType)), TestType.SingleInput).normalised
+  def testSI(question: String, answer: String, answerType: TestOptionValueType.TestOptionValueType, precision: Option[Double] = None, imageUrl: String = null): TestConf = {
+    TestConf(-1, -1, question, Option(imageUrl), Seq(TestOptionConf(1, answer, correct = true, answerType)), TestType.SingleInput, None, precision).normalised
   }
 
   def opt(value: String, correct: Boolean = false): TestOptionConf = TestOptionConf(-1, value, correct)
@@ -301,30 +305,43 @@ object TestSetData {
 
 class TestSetDataGenerator(testConfsService: TestConfService) {
 
-  private val groupsWithTests = TestSetData.testGroupConfs.map{ case(tgConf, tConfs) =>
-    val tgc = testConfsService.createTestGroupConf(tgConf)
-    val testConfs = tConfs.map(tc =>
-      testConfsService.createTestConf(tc.copy(groupId = tgc.id))
-    )
-    (tgc, testConfs)
-  }
-
-  val groupConfs: Seq[TestGroupConf] = groupsWithTests.map(_._1)
-  val testConfs: Seq[TestConf] = groupsWithTests.flatMap(_._2)
-
+  val defaultTestSetGroupConfs: Seq[TestGroupConf] = insertGroupConfsWithTests(TestSetData.defaultTestSetTestGroupConfs)
   val defaultNotInsertedTestSetConfDto: TestSetConfDto = {
     val tsc = TestSetData.defaultTestSetConf
-    val groups = makeGroupsForTestSetConf(groupConfs)
+    val groups = makeGroupsForTestSetConf(defaultTestSetGroupConfs)
     TestSetConfDto(
       tsc,
       groups
     )
   }
 
-  def makeGroupsForTestSetConf(groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
+  val simpleTestSetGroupConfs: Seq[TestGroupConf] = insertGroupConfsWithTests(TestSetData.simpleTestSetTestGroups)
+  val simpleNotInsertedTestSetConfDto: TestSetConfDto = {
+    val tsc = TestSetData.simpleTestSetConf
+    val groups = makeGroupsForTestSetConf(simpleTestSetGroupConfs)
+    TestSetConfDto(
+      tsc,
+      groups
+    )
+  }
+
+  private def makeGroupsForTestSetConf(groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
     val balancedProportion = 100 / groups.size
     groups.map(gc =>
-      TestSetConfTestGroup(-1, -1, gc.id, balancedProportion)
+      TestSetConfTestGroup(-1, -1, gc.id, balancedProportion, None)
     )
+  }
+
+  private def insertGroupConfsWithTests(groupConfsWithTests: List[(TestGroupConf, Seq[TestConf])]): Seq[TestGroupConf] = {
+    val groupsWithTests = groupConfsWithTests.map{ case(tgConf, tConfs) =>
+      val tgc = testConfsService.createTestGroupConf(tgConf)
+      val testConfs = tConfs.map(tc =>
+        testConfsService.createTestConf(tc.copy(groupId = tgc.id))
+      )
+      (tgc, testConfs)
+    }
+
+    val groupConfs: Seq[TestGroupConf] = groupsWithTests.map(_._1)
+    groupConfs
   }
 }

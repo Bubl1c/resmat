@@ -528,13 +528,29 @@ class UserExamService(val db: DatabaseService)
 
   def calculateScore(examConf: ExamConf, stepResults: Seq[(UserExamStepResult, ExamStepConf)]): Int = {
 
+    def calculateMistakesValueForStep(tuple: (UserExamStepResult, ExamStepConf)): Double = {
+      val res: UserExamStepResult = tuple._1
+      val conf: ExamStepConf = tuple._2
+      val defaultMistakeValue = conf.mistakeValuePercents / 100.0 * examConf.maxScore
+      val mistakesValueToScore = res.info match {
+        case Some(TestSetStepResultStepInfo(testSetTests)) =>
+          val result = testSetTests.foldLeft(0.0)((acc, test) => {
+            acc + test.mistakes * test.mistakeValue.getOrElse(defaultMistakeValue)
+          })
+          result
+        case _ =>
+          res.mistakesAmount * defaultMistakeValue
+      }
+      mistakesValueToScore
+    }
+
     def calculateReduceForStep(tuple: (UserExamStepResult, ExamStepConf)): Int = {
       val res: UserExamStepResult = tuple._1
       val conf: ExamStepConf = tuple._2
       val overAttempts = res.attemptsAmount - 1
-      val reduceMaxScoreOverAttempts: Double = (overAttempts * conf.attemptValuePercents) / 100.0
-      val reduceMaxScoreMistakesAmount: Double = (res.mistakesAmount * conf.mistakeValuePercents) / 100.0
-      (Math.round(conf.maxScore * reduceMaxScoreOverAttempts) + Math.round(conf.maxScore * reduceMaxScoreMistakesAmount)).toInt
+      val reduceMaxScoreOverAttempts: Double = overAttempts * (conf.attemptValuePercents / 100.0 * examConf.maxScore)
+      val reduceMaxScoreMistakesAmount: Double = calculateMistakesValueForStep(tuple)
+      Math.round(reduceMaxScoreOverAttempts + reduceMaxScoreMistakesAmount).toInt
     }
 
     val score = examConf.maxScore - stepResults.map(calculateReduceForStep).sum
@@ -546,19 +562,19 @@ class UserExamService(val db: DatabaseService)
     val submittableStepConfs = examService.findSubmittableExamStepConf(userExam.examConfId)
     val stepAttempts = findUserExamStepAttempts(userExam.id)
     submittableStepConfs.map { stepConf =>
-      val currentStepConfAttempts = stepAttempts.filter(_.examStepConfId == stepConf.id)
-      if(currentStepConfAttempts.size < 1) {
+      val currentStepAttempts = stepAttempts.filter(_.examStepConfId == stepConf.id)
+      if(currentStepAttempts.size < 1) {
         throw new IllegalStateException(s"$stepConf has no attempts for user exam with id: ${userExam.id}")
       }
-      val mistakesAmount = currentStepConfAttempts.map(_.mistakesAmount).sum
-      val resultStepInfo = getStepResultStepInfo(stepConf, currentStepConfAttempts)
+      val mistakesAmount = currentStepAttempts.map(_.mistakesAmount).sum
+      val resultStepInfo = getStepResultStepInfo(stepConf, currentStepAttempts)
       (
         UserExamStepResult(
           stepConf.id,
           stepConf.sequence,
           stepConf.stepType,
           stepConf.name,
-          currentStepConfAttempts.size,
+          currentStepAttempts.size,
           mistakesAmount,
           -1,
           resultStepInfo
@@ -568,13 +584,16 @@ class UserExamService(val db: DatabaseService)
     }
   }
 
-  def getStepResultStepInfo(stepConf: ExamStepConf, stepConfAttempts: Seq[UserExamStepAttempt]): Option[UserExamStepResultStepInfo] = {
-    val lastAttempt = stepConfAttempts.maxBy(_.attemptNumber)
+  def getStepResultStepInfo(stepConf: ExamStepConf, stepAttempts: Seq[UserExamStepAttempt]): Option[UserExamStepResultStepInfo] = {
+    val lastAttempt = stepAttempts.maxBy(_.attemptNumber)
     stepConf.stepType match {
       case ExamStepType.TaskFlow =>
         val tfDto = taskFlowExamService.getTaskFlowDto(lastAttempt.id).get
         val taskFlowResultInfoSteps = taskFlowExamService.getTaskFlowResultInfoSteps(tfDto.taskFlow.id)
         Some(TaskFlowStepResultStepInfo(tfDto, taskFlowResultInfoSteps))
+      case ExamStepType.TestSet =>
+        val testSetTestsForAllAttempts = testSetExamService.findTestSetTests(stepAttempts.map(_.id))
+        Some(TestSetStepResultStepInfo(testSetTestsForAllAttempts))
       case _ => None
     }
   }

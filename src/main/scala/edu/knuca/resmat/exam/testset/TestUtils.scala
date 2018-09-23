@@ -26,7 +26,8 @@ object TestUtils {
 
   def verifySingleInputTest(testConfId: Long,
                             submitted: String,
-                            correctOption: TestOptionConf): VerifiedTestAnswerDto = {
+                            correctOption: TestOptionConf,
+                            precision: Option[Double]): VerifiedTestAnswerDto = {
     val isCorrectAnswer: Boolean = correctOption.valueType match {
       case TestOptionValueType.Number =>
         val submittedNumber = Try(submitted.toDouble).getOrElse{
@@ -35,7 +36,7 @@ object TestUtils {
         val correctNumber = Try(correctOption.value.toDouble).getOrElse{
           throw new IllegalStateException(s"Correct data for test conf with id $testConfId has to be of type Double")
         }
-        NumberUtils.areAlmostEqual(correctNumber, submittedNumber, Some(0.0001))
+        NumberUtils.areAlmostEqual(correctNumber, submittedNumber, precision)
       case TestOptionValueType.Text =>
         submitted == correctOption.value
       case _ =>
