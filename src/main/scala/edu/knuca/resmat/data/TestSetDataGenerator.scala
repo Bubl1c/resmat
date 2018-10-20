@@ -270,7 +270,7 @@ object TestSetData {
   val simpleTestSetTestGroups: List[(TestGroupConf, Seq[TestConf])] = List(
     (TestGroupConf(6, "Питання", None), Seq(
       testSI("Текст", "текст", TestOptionValueType.Text),
-      testSI("Число", "77.77", TestOptionValueType.Number, Some(0.001))
+      testSI("Число", "77.77", TestOptionValueType.Number, Some(0.001), help = Some(s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png"))
     ))
   )
 
@@ -296,8 +296,8 @@ object TestSetData {
     TestConf(-1, -1, question, Option(imageUrl), options).normalised
   }
 
-  def testSI(question: String, answer: String, answerType: TestOptionValueType.TestOptionValueType, precision: Option[Double] = None, imageUrl: String = null): TestConf = {
-    TestConf(-1, -1, question, Option(imageUrl), Seq(TestOptionConf(1, answer, correct = true, answerType)), TestType.SingleInput, None, precision).normalised
+  def testSI(question: String, answer: String, answerType: TestOptionValueType.TestOptionValueType, precision: Option[Double] = None, imageUrl: String = null, help: Option[String] = None): TestConf = {
+    TestConf(-1, -1, question, Option(imageUrl), Seq(TestOptionConf(1, answer, correct = true, answerType)), TestType.SingleInput, help, precision).normalised
   }
 
   def opt(value: String, correct: Boolean = false): TestOptionConf = TestOptionConf(-1, value, correct)
