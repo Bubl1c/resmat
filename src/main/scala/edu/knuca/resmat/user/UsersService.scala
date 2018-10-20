@@ -34,6 +34,12 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
+  private def getByIdWithPassword(id: Long): Future[Option[UserEntity]] = Future {
+    db.run { implicit c =>
+      UsersQueries.getById(id).as(UsersQueries.parserWithPassword.singleOpt)
+    }
+  }
+
   def getByIdInStudentGroup(id: Long, groupId: Long): Future[Option[UserEntity]] =
     getStudentsByGroup(groupId).flatMap(students =>
       Future.successful(students.find(_.id.contains(id)))
@@ -70,7 +76,7 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
-  def updateUser(id: Long, userUpdate: UserEntityUpdate, requireUserType: Option[UserType.UserType] = None): Future[Option[UserEntity]] = getById(id).flatMap {
+  def updateUser(id: Long, userUpdate: UserEntityUpdate, requireUserType: Option[UserType.UserType] = None): Future[Option[UserEntity]] = getByIdWithPassword(id).flatMap {
     case Some(userEntity) =>
       if(requireUserType.isDefined && userEntity.userType != requireUserType.get) {
         throw new IllegalArgumentException(
