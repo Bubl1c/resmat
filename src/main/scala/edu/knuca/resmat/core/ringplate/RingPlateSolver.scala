@@ -1,10 +1,11 @@
-package edu.knuca.resmat.core
+package edu.knuca.resmat.core.ringplate
 
 import breeze.linalg.{DenseMatrix, DenseVector}
+import edu.knuca.resmat.core.ProblemAnswer
 import edu.knuca.resmat.exam._
+import edu.knuca.resmat.utils.PimpedEnumeration
 
 import scala.math._
-import edu.knuca.resmat.utils.PimpedEnumeration
 
 object RingPlateSolver extends App {
   val conf = RingPlateConf(height = 0.02, moduleE = 200000000.0, poissonRatio = 0.3, q = 1d, sigmaAdm = 160)
@@ -406,38 +407,6 @@ object RingPlateProblemInput {
   }
 }
 
-sealed trait ProblemAnswer {
-  protected val mapping: Map[String, Any]
-
-  def get(key: String): Any = {
-    mapping.get(key) match {
-      case v: Some[Any] => v.get
-      case v => throw new IllegalArgumentException(s"Key {$key} does not exist in ${this.getClass.getSimpleName}")
-    }
-  }
-
-  def getDouble(key: String): Double = {
-    mapping.get(key) match {
-      case v: Some[Double] => v.get
-      case v => throw new IllegalArgumentException(s"{$v} is not a Double value. Requested from ${this.getClass.getSimpleName} by key {$key}")
-    }
-  }
-
-  def getDoubleOpt(key: String): Option[Double] = {
-    mapping.get(key) match {
-      case v: Some[Option[Double]] => v.get
-      case v => throw new IllegalArgumentException(s"{$v} is not an Option[Double] value. Requested from ${this.getClass.getSimpleName} by key {$key}")
-    }
-  }
-
-  def getString(key: String): String = {
-    mapping.get(key) match {
-      case v: Some[String] => v.get
-      case v => throw new IllegalArgumentException(s"{$v} is not a String value. Requested from ${this.getClass.getSimpleName} by key {$key}")
-    }
-  }
-}
-
 case class RingPlateProblemAnswer(del_t: Double,
                                   d_e: Double,
                                   r1: Array[Double],
@@ -449,7 +418,7 @@ case class RingPlateProblemAnswer(del_t: Double,
                                   coordinateResult: CoordinateResult,
                                   g1: DenseMatrix[Double]) extends ProblemAnswer {
 
-  import edu.knuca.resmat.core.RingPlateProblemAnswer.{Mapping => M}
+  import RingPlateProblemAnswer.{Mapping => M}
 
   override protected val mapping: Map[String, Any] = Map(
     M.w_a -> extremeConditions.a.w,

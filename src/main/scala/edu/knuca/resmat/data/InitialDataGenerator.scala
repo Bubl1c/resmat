@@ -3,7 +3,7 @@ package edu.knuca.resmat.data
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.articles.{ArticleDto, ArticleQueries, ArticleService}
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
-import edu.knuca.resmat.core.RingPlateSolver
+import edu.knuca.resmat.core.ringplate.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam._

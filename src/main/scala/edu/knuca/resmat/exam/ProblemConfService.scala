@@ -2,7 +2,8 @@ package edu.knuca.resmat.exam
 
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
-import edu.knuca.resmat.core.{RingPlateProblemAnswer, RingPlateProblemInput, RingPlateSolver}
+import edu.knuca.resmat.core.ringplate.{RingPlateProblemAnswer, RingPlateSolver}
+import edu.knuca.resmat.core.ringplate.{RingPlateProblemAnswer, RingPlateProblemInput}
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.taskflow.TaskFlowQueries
 import edu.knuca.resmat.http.FailedDependency

@@ -1,6 +1,7 @@
 package edu.knuca.resmat.http
 
-import edu.knuca.resmat.core.BindingType
+import edu.knuca.resmat.core.crosssection.{ShapeRotationAngle, ShapeType}
+import edu.knuca.resmat.core.ringplate.BindingType
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowDto
 import edu.knuca.resmat.exam.testset.TestSetDto
@@ -50,6 +51,12 @@ object JsonProtocol {
 
   implicit val encodeBindingType: Encoder[BindingType.BindingType] = Encoder.encodeString.contramap[BindingType.BindingType](_.toString)
   implicit val decodeBindingType: Decoder[BindingType.BindingType] = enumDecoder(BindingType)
+
+  implicit val encodeShapeType: Encoder[ShapeType.ShapeType] = Encoder.encodeString.contramap[ShapeType.ShapeType](_.toString)
+  implicit val decodeShapeType: Decoder[ShapeType.ShapeType] = enumDecoder(ShapeType)
+
+  implicit val encodeShapeRotationAngle: Encoder[ShapeRotationAngle.ShapeRotationAngle] = Encoder.encodeString.contramap[ShapeRotationAngle.ShapeRotationAngle](_.toString)
+  implicit val decodeShapeRotationAngle: Decoder[ShapeRotationAngle.ShapeRotationAngle] = enumDecoder(ShapeRotationAngle)
 
   def enumDecoder(en: Enumeration) = Decoder.decodeString.emap { str =>
     Try(en.withName(str)) match {

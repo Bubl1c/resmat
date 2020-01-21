@@ -1,6 +1,7 @@
 package edu.knuca.resmat.exam
 
-import edu.knuca.resmat.core.{ProblemAnswer, RingPlateProblemAnswer}
+import edu.knuca.resmat.core.ProblemAnswer
+import edu.knuca.resmat.core.ringplate.RingPlateProblemAnswer
 import edu.knuca.resmat.exam.taskflow.{TaskFlowDto, TaskFlowResultInfoStepDataDto}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec

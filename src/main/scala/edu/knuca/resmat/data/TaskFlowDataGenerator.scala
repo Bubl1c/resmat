@@ -12,7 +12,7 @@ object Utils {
 }
 
 object TaskFlowData {
-  import edu.knuca.resmat.core.RingPlateProblemAnswer.{Mapping => M}
+  import edu.knuca.resmat.core.ringplate.RingPlateProblemAnswer.{Mapping => M}
 
   import edu.knuca.resmat.data.Utils.{ed, ei, es}
 
