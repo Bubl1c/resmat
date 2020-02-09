@@ -3,6 +3,8 @@ package edu.knuca.resmat.data
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.articles.{ArticleDto, ArticleQueries, ArticleService}
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
+import edu.knuca.resmat.core.crosssection.{KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, XYCoords}
+import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
 import edu.knuca.resmat.core.ringplate.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.ExamStatus.ExamStatus
@@ -32,8 +34,8 @@ object Data {
   def student(goupId: Long, username: String, name: String, accessKey: String) =
     UserEntity(None, username, "root", name.split(" ")(0), name.split(" ")(1), s"$username@email.com", UserType.Student, accessKey, Some(goupId))
 
-  object DefaultExamConf {
-    val ec: ExamConf = ExamConf(1, "Назва залікової роботи", "Тут має бути детальний опис роботи та інструкції для студентів", 100)
+  object RingPlateExamConf {
+    val ec: ExamConf = ExamConf(1, "Кільцева пластина - тести і задача", "Тут має бути детальний опис роботи та інструкції для студентів", 100)
     val testSetStep: ExamStepConf = ExamStepConf(-1, -1, 1, "Тестування", ExamStepType.TestSet, 5, 1, 3, 5, 20, ExamStepTestSetDataSet(1))
     val taskFlowStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 80, ExamStepTaskFlowDataSet(1, 1))
     val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 3, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
@@ -45,89 +47,21 @@ object Data {
     val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
   }
 
-  private val problemVariableConfs = Seq(
-    VarConf(2, "Fa", "кН/м", "a.f"),
-    VarConf(3, "Ma", "кНм/м", "a.m"),
-    VarConf(4, "wa", "м", "a.w"),
-    VarConf(5, "{phi}a", "рад", "a.fi"),
+  object OnlyTaskExamConf {
+    val ec: ExamConf = ExamConf(1, "Кільцева пластина - задача", "Тут має бути детальний опис роботи та інструкції для студентів", 100)
+    val taskFlowStep: ExamStepConf = ExamStepConf(-1, -1, 1, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 100, ExamStepTaskFlowDataSet(1, 1))
+    val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
+  }
 
-    VarConf(6, "E", "МПа", "moduleE"),
-    VarConf(7, "{mu}", "", "poissonRatio"),
-    VarConf(8, "q", "кН/м^2", "q"),
-
-    VarConf(9, "Fb", "кН/м", "b.f"),
-    VarConf(10, "Mb", "кНм/м", "b.m"),
-    VarConf(11, "wb", "м", "b.w"),
-    VarConf(12, "{phi}b", "рад", "b.fi"),
-
-    VarConf(13, "a", "м", "a.length"),
-    VarConf(14, "b", "м", "b.length"),
-    VarConf(15, "t", "м", "height"),
-
-    VarConf(16, "an", "", "a.n", false),
-    VarConf(17, "bn", "", "b.n", false),
-    VarConf(18, "{sigma}адм", "", "sigmaAdm")
-  )
-
-  private val problemVarValues: List[ProblemInputVariableValue] = List(
-    VarVal(2, 0),
-    VarVal(3, 0),
-    VarVal(4, -0.01),
-    VarVal(5, 0),
-
-    VarVal(6, 200000.0),
-    VarVal(7, 0.3),
-    VarVal(8, 0d),
-
-    VarVal(9, 0),
-    VarVal(10, 0),
-    VarVal(11, 0),
-    VarVal(12, 0),
-
-    VarVal(13, 0.1),
-    VarVal(14, 1.1),
-    VarVal(15, 0.02),
-
-    VarVal(16, 1),
-    VarVal(17, 2),
-    VarVal(18, 160)
-  )
-
-  private val problemVarValues2: List[ProblemInputVariableValue] = List(
-    VarVal(2, 0),
-    VarVal(3, 0),
-    VarVal(4, -0.01),
-    VarVal(5, 0),
-
-    VarVal(6, 200000.0),
-    VarVal(7, 0.3),
-    VarVal(8, 0d),
-
-    VarVal(9, 0),
-    VarVal(10, 0),
-    VarVal(11, 0),
-    VarVal(12, 0),
-
-    VarVal(13, 0.1),
-    VarVal(14, 1.1),
-    VarVal(15, 0.02),
-
-    VarVal(16, 2),
-    VarVal(17, 2),
-    VarVal(18, 160)
-  )
+  object CrossSectionExamConf {
+    val ec: ExamConf = ExamConf(-1, "Геометрія - задача", "Зовсім нова задача", 100)
+    val taskFlowStep: ExamStepConf = ExamStepConf(-1, -1, 1, "Розв'язання задачі", ExamStepType.TaskFlow, -1, 1, -1, 0, 100, ExamStepTaskFlowDataSet(1, 1))
+    val resultsStep: ExamStepConf = ExamStepConf(-1, -1, 2, "Результати", ExamStepType.Results, -1, 0, -1, 0, 0, ExamStepResultsDataSet, false)
+  }
 
   val problemConfs: List[(ProblemConf, Seq[ProblemVariantConf])] = List(
-    (ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, problemVariableConfs), Seq(
-      ProblemVariantConf(1, 1, "img/tasks/variants/sc1.png",
-        problemVarValues,
-        new RingPlateSolver(problemVariableConfs, problemVarValues).solve()
-      ),
-      ProblemVariantConf(1, 1, "img/tasks/variants/sc2.png",
-        problemVarValues2,
-        new RingPlateSolver(problemVariableConfs, problemVarValues2).solve()
-      )
-    ))
+    (RingPlateData.Problem.conf, RingPlateData.Problem.variants),
+    (CrossSectionData.Problem.conf, CrossSectionData.Problem.variants)
   )
 
   def userExam(examConfId: Long, userId: Long, status: ExamStatus = ExamStatus.Initial) =
@@ -206,16 +140,6 @@ class InitialDataGenerator(db: DatabaseService,
     //b3FhdWpiamg1Y2F2c2c0ZXQ0MmVpbXVhOWh2cWUzaTlxNWhoYzVoaW9hNXV2YWd2dGg5bXUwM2htMCYzJjE0ODU1MzUyMjQwMDA
     val instructorToken = insertToken(Data.userToken(instructor.id.get))
 
-    val defaultExamConf: ExamConfWithStepsDto = {
-      val steps = Seq(
-        ExamStepConfCreateDto(Data.DefaultExamConf.testSetStep, testSet.defaultNotInsertedTestSetConfDto),
-        ExamStepConfCreateDto(Data.DefaultExamConf.taskFlowStep, taskFlow.defaultNotInsertedTaskFlowConfDto),
-        ExamStepConfCreateDto(Data.DefaultExamConf.resultsStep, ResultsConf)
-      )
-      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.DefaultExamConf.ec, steps))
-      newEC
-    }
-
     val simpleTestExamConf: ExamConfWithStepsDto = {
       val steps = Seq(
         ExamStepConfCreateDto(Data.SimpleTestExamConf.testSetStep, testSet.simpleNotInsertedTestSetConfDto),
@@ -225,7 +149,38 @@ class InitialDataGenerator(db: DatabaseService,
       newEC
     }
 
-    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
+    val defaultExamConf: ExamConfWithStepsDto = {
+      val steps = Seq(
+        ExamStepConfCreateDto(Data.RingPlateExamConf.testSetStep, testSet.defaultNotInsertedTestSetConfDto),
+        ExamStepConfCreateDto(Data.RingPlateExamConf.taskFlowStep, taskFlow.ringPlateNotInsertedTaskFlowConfDto),
+        ExamStepConfCreateDto(Data.RingPlateExamConf.resultsStep, ResultsConf)
+      )
+      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.RingPlateExamConf.ec, steps))
+      newEC
+    }
+
+    val onlyTaskExamConf: ExamConfWithStepsDto = {
+      val steps = Seq(
+        ExamStepConfCreateDto(Data.OnlyTaskExamConf.taskFlowStep, taskFlow.ringPlateNotInsertedTaskFlowConfDto),
+        ExamStepConfCreateDto(Data.OnlyTaskExamConf.resultsStep, ResultsConf)
+      )
+      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.OnlyTaskExamConf.ec, steps))
+      newEC
+    }
+
+    val crossSectionExamConf: ExamConfWithStepsDto = {
+      val steps = Seq(
+        ExamStepConfCreateDto(Data.CrossSectionExamConf.taskFlowStep, taskFlow.crossSectionNotInsertedTaskFlowConfDto),
+        ExamStepConfCreateDto(Data.CrossSectionExamConf.resultsStep, ResultsConf)
+      )
+      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.CrossSectionExamConf.ec, steps))
+      newEC
+    }
+
+    userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(onlyTaskExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(onlyTaskExamConf.examConf.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
     userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get))

@@ -1,7 +1,8 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.DenseVector
-import edu.knuca.resmat.core.crosssection.{GeometryShape, PlastynaShape, ShapeRotationAngle, XYCoords}
+import edu.knuca.resmat.core.crosssection.{DvotavrShape, GeometryShape, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeRotationAngle, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
+import edu.knuca.resmat.exam.{ProblemInputVariableConf, ProblemInputVariableValue}
 
 import scala.math._
 
@@ -14,8 +15,8 @@ import scala.math._
 
 object CrossSectionSolver extends App {
   val shapes: Vector[GeometryShape] = Vector(
-    PlastynaShape(1, "Plastyna1", ShapeRotationAngle.R0, XYCoords(5, 2), List.empty, 2, 6),
-    PlastynaShape(2, "Plastyna2", ShapeRotationAngle.R0, XYCoords(3, 2), List.empty, 3, 2)
+    ShvellerShape(1, "Shveller1", ShapeRotationAngle.R270, XYCoords(0, 7.6), List.empty, "20"),
+    KutykShape(2, "Kutyk2", ShapeRotationAngle.R180, XYCoords(10, 7.6), List.empty, "10_8")
   )
   val input = CrossSectionProblemInput(shapes.map(_.getShapeInput))
 
@@ -197,6 +198,127 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
 }
 
 case class CrossSectionProblemInput(shapes: Vector[ShapeInput])
+object CrossSectionProblemInput {
+
+  object Mapping {
+    val shapeIds = "shapeIds"
+
+    val shapeIdDelimiter = ","
+
+    def withShapeId(shapeId: String)(key: String): String = s"${shapeId}_$key"
+
+    object Shape {
+      val kind = "kind"
+      val name = "name"
+      val rootX = "rootX"
+      val rootY = "rootY"
+      val rotationAngle = "rotationAngle"
+      val dimensions = "dimensions"
+    }
+  }
+
+  import CrossSectionProblemInput.{Mapping => M}
+
+  def toVariant(shapes: Vector[GeometryShape]): Vector[ProblemInputVariableValue] = {
+    val shapeIds = ProblemInputVariableValue(1, 0, Some(shapes.map(_.id).mkString(M.shapeIdDelimiter)))
+
+    val shapeVals: Vector[ProblemInputVariableValue] = shapes.flatMap(s => {
+      val kind = ProblemInputVariableValue(2, 0, Some(s.shapeType.toString), Some(s.id.toString))
+      val name = ProblemInputVariableValue(3, 0, Some(s.name), Some(s.id.toString))
+      val rootX = ProblemInputVariableValue(4, s.root.x, None, Some(s.id.toString))
+      val rootY = ProblemInputVariableValue(5, s.root.y, None, Some(s.id.toString))
+      val rotationAngle = ProblemInputVariableValue(6, s.rotationAngle.id, None, Some(s.id.toString))
+
+      val commonVals = Vector(kind, name, rootX, rootY, rotationAngle)
+
+      val specificVals: Vector[ProblemInputVariableValue] = s match {
+        case k: KutykShape => Vector(ProblemInputVariableValue(7, 0, Some(k.sortamentKey), Some(s"${s.id}.sortamentKey")))
+        case k: ShvellerShape => Vector(ProblemInputVariableValue(7, 0, Some(k.sortamentKey), Some(s"${s.id}.sortamentKey")))
+        case k: DvotavrShape => Vector(ProblemInputVariableValue(7, 0, Some(k.sortamentKey), Some(s"${s.id}.sortamentKey")))
+        case k: KoloShape => Vector(ProblemInputVariableValue(7, k.diametr, None, Some(s"${s.id}.diametr")))
+        case k: NapivkoloShape => Vector(ProblemInputVariableValue(7, k.diametr, None, Some(s"${s.id}.diametr")))
+        case k: Trykutnyk90Shape => Vector(
+          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
+          ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
+        )
+        case k: TrykutnykRBShape => Vector(
+          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
+          ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
+        )
+        case k: PlastynaShape => Vector(
+          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
+          ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
+        )
+        case k =>throw new IllegalArgumentException(s"Shape $k is unknown, while converting to variant")
+      }
+      commonVals ++ specificVals
+    })
+    Vector(shapeIds) ++ shapeVals
+  }
+
+  def apply(confs: Seq[ProblemInputVariableConf], vals: Seq[ProblemInputVariableValue]): CrossSectionProblemInput = {
+    val valsByConf: Map[String, Seq[ProblemInputVariableValue]] = confs.map(c => c.alias -> vals.filter(v => v.variableConfId == c.id)).toMap
+
+    val m: Map[String, ProblemInputVariableValue] = valsByConf.filter(tuple => tuple._2.size == 1).mapValues(_.head)
+
+    val mm: Map[
+      String, //{ProblemInputVariableConf::alias}
+      Map[
+        String, //{ProblemInputVariableValue::variableKey} -> {shapeId}.{filedName}
+        ProblemInputVariableValue
+      ]
+    ] = valsByConf
+      .filter(tuple => tuple._2.size > 1)
+      .mapValues(
+        _.map(v => v.variableKey.get -> v).toMap
+      )
+
+    val shapeIds = m.getOrElse(M.shapeIds, throw new IllegalStateException(s"${M.shapeIds} is not defined in the variant"))
+      .strValue
+      .getOrElse(throw new IllegalStateException(s"strValue is not defined in the ${M.shapeIds}"))
+
+    val shapes = shapeIds.split(M.shapeIdDelimiter).map(shapeId => {
+      def value(key: String): ProblemInputVariableValue = m(M.withShapeId(shapeId)(key))
+
+      val kind = ShapeType.withName(value(M.Shape.kind).strValue.getOrElse(
+        throw new IllegalStateException(s"${M.Shape.kind} is not defined in variable values $m")
+      ))
+      val name = value(M.Shape.name).strValue.getOrElse(
+        throw new IllegalStateException(s"${M.Shape.name} is not defined in variable values $m")
+      )
+      val rootX = value(M.Shape.rootX).value
+      val rootY = value(M.Shape.rootY).value
+      val rotationAngle = ShapeRotationAngle(value(M.Shape.rotationAngle).value.toInt)
+
+      def sValue(fieldName: String): ProblemInputVariableValue = mm.getOrElse(
+        M.Shape.dimensions,
+        throw new IllegalStateException(s"${M.Shape.dimensions} is not defined in variable values $m")
+      ).getOrElse(
+        s"$shapeId.$fieldName",
+        throw new IllegalStateException(s"$shapeId.$fieldName is not defined in dimensions of $m")
+      )
+
+      def sValueStr(fieldName: String): String = sValue(fieldName).strValue.getOrElse(
+        throw new IllegalStateException(s"$shapeId.$fieldName strValue is not defined in dimensions of $m")
+      )
+
+      def sValueD(fieldName: String): Double = sValue(fieldName).value
+
+      kind match {
+        case ShapeType.Kutyk => KutykShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueStr("sortamentKey"))
+        case ShapeType.Shveller => ShvellerShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueStr("sortamentKey"))
+        case ShapeType.Dvotavr => DvotavrShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueStr("sortamentKey"))
+        case ShapeType.Kolo => KoloShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("diametr"))
+        case ShapeType.Napivkolo => NapivkoloShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("diametr"))
+        case ShapeType.Trykutnyk90 => Trykutnyk90Shape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("b"), sValueD("h"))
+        case ShapeType.TrykutnykRB => TrykutnykRBShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("b"), sValueD("h"))
+        case ShapeType.Plastyna => PlastynaShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("b"), sValueD("h"))
+        case _ => throw new IllegalArgumentException(s"Shape kind ${kind} is unknown, while processing var values $m")
+      }
+    })
+    CrossSectionProblemInput(shapes.map(_.getShapeInput).toVector)
+  }
+}
 
 case class ShapeInput(
   id: Int,
@@ -265,104 +387,3 @@ case class DistanceBetweenCentralAxes(a: Vector[ShapeDistanceToCentralAxis], b: 
 }
 
 case class ShapeDistanceToCentralAxis(shapeId: Int, distance: Double)
-
-case class CrossSectionProblemAnswer(
-  shapeInputs: Vector[ShapeInput],
-  centerOfGravity: CenterOfGravity,
-  distanceBetweenCentralAxes: DistanceBetweenCentralAxes,
-  centralMomentsOfInertia: CentralMomentsOfInertia,
-  mainCoordinateSystem: MainCoordinateSystem,
-  mainMomentsOfInertia: MainMomentsOfInertia,
-  mainMomentsOfInertiaCheck: MainMomentsOfInertiaCheck,
-  radiusesOfInertia: RadiusesOfInertia
-) extends ProblemAnswer {
-
-  import edu.knuca.resmat.core.CrossSectionProblemAnswer.{Mapping => M}
-
-  override protected val mapping: Map[String, Any] = {
-    val static = Map(
-      M.y_center -> centerOfGravity.y_center,
-      M.z_center -> centerOfGravity.z_center,
-
-      M.I_yc -> centralMomentsOfInertia.I_yc,
-      M.I_zc -> centralMomentsOfInertia.I_zc,
-      M.I_yzc -> centralMomentsOfInertia.I_yzc,
-
-      M.alfaDegrees -> mainCoordinateSystem.alfaDegrees,
-
-      M.I_u -> mainMomentsOfInertia.I_u,
-      M.I_v -> mainMomentsOfInertia.I_v,
-
-      M.I_max -> mainMomentsOfInertiaCheck.I_max,
-      M.I_min -> mainMomentsOfInertiaCheck.I_min,
-
-      M.i_u -> radiusesOfInertia.i_u,
-      M.i_v -> radiusesOfInertia.i_v
-    )
-    val inputsMap: Map[String, Double] = shapeInputs.flatMap(si => {
-      Map(
-        M.Input.square(si.id) -> si.square,
-        M.Input.iy(si.id) -> si.I_y,
-        M.Input.iz(si.id) -> si.I_z,
-        M.Input.iyz(si.id) -> si.I_yz
-      )
-    }).toMap
-    val aMap: Map[String, Double] = distanceBetweenCentralAxes.a.map(ai => M.a(ai.shapeId) -> ai.distance).toMap
-    val bMap: Map[String, Double] = distanceBetweenCentralAxes.b.map(bi => M.b(bi.shapeId) -> bi.distance).toMap
-
-    static ++ inputsMap ++ aMap ++ bMap
-  }
-
-  override def toString: String = {
-    s"""
-      |CrossSectionProblemAnswer
-      |---------------------------------------------
-      |${shapeInputs.mkString("")}
-      |$centerOfGravity
-      |$centralMomentsOfInertia
-      |$distanceBetweenCentralAxes
-      |$mainCoordinateSystem
-      |$mainMomentsOfInertia
-      |$mainMomentsOfInertiaCheck
-      |$radiusesOfInertia
-      |---------------------------------------------
-      |""".stripMargin
-  }
-}
-
-object CrossSectionProblemAnswer {
-
-  object Mapping {
-
-    object Input {
-      def square(shapeId: Int) = s"square_$shapeId"
-      def iy(shapeId: Int) = s"iy_$shapeId"
-      def iz(shapeId: Int) = s"iz_$shapeId"
-      def iyz(shapeId: Int) = s"iyz_$shapeId"
-    }
-
-    def a(shapeId: Int) = s"a_$shapeId"
-    def b(shapeId: Int) = s"b_$shapeId"
-
-    //CenterOfGravity
-    val y_center = "y_center"
-    val z_center = "z_center"
-    //CentralMomentsOfInertia - Загальні моменти інерції для всієї системи (відносно не повернутої системи)
-    val I_yc = "I_zc"
-    val I_zc = "I_zc"
-    val I_yzc = "I_yzc"
-    //MainCoordinateSystem - Положення головної системи координат U-V - центр в центрі ваги загальному
-    val alfaDegrees = "alfaDegrees"
-    //MainMomentsOfInertia - Головні моменти інерції (відносно повернутої системи)
-    val I_u = "I_u"
-    val I_v = "I_v"
-    // I_uv == 0 в цій системі координат
-    //MainMomentsOfInertiaCheck
-    val I_max = "I_max"
-    val I_min = "I_min"
-    //RadiusesOfInertia
-    val i_u = "i_u"
-    val i_v = "i_v"
-  }
-
-}

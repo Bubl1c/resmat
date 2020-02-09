@@ -1,6 +1,7 @@
 package edu.knuca.resmat.core.crosssection
 
 import edu.knuca.resmat.core.{ShapeInput, Sortament}
+import edu.knuca.resmat.exam.ProblemInputVariableValue
 import edu.knuca.resmat.utils.PimpedEnumeration
 
 import scala.math.pow
@@ -53,6 +54,26 @@ sealed trait GeometryShape {
       case _ => false
     }
   }
+
+  /**
+    * Get center coords depending on rotation angle
+    */
+  protected def getRotatedCenterCoords(xAdd: Double, yAdd: Double): XYCoords = {
+    rotationAngle match {
+      case ShapeRotationAngle.R0 => XYCoords(root.x - xAdd, root.y - yAdd)
+      case ShapeRotationAngle.R90 => XYCoords(root.x - yAdd, root.y + xAdd)
+      case ShapeRotationAngle.R180 => XYCoords(root.x + xAdd, root.y + yAdd)
+      case ShapeRotationAngle.R270 => XYCoords(root.x + yAdd, root.y - xAdd)
+      case ra => throw new IllegalArgumentException(s"Unhandled rotation angle $ra")
+    }
+  }
+
+  /**
+    * Get center coords depending on rotation angle
+    */
+  protected def mmToSm(valueInMm: Double): Double = {
+    valueInMm / 10
+  }
 }
 
 case class KutykShape(
@@ -71,7 +92,7 @@ case class KutykShape(
 
   def getShapeInput: ShapeInput = {
     val iyz = if (isNegativeShapeSign) -sortamentData.I_x_y else sortamentData.I_x_y
-    val center = XYCoords(root.x - sortamentData.z_0, root.y - sortamentData.z_0)
+    val center = getRotatedCenterCoords(sortamentData.z_0, sortamentData.z_0)
     ShapeInput(
       id,
       name,
@@ -109,7 +130,7 @@ case class ShvellerShape(
       case _ => sortamentData.I_x
     }
     val iyz = 0
-    val center = XYCoords(root.x - sortamentData.z_0, root.y - sortamentData.h/2)
+    val center = getRotatedCenterCoords(sortamentData.z_0, mmToSm(sortamentData.h/2))
     ShapeInput(
       id,
       name,
@@ -147,7 +168,7 @@ case class DvotavrShape(
       case _ => sortamentData.I_x
     }
     val iyz = 0
-    val center = XYCoords(root.x, root.y - sortamentData.h/2)
+    val center = getRotatedCenterCoords(0, mmToSm(sortamentData.h/2))
     ShapeInput(
       id,
       name,
@@ -208,7 +229,7 @@ case class NapivkoloShape(
     val iy = 0.00686 * pow(diametr, 4)
     val iz = Math.PI * pow(diametr, 4) / 128
     val iyz = 0
-    val center = XYCoords(root.x - diametr/2, root.y - diametr*0.212)
+    val center = getRotatedCenterCoords(diametr/2, diametr*0.212)
     ShapeInput(
       id,
       name,
@@ -238,7 +259,7 @@ case class Trykutnyk90Shape(
     val iy = b * pow(h, 3) / 36
     val iz = pow(b, 3) * h / 36
     val iyz = - pow(b, 2) * pow(b, 2) / 72
-    val center = XYCoords(root.x - b/3, root.y - h/3)
+    val center = getRotatedCenterCoords(b/3, h/3)
     ShapeInput(
       id,
       name,
@@ -268,7 +289,7 @@ case class TrykutnykRBShape(
     val iy = b * pow(h, 3) / 36
     val iz = pow(b, 3) * h / 48
     val iyz = 0
-    val center = XYCoords(root.x - b/2, root.y - h/3)
+    val center = getRotatedCenterCoords(b/2, h/3)
     ShapeInput(
       id,
       name,
@@ -297,7 +318,7 @@ case class PlastynaShape(
     val iy = b * pow(h, 3) / 12
     val iz = pow(b, 3) * h / 12
     val iyz = 0
-    val center = XYCoords(root.x - b/2, root.y - h/2)
+    val center = getRotatedCenterCoords(b/2, h/2)
     ShapeInput(
       id,
       name,

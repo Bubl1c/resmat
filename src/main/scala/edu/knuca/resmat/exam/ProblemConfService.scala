@@ -2,8 +2,9 @@ package edu.knuca.resmat.exam
 
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
-import edu.knuca.resmat.core.ringplate.{RingPlateProblemAnswer, RingPlateSolver}
-import edu.knuca.resmat.core.ringplate.{RingPlateProblemAnswer, RingPlateProblemInput}
+import edu.knuca.resmat.core.ProblemAnswer
+import edu.knuca.resmat.core.RingPlateProblemAnswer
+import edu.knuca.resmat.core.ringplate.{RingPlateSolver, RingPlateProblemInput}
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.taskflow.TaskFlowQueries
 import edu.knuca.resmat.http.FailedDependency
@@ -84,7 +85,8 @@ class ProblemConfService(val db: DatabaseService)(implicit val executionContext:
   def calculateAndCreateProblemVariantConf(p: NewProblemVariantConfDto, problemConfId: Long): ProblemVariantConf = {
     val problemConf = getProblemConfById(problemConfId)
     val calculatedData = new RingPlateSolver(problemConf.inputVariableConfs, p.inputVariableValues).solve()
-    createProblemVariantConf(ProblemVariantConf(-1, problemConfId, p.schemaUrl, p.inputVariableValues, calculatedData))
+    //TODO: SchemaType is hardcoded
+    createProblemVariantConf(ProblemVariantConf(-1, problemConfId, ProblemVariantSchemaType.ImgUrl, p.schemaUrl, p.inputVariableValues, calculatedData))
   }
 
   def deleteProblemVariantConf(id: Long, force: Boolean) = db.runTransaction { implicit c =>
@@ -120,6 +122,7 @@ object ProblemQueries {
     val table = "problem_variant_confs"
     val id = "id"
     val problemConfId = "problem_conf_id"
+    val schemaType = "schema_type"
     val schemaUrl = "schema_url"
     val inputVariableValues = "input_variable_values"
     val calculatedData = "calculated_data"
@@ -135,11 +138,12 @@ object ProblemQueries {
   val problemVariantConfParser = for {
     id <- long(PV.id)
     problemConfId <- long(PV.problemConfId)
+    schemaType <- int(PV.schemaType)
     schemaUrl <- str(PV.schemaUrl)
     inputVariableValues <- str(PV.inputVariableValues)
     calculatedData <- str(PV.calculatedData)
   } yield ProblemVariantConf(
-    id, problemConfId, schemaUrl, decodeInputVariableValues(inputVariableValues), decodeCalculatedData(calculatedData)
+    id, problemConfId, ProblemVariantSchemaType(schemaType), schemaUrl, decodeInputVariableValues(inputVariableValues), decodeCalculatedData(calculatedData)
   )
 
   def createProblemConf(p: ProblemConf) =
@@ -165,16 +169,19 @@ object ProblemQueries {
     SQL(
       s"""INSERT INTO ${PV.table} (
          |${PV.problemConfId},
+         |${PV.schemaType},
          |${PV.schemaUrl},
          |${PV.inputVariableValues},
          |${PV.calculatedData})
          |VALUES (
          |{problemConfId},
+         |{schemaType},
          |{schemaUrl},
          |{inputVariableValues},
          |{calculatedData})
        """.stripMargin)
       .on("problemConfId" -> pv.problemConfId)
+      .on("schemaType" -> pv.schemaType.id)
       .on("schemaUrl" -> pv.schemaUrl)
       .on("inputVariableValues" -> pv.inputVariableValues.asJson.toString)
       .on("calculatedData" -> pv.calculatedData.asJson.toString)
@@ -182,12 +189,14 @@ object ProblemQueries {
   def updateProblemVariantConf(id: Long, pv: ProblemVariantConf) =
     SQL(
       s"""UPDATE ${PV.table} SET
+         |${PV.schemaType} = {schemaType},
          |${PV.schemaUrl} = {schemaUrl},
          |${PV.inputVariableValues} = {inputVariableValues},
          |${PV.calculatedData} = {calculatedData}
          |WHERE id = {id}
        """.stripMargin)
       .on("id" -> id)
+      .on("schemaType" -> pv.schemaType.id)
       .on("schemaUrl" -> pv.schemaUrl)
       .on("inputVariableValues" -> pv.inputVariableValues.asJson.toString)
       .on("calculatedData" -> pv.calculatedData.asJson.toString)
@@ -217,9 +226,8 @@ object ProblemQueries {
     )
   }
 
-  //todo switch to interface to allow to work with different problems
-  private def decodeCalculatedData(json: String): RingPlateProblemAnswer = {
-    decode[RingPlateProblemAnswer](json).fold( e =>
+  private def decodeCalculatedData(json: String): ProblemAnswer = {
+    decode[ProblemAnswer](json).fold( e =>
       throw new RuntimeException(s"Failed to decode CalculatedData in json: $json", e),
       r => r
     )

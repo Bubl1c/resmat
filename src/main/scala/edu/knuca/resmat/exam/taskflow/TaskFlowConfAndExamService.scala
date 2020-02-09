@@ -261,6 +261,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
     val pvcDto = PublicProblemVariantConf(
       problemVariantConf.id,
       problemVariantConf.problemConfId,
+      problemVariantConf.schemaType,
       problemVariantConf.schemaUrl,
       problemVariantConf.inputVariableValues
     )

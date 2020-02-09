@@ -1,7 +1,7 @@
 package edu.knuca.resmat.exam
 
 import edu.knuca.resmat.core.ProblemAnswer
-import edu.knuca.resmat.core.ringplate.RingPlateProblemAnswer
+import edu.knuca.resmat.core.RingPlateProblemAnswer
 import edu.knuca.resmat.exam.taskflow.{TaskFlowDto, TaskFlowResultInfoStepDataDto}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
@@ -10,6 +10,12 @@ import org.joda.time.DateTime
 //Both needed for UserExamStepResultStepInfo
 import io.circe.generic.auto._
 import edu.knuca.resmat.http.JsonProtocol._
+
+object ProblemVariantSchemaType extends PimpedEnumeration {
+  type ProblemVariantSchemaType = Value
+  val ImgUrl = Value(1, "img-url")
+  val Geogebra = Value(2, "geogebra")
+}
 
 object TaskFlowStepType extends PimpedEnumeration {
   type TaskFlowStepType = Value
@@ -32,6 +38,7 @@ object ExamStepType extends PimpedEnumeration {
 object ProblemType extends PimpedEnumeration {
   type ProblemType = Value
   val RingPlate = Value(1, "ring-plate")
+  val CrossSection = Value(2, "cross-section")
 }
 
 object TestType extends PimpedEnumeration {
@@ -178,18 +185,25 @@ case class UserExamStepAttemptTestSetTest(id: Long,
 
 case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf])
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
-case class ProblemInputVariableValue(variableConfId: Long, value: Double)
+case class ProblemInputVariableValue(
+  variableConfId: Long,
+  value: Double,
+  strValue: Option[String] = None,
+  variableKey: Option[String] = None //For CrossSection "shapeId.fieldName"
+)
 //todo switch calculatedData to interface to allow to work with different problems
 case class PublicProblemVariantConf(id: Long,
                                     problemConfId: Long,
+                                    schemaType: ProblemVariantSchemaType.ProblemVariantSchemaType,
                                     schemaUrl: String,
                                     inputVariableValues: Seq[ProblemInputVariableValue])
 case class ProblemVariantConf(id: Long,
                               problemConfId: Long,
+                              schemaType: ProblemVariantSchemaType.ProblemVariantSchemaType,
                               schemaUrl: String,
                               inputVariableValues: Seq[ProblemInputVariableValue],
-                              calculatedData: RingPlateProblemAnswer) {
-  val withoutCalculatedData = PublicProblemVariantConf(id, problemConfId, schemaUrl, inputVariableValues)
+                              calculatedData: ProblemAnswer) {
+  val withoutCalculatedData = PublicProblemVariantConf(id, problemConfId, schemaType, schemaUrl, inputVariableValues)
 }
 
 //====================TaskFlow====================

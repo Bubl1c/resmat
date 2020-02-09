@@ -8,7 +8,7 @@ import io.circe.generic.auto._
 
 class TestJsonProtocol extends FunSpec {
 
-  import edu.knuca.resmat.core.ringplate.RingPlateProblemAnswer.{Mapping => M}
+  import edu.knuca.resmat.core.RingPlateProblemAnswer.{Mapping => M}
 
   describe("eqset") {
     val json = InputSetEquationSystem("InputSetEquationSystem", List(
