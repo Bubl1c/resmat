@@ -18,7 +18,7 @@ object CrossSectionSolver extends App {
     ShvellerShape(1, "Shveller1", ShapeRotationAngle.R270, XYCoords(0, 7.6), List.empty, "20"),
     KutykShape(2, "Kutyk2", ShapeRotationAngle.R180, XYCoords(10, 7.6), List.empty, "10_8")
   )
-  val input = CrossSectionProblemInput(shapes.map(_.getShapeInput))
+  val input = CrossSectionProblemInput(shapes)
 
   val answer = new CrossSectionSolver(input).solve()
 
@@ -36,7 +36,7 @@ object CrossSectionSolver extends App {
   *
   * Еліпс повертається на alphaDegrees
   * i_u - Радіус еліпса ПЕРПЕНДИКУЛЯРНО осі U
-  * i_v - Радіус еліпса ПЕРПЕНДИКУЛЯРНО осі U
+  * i_v - Радіус еліпса ПЕРПЕНДИКУЛЯРНО осі V
   *
   */
 
@@ -56,7 +56,7 @@ object CrossSectionSolver extends App {
   * 2. Визначення геометричних характеристик окремих елементів складеного перерізу
   *   - намальована фігура
   *   - InputSet по кожній з хар-к
-  * 2. Визначенняцентрувагискладеногопоперечногоперерізувсистемікоординат y00z0
+  * 2. Визначення центру ваги складеного поперечного перерізу в системі координат y00 z0
   *   - Sz0 == r1
   *   - Sy0 == r3
   *   - Sum[Ai] == A_sum
@@ -102,14 +102,16 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
     z_c: DenseVector[Double]
   )
 
+  private val shapeInputs = input.shapes.map(_.getShapeInput)
+
   //задається варіантом попередньо
-  private val area = DenseVector[BigDecimal](input.shapes.map(s => BigDecimal(s.square)).toArray)
-  private val I_y = input.shapes.map(_.I_y)
-  private val I_z = input.shapes.map(_.I_z)
-  private val I_yz = input.shapes.map(_.I_yz)
+  private val area = DenseVector[BigDecimal](shapeInputs.map(s => BigDecimal(s.square)).toArray)
+  private val I_y = shapeInputs.map(_.I_y)
+  private val I_z = shapeInputs.map(_.I_z)
+  private val I_yz = shapeInputs.map(_.I_yz)
   //кординати фігури
-  private val y_c = input.shapes.map(_.y_center)
-  private val z_c = input.shapes.map(_.z_center)
+  private val y_c = shapeInputs.map(_.y_center)
+  private val z_c = shapeInputs.map(_.z_center)
 
   //Координати загального центра ваги
   private var r1: BigDecimal = 0.0
@@ -135,9 +137,9 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   private val bOutput = scala.collection.mutable.ListBuffer[ShapeDistanceToCentralAxis]()
   for (i <- 0 until n) {
     a(i) = z_c(i) - z_center
-    aOutput += ShapeDistanceToCentralAxis(input.shapes(i).id, a(i).doubleValue())
+    aOutput += ShapeDistanceToCentralAxis(shapeInputs(i).id, a(i).doubleValue())
     b(i) = y_c(i) - y_center
-    bOutput += ShapeDistanceToCentralAxis(input.shapes(i).id, b(i).doubleValue())
+    bOutput += ShapeDistanceToCentralAxis(shapeInputs(i).id, b(i).doubleValue())
   }
 
   // центральні моменти інерції
@@ -197,7 +199,7 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   }
 }
 
-case class CrossSectionProblemInput(shapes: Vector[ShapeInput])
+case class CrossSectionProblemInput(shapes: Vector[GeometryShape])
 object CrossSectionProblemInput {
 
   object Mapping {
@@ -316,7 +318,7 @@ object CrossSectionProblemInput {
         case _ => throw new IllegalArgumentException(s"Shape kind ${kind} is unknown, while processing var values $m")
       }
     })
-    CrossSectionProblemInput(shapes.map(_.getShapeInput).toVector)
+    CrossSectionProblemInput(shapes.toVector)
   }
 }
 

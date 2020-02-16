@@ -1,6 +1,7 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.DenseMatrix
+import edu.knuca.resmat.core.crosssection.GeometryShape
 import edu.knuca.resmat.core.ringplate.{CoordinateResult, ExtremeConditionsResult, ExtremeStressResult, GaussResult, ShiftAndForceResult}
 import edu.knuca.resmat.exam.{ChartData, ChartSet, DynamicTable, DynamicTableRow, SmartValueStaticDouble}
 import io.circe.generic.JsonCodec
@@ -201,7 +202,7 @@ object RingPlateProblemAnswer {
 }
 
 case class CrossSectionProblemAnswer(
-  shapeInputs: Vector[ShapeInput],
+  shapes: Vector[GeometryShape],
   centerOfGravity: CenterOfGravity,
   distanceBetweenCentralAxes: DistanceBetweenCentralAxes,
   centralMomentsOfInertia: CentralMomentsOfInertia,
@@ -213,9 +214,16 @@ case class CrossSectionProblemAnswer(
 
   import edu.knuca.resmat.core.CrossSectionProblemAnswer.{Mapping => M}
 
+  import io.circe.generic.auto._
+  import io.circe.parser._
+  import io.circe.syntax._
+  import edu.knuca.resmat.http.JsonProtocol._
+
   override protected val mapping: Map[String, Any] = {
+    val shapeInputs = shapes.map(_.getShapeInput)
     val static = Map(
       M.amountOfShapes -> Some(shapeInputs.size.toDouble),
+      M.shapeIdsDividedByComma -> shapeInputs.map(_.id).mkString(","),
 
       M.y_center -> centerOfGravity.y_center,
       M.z_center -> centerOfGravity.z_center,
@@ -235,25 +243,32 @@ case class CrossSectionProblemAnswer(
       M.i_u -> radiusesOfInertia.i_u,
       M.i_v -> radiusesOfInertia.i_v
     )
-    val inputsMap: Map[String, Double] = shapeInputs.flatMap(si => {
+    val shapeDataMap: Map[String, String] = shapes.flatMap(s => {
       Map(
-        M.Input.square(si.id) -> si.square,
-        M.Input.iy(si.id) -> si.I_y,
-        M.Input.iz(si.id) -> si.I_z,
-        M.Input.iyz(si.id) -> si.I_yz
+        M.Input.name(s.id) -> s.name,
+        M.Input.json(s.id) -> s.asJson.toString
+      )
+    }).toMap
+    val inputsMap: Map[String, Option[Double]] = shapeInputs.flatMap(si => {
+      Map(
+        M.Input.square(si.id) -> Some(si.square),
+        M.Input.iy(si.id) -> Some(si.I_y),
+        M.Input.iz(si.id) -> Some(si.I_z),
+        M.Input.iyz(si.id) -> Some(si.I_yz)
       )
     }).toMap
     val aMap: Map[String, Double] = distanceBetweenCentralAxes.a.map(ai => M.a(ai.shapeId) -> ai.distance).toMap
     val bMap: Map[String, Double] = distanceBetweenCentralAxes.b.map(bi => M.b(bi.shapeId) -> bi.distance).toMap
 
-    static ++ inputsMap ++ aMap ++ bMap
+    static ++ shapeDataMap ++ inputsMap ++ aMap ++ bMap
   }
 
   override def toString: String = {
     s"""
        |CrossSectionProblemAnswer
        |---------------------------------------------
-       |${shapeInputs.mkString("")}
+       |${shapes.map(_.toString)}
+       |${shapes.map(_.getShapeInput).mkString("")}
        |$centerOfGravity
        |$centralMomentsOfInertia
        |$distanceBetweenCentralAxes
@@ -270,6 +285,8 @@ object CrossSectionProblemAnswer {
   object Mapping {
 
     object Input {
+      def name(shapeId: Int) = s"name_$shapeId"
+      def json(shapeId: Int) = s"json_$shapeId"
       def square(shapeId: Int) = s"square_$shapeId"
       def iy(shapeId: Int) = s"iy_$shapeId"
       def iz(shapeId: Int) = s"iz_$shapeId"
@@ -279,7 +296,8 @@ object CrossSectionProblemAnswer {
     def a(shapeId: Int) = s"a_$shapeId"
     def b(shapeId: Int) = s"b_$shapeId"
 
-    val amountOfShapes = "amountOfShapes"
+    val amountOfShapes = "amountOfShapes" //TODO: not needed
+    val shapeIdsDividedByComma = "shapeIdsDividedByComma"
 
     //CenterOfGravity
     val y_center = "y_center"

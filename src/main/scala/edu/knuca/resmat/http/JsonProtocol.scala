@@ -58,8 +58,8 @@ object JsonProtocol {
   implicit val encodeShapeRotationAngle: Encoder[ShapeRotationAngle.ShapeRotationAngle] = Encoder.encodeString.contramap[ShapeRotationAngle.ShapeRotationAngle](_.toString)
   implicit val decodeShapeRotationAngle: Decoder[ShapeRotationAngle.ShapeRotationAngle] = enumDecoder(ShapeRotationAngle)
 
-  implicit val encodeProblemVariantSchemaType: Encoder[ProblemVariantSchemaType.ProblemVariantSchemaType] = Encoder.encodeString.contramap[ProblemVariantSchemaType.ProblemVariantSchemaType](_.toString)
-  implicit val decodeProblemVariantSchemaType: Decoder[ProblemVariantSchemaType.ProblemVariantSchemaType] = enumDecoder(ProblemVariantSchemaType)
+  implicit val encodeProblemVariantSchemaType: Encoder[ResmatImageType.ResmatImageType] = Encoder.encodeString.contramap[ResmatImageType.ResmatImageType](_.toString)
+  implicit val decodeProblemVariantSchemaType: Decoder[ResmatImageType.ResmatImageType] = enumDecoder(ResmatImageType)
 
   def enumDecoder(en: Enumeration) = Decoder.decodeString.emap { str =>
     Try(en.withName(str)) match {

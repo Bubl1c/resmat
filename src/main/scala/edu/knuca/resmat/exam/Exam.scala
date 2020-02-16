@@ -11,8 +11,8 @@ import org.joda.time.DateTime
 import io.circe.generic.auto._
 import edu.knuca.resmat.http.JsonProtocol._
 
-object ProblemVariantSchemaType extends PimpedEnumeration {
-  type ProblemVariantSchemaType = Value
+object ResmatImageType extends PimpedEnumeration {
+  type ResmatImageType = Value
   val ImgUrl = Value(1, "img-url")
   val Geogebra = Value(2, "geogebra")
 }
@@ -25,6 +25,7 @@ object TaskFlowStepType extends PimpedEnumeration {
   val VariableValueSet = Value(4, "var-value-set")
   val EquationSet = Value(5, "equation-set")
   val DynamicTable = Value(6, "dynamic-table")
+  val DynamicInputSet = Value(7, "dynamic-input-set")
   val Finished = Value(-1, "finished")
 }
 
@@ -194,12 +195,12 @@ case class ProblemInputVariableValue(
 //todo switch calculatedData to interface to allow to work with different problems
 case class PublicProblemVariantConf(id: Long,
                                     problemConfId: Long,
-                                    schemaType: ProblemVariantSchemaType.ProblemVariantSchemaType,
+                                    schemaType: ResmatImageType.ResmatImageType,
                                     schemaUrl: String,
                                     inputVariableValues: Seq[ProblemInputVariableValue])
 case class ProblemVariantConf(id: Long,
                               problemConfId: Long,
-                              schemaType: ProblemVariantSchemaType.ProblemVariantSchemaType,
+                              schemaType: ResmatImageType.ResmatImageType,
                               schemaUrl: String,
                               inputVariableValues: Seq[ProblemInputVariableValue],
                               calculatedData: ProblemAnswer) {
@@ -271,3 +272,15 @@ case class ChartSet(title: String, charts: Seq[ChartData])
 
 case class DynamicTableRow(name: String, cells: List[SmartValue])
 case class DynamicTable(title: String, colNames: List[String], rows: List[DynamicTableRow]) extends TaskFlowStepData
+
+/**
+  * Dynamically generates (groups.size * inputConfs.size) inputs
+  */
+case class DynamicInputSetConf(
+  id: Long,
+  name: String,
+  groupIdsAnswerMapping: String,
+  groupNameKeyAnswerMapping: String,
+  groupJsonKeyAnswerMapping: String,
+  inputConfs: Seq[InputSetInput]
+) extends TaskFlowStepData

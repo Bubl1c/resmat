@@ -3,6 +3,7 @@ package edu.knuca.resmat.core.crosssection
 import edu.knuca.resmat.core.{ShapeInput, Sortament}
 import edu.knuca.resmat.exam.ProblemInputVariableValue
 import edu.knuca.resmat.utils.PimpedEnumeration
+import io.circe.generic.JsonCodec
 
 import scala.math.pow
 
@@ -29,7 +30,10 @@ object ShapeType extends PimpedEnumeration {
   val Plastyna: ShapeType = Value(7, "Plastyna")
 }
 
-sealed trait GeometryShape {
+import io.circe.generic.auto._
+import edu.knuca.resmat.http.JsonProtocol._
+
+@JsonCodec sealed trait GeometryShape {
   val id: Int
   val name: String
   val shapeType: ShapeType.ShapeType
@@ -331,3 +335,5 @@ case class PlastynaShape(
     )
   }
 }
+
+object GeometryShape //to make @JsonCodec work

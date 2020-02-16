@@ -31,6 +31,10 @@ case class TaskFlowResultInfoStepDataDto(id: Long, stepType: TaskFlowStepType.Ta
 case class InputSetAnswerDto(inputSetId: Long, inputAnswers: Seq[InputSetInputAnswer])
 case class InputSetInputAnswer(id: Int, value: Option[Double] = None)
 
+case class DynamicInputSetGroup(id: Int, name: String, imageType: ResmatImageType.ResmatImageType, image: String)
+case class DynamicInputSetInput(inputSet: InputSet, groups: Seq[DynamicInputSetGroup])
+case class DynamicInputSetAnswer(input: DynamicInputSetInput, answer: Seq[InputSetInputAnswer])
+
 case class VerifiedTaskFlowStepAnswer(isCorrectAnswer: Boolean, mistakesAmount: Int, answer: String)
 
 case class VerifiedInputSetAnswer(inputSetId: Long, isCorrectAnswer: Boolean, mistakesAmount: Int, answer: Map[Int, Boolean])
@@ -319,12 +323,18 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             )
           ))
           withMappedValues.asJson.toString()
+        case TaskFlowStepType.DynamicInputSet =>
+          val dynamicISAnswer = decode[DynamicInputSetAnswer](taskFlowStep.answer).fold( e =>
+            throw new RuntimeException(s"Failed to parse DynamicInputSetAnswer from tf step answer ${taskFlowStep.answer}", e),
+            r => r
+          )
+          dynamicISAnswer.input.asJson.toString
         case TaskFlowStepType.Finished =>
           updateTaskFlowStep(taskFlowStep.copy(done = true))
           "Task flow has been finished successfully".asJson.toString()
         case _ => taskFlowStepConf.stepData
       }
-      Some(TaskFlowStepDto(taskFlowStepConf, taskFlowStep, taskFlowStepData, availableHelpSteps))
+      Some(TaskFlowStepDto(taskFlowStepConf, taskFlowStep.copy(answer = ""), taskFlowStepData, availableHelpSteps))
     }
   }
 
@@ -366,13 +376,18 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             verifiedAnswer.answer.asJson.toString()
           )
         )
-      case TaskFlowStepType.InputSet | TaskFlowStepType.EquationSet =>
+      case TaskFlowStepType.InputSet | TaskFlowStepType.DynamicInputSet | TaskFlowStepType.EquationSet =>
         val inputSetAnswer = decode[InputSetAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
         )
-        val correctAnswer = decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
-          throw new RuntimeException(s"Failed to parse test answer in $answer")
-        )
+        val correctAnswer = taskFlowStepConf.stepType match {
+          case TaskFlowStepType.DynamicInputSet => decode[DynamicInputSetAnswer](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
+            throw new RuntimeException(s"Failed to parse DynamicInputSetAnswer in $answer")
+          ).answer
+          case _ => decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
+            throw new RuntimeException(s"Failed to parse Seq[InputSetInputAnswer] in $answer")
+          )
+        }
         val verifiedAnswer = InputSetUtils.verify(inputSetAnswer, correctAnswer, taskFlowStepConf.precision)
         updateTaskFlowStep(taskFlowStep, verifiedAnswer.isCorrectAnswer, verifiedAnswer.mistakesAmount)
         if(verifiedAnswer.isCorrectAnswer) updateTaskFlowCurrentStep(taskFlow.id)
@@ -457,6 +472,37 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           stepInputSet.inputs.map(input =>
             InputSetInputAnswer(input.id, cd.getDoubleOpt(input.answerMapping))
           ).asJson.toString()
+        case TaskFlowStepType.DynamicInputSet =>
+          val dynamicInputSet = decode[DynamicInputSetConf](sc.stepData).fold( e =>
+            throw new RuntimeException(s"Failed to parse DynamicInputSet from step data ${sc.stepData}", e),
+            r => r
+          )
+          val groupIds = cd.getString(dynamicInputSet.groupIdsAnswerMapping).split(",")
+          val groups = groupIds.map(id => {
+            val groupName = cd.getString(s"${dynamicInputSet.groupNameKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
+            val groupJson = cd.getString(s"${dynamicInputSet.groupJsonKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
+            DynamicInputSetGroup(id.toInt, groupName, ResmatImageType.Geogebra, groupJson)
+          })
+          val inputSet = InputSet(
+            dynamicInputSet.id,
+            dynamicInputSet.name,
+            groups.flatMap(g => {
+              dynamicInputSet.inputConfs.map(ic =>
+                InputSetInput(s"${g.id}${ic.id}".toInt, s"${ic.name}", g.name, ic.units, s"${ic.answerMapping}_${g.id}", ic.description, ic.value) //TODO: hardcoded, how to make reusable?
+              )
+            })
+          )
+          val inputSetInput = DynamicInputSetInput(inputSet, groups)
+          val inputAnswers = inputSetInput.groups.flatMap(g => {
+            dynamicInputSet.inputConfs.map(input =>
+              InputSetInputAnswer(s"${g.id}${input.id}".toInt, cd.getDoubleOpt(s"${input.answerMapping}_${g.id}")) //TODO: hardcoded, how to make reusable?
+            )
+          })
+          val dInputSetAnswer = DynamicInputSetAnswer(
+            inputSetInput,
+            inputAnswers
+          )
+          dInputSetAnswer.asJson.toString
         case TaskFlowStepType.VariableValueSet =>
           val stepInputSet = decode[InputSet](sc.stepData).fold( e =>
             throw new RuntimeException(s"Failed to parse InputSet from step data ${sc.stepData}", e),

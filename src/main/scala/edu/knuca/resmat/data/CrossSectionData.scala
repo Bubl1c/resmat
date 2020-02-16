@@ -30,13 +30,13 @@ object CrossSectionData {
 
     private val varValues = CrossSectionProblemInput.toVariant(shapes)
 
-    private val input = CrossSectionProblemInput(shapes.map(_.getShapeInput))
+    private val input = CrossSectionProblemInput(shapes)
 
     val conf: ProblemConf = ProblemConf(2, "Геометрія", ProblemType.CrossSection, confs)
 
     val variants: Seq[ProblemVariantConf] = Seq(
       ProblemVariantConf(
-        2, 2, ProblemVariantSchemaType.Geogebra, "",
+        2, 2, ResmatImageType.Geogebra, "",
         varValues,
         new CrossSectionSolver(input).solve()
       )
@@ -49,18 +49,30 @@ object CrossSectionData {
     import edu.knuca.resmat.core.CrossSectionProblemAnswer.{Mapping => M}
 
     private val steps = Seq(
-      TaskFlowStepConf(-1, -1, 1, "",
+      TaskFlowStepConf(-1, -1, 1, "Step 1",
         TaskFlowStepType.InputSet, InputSet(
           1, "InputSetName", Seq(
             InputSetInput(1, "Скільки фігур?", "", "", M.amountOfShapes)
           )
         ).normalised.asJson.toString()
       ),
-      TaskFlowStepConf(-1, -1, 2, "Кінець", TaskFlowStepType.Finished, "{}")
+      TaskFlowStepConf(-1, -1, 2, "Step 2",
+        TaskFlowStepType.DynamicInputSet, DynamicInputSetConf(
+          2,
+          "Визначення геометричних характеристик окремих елементів складеного перерізу",
+          M.shapeIdsDividedByComma,
+          "name",
+          "json",
+          Seq(
+            InputSetInput(1, "Площа фігури", "", "см2", "square", "Площа фігури опис")
+          )
+        ).asJson.toString()
+      ),
+      TaskFlowStepConf(-1, -1, 3, "Кінець", TaskFlowStepType.Finished, "{}")
     )
 
     val taskFlowConf: TaskFlowConfDto = TaskFlowConfDto(
-      TaskFlowConf(-1, 2, "Порядок виконання задачі"),
+      TaskFlowConf(-1, 2, "Геометрія"),
       steps
     )
   }

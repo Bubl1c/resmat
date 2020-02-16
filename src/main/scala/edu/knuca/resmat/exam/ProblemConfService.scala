@@ -86,7 +86,7 @@ class ProblemConfService(val db: DatabaseService)(implicit val executionContext:
     val problemConf = getProblemConfById(problemConfId)
     val calculatedData = new RingPlateSolver(problemConf.inputVariableConfs, p.inputVariableValues).solve()
     //TODO: SchemaType is hardcoded
-    createProblemVariantConf(ProblemVariantConf(-1, problemConfId, ProblemVariantSchemaType.ImgUrl, p.schemaUrl, p.inputVariableValues, calculatedData))
+    createProblemVariantConf(ProblemVariantConf(-1, problemConfId, ResmatImageType.ImgUrl, p.schemaUrl, p.inputVariableValues, calculatedData))
   }
 
   def deleteProblemVariantConf(id: Long, force: Boolean) = db.runTransaction { implicit c =>
@@ -143,7 +143,7 @@ object ProblemQueries {
     inputVariableValues <- str(PV.inputVariableValues)
     calculatedData <- str(PV.calculatedData)
   } yield ProblemVariantConf(
-    id, problemConfId, ProblemVariantSchemaType(schemaType), schemaUrl, decodeInputVariableValues(inputVariableValues), decodeCalculatedData(calculatedData)
+    id, problemConfId, ResmatImageType(schemaType), schemaUrl, decodeInputVariableValues(inputVariableValues), decodeCalculatedData(calculatedData)
   )
 
   def createProblemConf(p: ProblemConf) =
