@@ -15,8 +15,8 @@ import scala.math._
 
 object CrossSectionSolver extends App {
   val shapes: Vector[GeometryShape] = Vector(
-    ShvellerShape(1, "Shveller1", ShapeRotationAngle.R270, XYCoords(0, 7.6), List.empty, "20"),
-    KutykShape(2, "Kutyk2", ShapeRotationAngle.R180, XYCoords(10, 7.6), List.empty, "10_8")
+    ShvellerShape(1, "Shveller1", ShapeRotationAngle.R270, XYCoords(0, 7.6), 20),
+    KutykShape(2, "Kutyk2", ShapeRotationAngle.R180, XYCoords(10, 7.6), 10, 8)
   )
   val input = CrossSectionProblemInput(shapes)
 
@@ -102,7 +102,7 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
     z_c: DenseVector[Double]
   )
 
-  private val shapeInputs = input.shapes.map(_.getShapeInput)
+  private val shapeInputs = input.shapes.map(_.getShapeCalculatedData)
 
   //задається варіантом попередньо
   private val area = DenseVector[BigDecimal](shapeInputs.map(s => BigDecimal(s.square)).toArray)
@@ -234,9 +234,12 @@ object CrossSectionProblemInput {
       val commonVals = Vector(kind, name, rootX, rootY, rotationAngle)
 
       val specificVals: Vector[ProblemInputVariableValue] = s match {
-        case k: KutykShape => Vector(ProblemInputVariableValue(7, 0, Some(k.sortamentKey), Some(s"${s.id}.sortamentKey")))
-        case k: ShvellerShape => Vector(ProblemInputVariableValue(7, 0, Some(k.sortamentKey), Some(s"${s.id}.sortamentKey")))
-        case k: DvotavrShape => Vector(ProblemInputVariableValue(7, 0, Some(k.sortamentKey), Some(s"${s.id}.sortamentKey")))
+        case k: KutykShape => Vector(
+          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
+          ProblemInputVariableValue(7, k.t, None, Some(s"${s.id}.t"))
+        )
+        case k: ShvellerShape => Vector(ProblemInputVariableValue(7, k.n, None, Some(s"${s.id}.n")))
+        case k: DvotavrShape => Vector(ProblemInputVariableValue(7, k.n, None, Some(s"${s.id}.n")))
         case k: KoloShape => Vector(ProblemInputVariableValue(7, k.diametr, None, Some(s"${s.id}.diametr")))
         case k: NapivkoloShape => Vector(ProblemInputVariableValue(7, k.diametr, None, Some(s"${s.id}.diametr")))
         case k: Trykutnyk90Shape => Vector(
@@ -259,8 +262,10 @@ object CrossSectionProblemInput {
   }
 
   def apply(confs: Seq[ProblemInputVariableConf], vals: Seq[ProblemInputVariableValue]): CrossSectionProblemInput = {
+    //key - {ProblemInputVariableConf::alias}
     val valsByConf: Map[String, Seq[ProblemInputVariableValue]] = confs.map(c => c.alias -> vals.filter(v => v.variableConfId == c.id)).toMap
 
+    //key - {ProblemInputVariableConf::alias}
     val m: Map[String, ProblemInputVariableValue] = valsByConf.filter(tuple => tuple._2.size == 1).mapValues(_.head)
 
     val mm: Map[
@@ -300,21 +305,18 @@ object CrossSectionProblemInput {
         throw new IllegalStateException(s"$shapeId.$fieldName is not defined in dimensions of $m")
       )
 
-      def sValueStr(fieldName: String): String = sValue(fieldName).strValue.getOrElse(
-        throw new IllegalStateException(s"$shapeId.$fieldName strValue is not defined in dimensions of $m")
-      )
-
       def sValueD(fieldName: String): Double = sValue(fieldName).value
+      def sValueI(fieldName: String): Int = sValue(fieldName).value.toInt
 
       kind match {
-        case ShapeType.Kutyk => KutykShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueStr("sortamentKey"))
-        case ShapeType.Shveller => ShvellerShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueStr("sortamentKey"))
-        case ShapeType.Dvotavr => DvotavrShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueStr("sortamentKey"))
-        case ShapeType.Kolo => KoloShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("diametr"))
-        case ShapeType.Napivkolo => NapivkoloShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("diametr"))
-        case ShapeType.Trykutnyk90 => Trykutnyk90Shape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("b"), sValueD("h"))
-        case ShapeType.TrykutnykRB => TrykutnykRBShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("b"), sValueD("h"))
-        case ShapeType.Plastyna => PlastynaShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), List.empty, sValueD("b"), sValueD("h"))
+        case ShapeType.Kutyk => KutykShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueD("b"), sValueD("d"))
+        case ShapeType.Shveller => ShvellerShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueI("n"))
+        case ShapeType.Dvotavr => DvotavrShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueI("n"))
+        case ShapeType.Kolo => KoloShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueD("diametr"))
+        case ShapeType.Napivkolo => NapivkoloShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueD("diametr"))
+        case ShapeType.Trykutnyk90 => Trykutnyk90Shape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueD("b"), sValueD("h"))
+        case ShapeType.TrykutnykRB => TrykutnykRBShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueD("b"), sValueD("h"))
+        case ShapeType.Plastyna => PlastynaShape(shapeId.toInt, name, rotationAngle, XYCoords(rootX, rootY), sValueD("b"), sValueD("h"))
         case _ => throw new IllegalArgumentException(s"Shape kind ${kind} is unknown, while processing var values $m")
       }
     })
@@ -322,7 +324,7 @@ object CrossSectionProblemInput {
   }
 }
 
-case class ShapeInput(
+case class ShapeCalculatedData(
   id: Int,
   shapeName: String,
   square: Double,

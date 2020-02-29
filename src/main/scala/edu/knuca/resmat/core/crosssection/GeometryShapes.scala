@@ -1,6 +1,6 @@
 package edu.knuca.resmat.core.crosssection
 
-import edu.knuca.resmat.core.{ShapeInput, Sortament}
+import edu.knuca.resmat.core.{ShapeCalculatedData, Sortament}
 import edu.knuca.resmat.exam.ProblemInputVariableValue
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
@@ -39,9 +39,8 @@ import edu.knuca.resmat.http.JsonProtocol._
   val shapeType: ShapeType.ShapeType
   val rotationAngle: ShapeRotationAngle.ShapeRotationAngle
   val root: XYCoords
-  val points: List[ShapePoint]
 
-  def getShapeInput: ShapeInput
+  def getShapeCalculatedData: ShapeCalculatedData
 
   /**
     * Kutyk, 90Trykutnyk - змінити знак відцентрового моменту I_yz залежно від кута повороту
@@ -85,19 +84,21 @@ case class KutykShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
-  sortamentKey: String
+  b: Double,
+  t: Double
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Kutyk
+
+  private val sortamentKey = s"${b/10}_$t"
   private lazy val sortamentData = Sortament.sortament.kutyk.getOrElse(
     sortamentKey,
     throw new IllegalArgumentException(s"Kutyk with sortament key $sortamentKey doesn't exist")
   )
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val iyz = if (isNegativeShapeSign) -sortamentData.I_x_y else sortamentData.I_x_y
     val center = getRotatedCenterCoords(sortamentData.z_0, sortamentData.z_0)
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       sortamentData.square,
@@ -115,16 +116,17 @@ case class ShvellerShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
-  sortamentKey: String
+  n: Int
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Kutyk
+
+  private val sortamentKey = s"$n"
   private lazy val sortamentData = Sortament.sortament.shveller.getOrElse(
     sortamentKey,
     throw new IllegalArgumentException(s"Shveller with sortament key $sortamentKey doesn't exist")
   )
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val iy = rotationAngle match {
       case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => sortamentData.I_x
       case _ => sortamentData.I_y
@@ -135,7 +137,7 @@ case class ShvellerShape(
     }
     val iyz = 0
     val center = getRotatedCenterCoords(sortamentData.z_0, mmToSm(sortamentData.h/2))
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       sortamentData.square,
@@ -153,16 +155,17 @@ case class DvotavrShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
-  sortamentKey: String
+  n: Int
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Dvotavr
+
+  private val sortamentKey = s"$n"
   private lazy val sortamentData = Sortament.sortament.dvotavr.getOrElse(
     sortamentKey,
     throw new IllegalArgumentException(s"Dvotavr with sortament key $sortamentKey doesn't exist")
   )
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val iy = rotationAngle match {
       case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => sortamentData.I_x
       case _ => sortamentData.I_y
@@ -173,7 +176,7 @@ case class DvotavrShape(
     }
     val iyz = 0
     val center = getRotatedCenterCoords(0, mmToSm(sortamentData.h/2))
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       sortamentData.square,
@@ -191,18 +194,17 @@ case class KoloShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
   diametr: Double
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Kolo
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val square = Math.PI * pow(diametr, 2) / 4
     val iy = Math.PI * pow(diametr, 4) / 64
     val iz = iy
     val iyz = 0
     val center = XYCoords(root.x, root.y)
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       square,
@@ -223,18 +225,17 @@ case class NapivkoloShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
   diametr: Double
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Napivkolo
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val square = Math.PI * pow(diametr, 2) / 8
     val iy = 0.00686 * pow(diametr, 4)
     val iz = Math.PI * pow(diametr, 4) / 128
     val iyz = 0
     val center = getRotatedCenterCoords(diametr/2, diametr*0.212)
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       square,
@@ -252,19 +253,18 @@ case class Trykutnyk90Shape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
   b: Double,
   h: Double
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Trykutnyk90
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val square = 1/2 * h * b
     val iy = b * pow(h, 3) / 36
     val iz = pow(b, 3) * h / 36
     val iyz = - pow(b, 2) * pow(b, 2) / 72
     val center = getRotatedCenterCoords(b/3, h/3)
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       square,
@@ -282,19 +282,18 @@ case class TrykutnykRBShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
   b: Double,
   h: Double
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.TrykutnykRB
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val square = 1/2 * h * b
     val iy = b * pow(h, 3) / 36
     val iz = pow(b, 3) * h / 48
     val iyz = 0
     val center = getRotatedCenterCoords(b/2, h/3)
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       square,
@@ -312,18 +311,17 @@ case class PlastynaShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  points: List[ShapePoint],
   b: Double,
   h: Double
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Plastyna
 
-  def getShapeInput: ShapeInput = {
+  def getShapeCalculatedData: ShapeCalculatedData = {
     val iy = b * pow(h, 3) / 12
     val iz = pow(b, 3) * h / 12
     val iyz = 0
     val center = getRotatedCenterCoords(b/2, h/2)
-    ShapeInput(
+    ShapeCalculatedData(
       id,
       name,
       b * h,

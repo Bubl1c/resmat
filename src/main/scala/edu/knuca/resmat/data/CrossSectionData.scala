@@ -24,8 +24,8 @@ object CrossSectionData {
     )
 
     private val shapes = Vector(
-      PlastynaShape(1, "Plastyna1", ShapeRotationAngle.R0, XYCoords(5, 2), List.empty, 2, 6),
-      PlastynaShape(2, "Plastyna2", ShapeRotationAngle.R0, XYCoords(3, 2), List.empty, 3, 2)
+      PlastynaShape(1, "Plastyna1", ShapeRotationAngle.R0, XYCoords(5, 2), 2, 6),
+      PlastynaShape(2, "Plastyna2", ShapeRotationAngle.R0, XYCoords(3, 2), 3, 2)
     )
 
     private val varValues = CrossSectionProblemInput.toVariant(shapes)
@@ -34,11 +34,10 @@ object CrossSectionData {
 
     val conf: ProblemConf = ProblemConf(2, "Геометрія", ProblemType.CrossSection, confs)
 
+    val solved = new CrossSectionSolver(input).solve()
     val variants: Seq[ProblemVariantConf] = Seq(
       ProblemVariantConf(
-        2, 2, ResmatImageType.Geogebra, "",
-        varValues,
-        new CrossSectionSolver(input).solve()
+        2, 2, ResmatImageType.Geogebra, solved.shapes.asJson.noSpaces, varValues, solved
       )
     )
 
@@ -50,15 +49,8 @@ object CrossSectionData {
 
     private val steps = Seq(
       TaskFlowStepConf(-1, -1, 1, "Step 1",
-        TaskFlowStepType.InputSet, InputSet(
-          1, "InputSetName", Seq(
-            InputSetInput(1, "Скільки фігур?", "", "", M.amountOfShapes)
-          )
-        ).normalised.asJson.toString()
-      ),
-      TaskFlowStepConf(-1, -1, 2, "Step 2",
         TaskFlowStepType.DynamicInputSet, DynamicInputSetConf(
-          2,
+          1,
           "Визначення геометричних характеристик окремих елементів складеного перерізу",
           M.shapeIdsDividedByComma,
           "name",
@@ -68,7 +60,7 @@ object CrossSectionData {
           )
         ).asJson.toString()
       ),
-      TaskFlowStepConf(-1, -1, 3, "Кінець", TaskFlowStepType.Finished, "{}")
+      TaskFlowStepConf(-1, -1, 2, "Кінець", TaskFlowStepType.Finished, "{}")
     )
 
     val taskFlowConf: TaskFlowConfDto = TaskFlowConfDto(

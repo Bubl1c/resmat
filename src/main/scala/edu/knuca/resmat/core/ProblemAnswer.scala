@@ -220,7 +220,7 @@ case class CrossSectionProblemAnswer(
   import edu.knuca.resmat.http.JsonProtocol._
 
   override protected val mapping: Map[String, Any] = {
-    val shapeInputs = shapes.map(_.getShapeInput)
+    val shapeInputs = shapes.map(_.getShapeCalculatedData)
     val static = Map(
       M.amountOfShapes -> Some(shapeInputs.size.toDouble),
       M.shapeIdsDividedByComma -> shapeInputs.map(_.id).mkString(","),
@@ -268,7 +268,7 @@ case class CrossSectionProblemAnswer(
        |CrossSectionProblemAnswer
        |---------------------------------------------
        |${shapes.map(_.toString)}
-       |${shapes.map(_.getShapeInput).mkString("")}
+       |${shapes.map(_.getShapeCalculatedData).mkString("")}
        |$centerOfGravity
        |$centralMomentsOfInertia
        |$distanceBetweenCentralAxes
