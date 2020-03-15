@@ -1,13 +1,16 @@
 package edu.knuca.resmat.http
 
-import edu.knuca.resmat.core.crosssection.{ShapeRotationAngle, ShapeType}
+import edu.knuca.resmat.core.crosssection.{GeometryShape, GeometryShapeJson, ShapeRotationAngle, ShapeType}
 import edu.knuca.resmat.core.ringplate.BindingType
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowDto
 import edu.knuca.resmat.exam.testset.TestSetDto
 import edu.knuca.resmat.user.UserType
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.Decoder.Result
+import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.generic.auto._
+import io.circe.parser.decode
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
@@ -69,12 +72,19 @@ object JsonProtocol {
   }
 
   implicit val encodeStepData: Encoder[StepDataDto] = new Encoder[StepDataDto] {
-    import io.circe.generic.auto._
     override def apply(a: StepDataDto) = a match {
       case tsd: TestSetDto => tsd.asJson
       case tfd: TaskFlowDto => tfd.asJson
       case uer: UserExamResult => uer.asJson
       case ni: NI => ni.asJson
     }
+  }
+
+  implicit val encodeGeometryShape: Encoder[GeometryShape] = new Encoder[GeometryShape] {
+    override def apply(s: GeometryShape) = s.toJson().asJson
+  }
+
+  implicit val decodeGeometryShape: Decoder[GeometryShape] = Decoder[GeometryShapeJson].map{ gsJson =>
+    GeometryShape.fromJson(gsJson)
   }
 }

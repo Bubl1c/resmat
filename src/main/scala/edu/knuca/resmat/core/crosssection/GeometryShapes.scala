@@ -1,11 +1,12 @@
 package edu.knuca.resmat.core.crosssection
 
+import edu.knuca.resmat.core.crosssection.ShapeRotationAngle.ShapeRotationAngle
 import edu.knuca.resmat.core.{ShapeCalculatedData, Sortament}
 import edu.knuca.resmat.exam.ProblemInputVariableValue
 import edu.knuca.resmat.utils.PimpedEnumeration
-import io.circe.generic.JsonCodec
 
 import scala.math.pow
+import io.circe.{Json, JsonObject}
 
 case class XYCoords(x: Double, y: Double)
 case class ShapePoint(name: String, coords: XYCoords)
@@ -28,17 +29,33 @@ object ShapeType extends PimpedEnumeration {
   val Trykutnyk90: ShapeType = Value(5, "Trykutnyk90")
   val TrykutnykRB: ShapeType = Value(6, "TrykutnykRB")
   val Plastyna: ShapeType = Value(7, "Plastyna")
+  val Ellipse: ShapeType = Value(8, "Ellipse")
+  val CustomAxes: ShapeType = Value(9, "CustomAxes")
 }
 
-import io.circe.generic.auto._
-import edu.knuca.resmat.http.JsonProtocol._
+case class GeometryShapeJson (
+  id: Int,
+  name: String,
+  shapeType: ShapeType.ShapeType,
+  rotationAngle: Int, //0-360
+  root: XYCoords,
+  dimensions: Map[String, Double],
+  sizeDirections: JsonObject,
+  settings: JsonObject,
+  props: JsonObject,
+  rotationPoint: Option[XYCoords] = None
+)
 
-@JsonCodec sealed trait GeometryShape {
+sealed trait GeometryShape {
   val id: Int
   val name: String
   val shapeType: ShapeType.ShapeType
   val rotationAngle: ShapeRotationAngle.ShapeRotationAngle
+  val rotationPoint: Option[XYCoords]
   val root: XYCoords
+  val sizeDirections: JsonObject
+  val settings: JsonObject
+  val props: JsonObject
 
   def getShapeCalculatedData: ShapeCalculatedData
 
@@ -77,6 +94,39 @@ import edu.knuca.resmat.http.JsonProtocol._
   protected def mmToSm(valueInMm: Double): Double = {
     valueInMm / 10
   }
+
+  def dimensionsToMap(): Map[String, Double]
+
+  def toJson(): GeometryShapeJson = GeometryShapeJson(
+    this.id,
+    this.name,
+    this.shapeType,
+    this.rotationAngle.id,
+    this.root,
+    dimensionsToMap(),
+    this.sizeDirections,
+    this.settings,
+    this.props,
+    this.rotationPoint
+  )
+}
+
+object GeometryShape {
+  def fromJson(j: GeometryShapeJson): GeometryShape = {
+    j.shapeType match {
+      case ShapeType.Kutyk => KutykShape(j)
+      case ShapeType.Shveller => ShvellerShape(j)
+      case ShapeType.Dvotavr => DvotavrShape(j)
+      case ShapeType.Kolo => KoloShape(j)
+      case ShapeType.Napivkolo => NapivkoloShape(j)
+      case ShapeType.Trykutnyk90 => Trykutnyk90Shape(j)
+      case ShapeType.TrykutnykRB => TrykutnykRBShape(j)
+      case ShapeType.Plastyna => PlastynaShape(j)
+      case ShapeType.Ellipse => EllipseShape(j)
+      case ShapeType.CustomAxes => CustomAxesShape(j)
+      case _ => throw new IllegalArgumentException(s"Unsupported shape type ${j.shapeType} when creating GeometryShape from GeometryShapeJson: $j")
+    }
+  }
 }
 
 case class KutykShape(
@@ -85,11 +135,17 @@ case class KutykShape(
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
   b: Double,
-  t: Double
+  t: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Kutyk
 
-  private val sortamentKey = s"${b/10}_$t"
+  val bString = s"${b/10}".replace(".0", "")
+  val tString = s"$t".replace(".0", "")
+  private val sortamentKey = s"${bString}_$tString"
   private lazy val sortamentData = Sortament.sortament.kutyk.getOrElse(
     sortamentKey,
     throw new IllegalArgumentException(s"Kutyk with sortament key $sortamentKey doesn't exist")
@@ -109,6 +165,22 @@ case class KutykShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("b" -> this.b, "t" -> this.t)
+}
+object KutykShape {
+  def apply(j: GeometryShapeJson): KutykShape = new KutykShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("b"),
+    j.dimensions("t"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 case class ShvellerShape(
@@ -116,9 +188,13 @@ case class ShvellerShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  n: Int
+  n: Int,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
-  val shapeType: ShapeType.ShapeType = ShapeType.Kutyk
+  val shapeType: ShapeType.ShapeType = ShapeType.Shveller
 
   private val sortamentKey = s"$n"
   private lazy val sortamentData = Sortament.sortament.shveller.getOrElse(
@@ -148,6 +224,21 @@ case class ShvellerShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("n" -> this.n)
+}
+object ShvellerShape {
+  def apply(j: GeometryShapeJson): ShvellerShape = new ShvellerShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("n").toInt,
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 case class DvotavrShape(
@@ -155,7 +246,11 @@ case class DvotavrShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  n: Int
+  n: Int,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Dvotavr
 
@@ -187,6 +282,21 @@ case class DvotavrShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("n" -> this.n)
+}
+object DvotavrShape {
+  def apply(j: GeometryShapeJson): DvotavrShape = new DvotavrShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("n").toInt,
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 case class KoloShape(
@@ -194,7 +304,11 @@ case class KoloShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  diametr: Double
+  diametr: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Kolo
 
@@ -215,6 +329,21 @@ case class KoloShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("diametr" -> this.diametr)
+}
+object KoloShape {
+  def apply(j: GeometryShapeJson): KoloShape = new KoloShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("diametr"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 /**
@@ -225,7 +354,11 @@ case class NapivkoloShape(
   name: String,
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
-  diametr: Double
+  diametr: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Napivkolo
 
@@ -246,6 +379,21 @@ case class NapivkoloShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("diametr" -> this.diametr)
+}
+object NapivkoloShape {
+  def apply(j: GeometryShapeJson): NapivkoloShape = new NapivkoloShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("diametr"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 case class Trykutnyk90Shape(
@@ -254,7 +402,11 @@ case class Trykutnyk90Shape(
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
   b: Double,
-  h: Double
+  h: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Trykutnyk90
 
@@ -275,6 +427,22 @@ case class Trykutnyk90Shape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("b" -> this.b, "h" -> this.h)
+}
+object Trykutnyk90Shape {
+  def apply(j: GeometryShapeJson): Trykutnyk90Shape = new Trykutnyk90Shape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("b"),
+    j.dimensions("h"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 case class TrykutnykRBShape(
@@ -283,7 +451,11 @@ case class TrykutnykRBShape(
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
   b: Double,
-  h: Double
+  h: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.TrykutnykRB
 
@@ -304,6 +476,22 @@ case class TrykutnykRBShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("b" -> this.b, "h" -> this.h)
+}
+object TrykutnykRBShape {
+  def apply(j: GeometryShapeJson): TrykutnykRBShape = new TrykutnykRBShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("b"),
+    j.dimensions("h"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
 case class PlastynaShape(
@@ -312,7 +500,11 @@ case class PlastynaShape(
   rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
   root: XYCoords,
   b: Double,
-  h: Double
+  h: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Plastyna
 
@@ -332,6 +524,108 @@ case class PlastynaShape(
       center.y
     )
   }
+
+  def dimensionsToMap(): Map[String, Double] = Map("b" -> this.b, "h" -> this.h)
+}
+object PlastynaShape {
+  def apply(j: GeometryShapeJson): PlastynaShape = new PlastynaShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("b"),
+    j.dimensions("h"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
 }
 
-object GeometryShape //to make @JsonCodec work
+case class EllipseShape(
+  id: Int,
+  name: String,
+  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  root: XYCoords,
+  xR: Double,
+  yR: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
+) extends GeometryShape {
+  val shapeType: ShapeType.ShapeType = ShapeType.Ellipse
+
+  def getShapeCalculatedData: ShapeCalculatedData = {
+    ShapeCalculatedData(
+      id,
+      name,
+      Math.PI * xR * yR,
+      0.0,
+      0.0,
+      0.0,
+      root.x,
+      root.y
+    )
+  }
+
+  def dimensionsToMap(): Map[String, Double] = Map("xR" -> this.xR, "yR" -> this.yR)
+}
+object EllipseShape {
+  def apply(j: GeometryShapeJson): EllipseShape = new EllipseShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("xR"),
+    j.dimensions("yR"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
+}
+
+case class CustomAxesShape(
+  id: Int,
+  name: String,
+  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  root: XYCoords,
+  xSize: Double,
+  ySize: Double,
+  sizeDirections: JsonObject = JsonObject.empty,
+  settings: JsonObject = JsonObject.empty,
+  props: JsonObject = JsonObject.empty,
+  rotationPoint: Option[XYCoords] = None
+) extends GeometryShape {
+  val shapeType: ShapeType.ShapeType = ShapeType.CustomAxes
+
+  def getShapeCalculatedData: ShapeCalculatedData = {
+    ShapeCalculatedData(
+      id,
+      name,
+      xSize * ySize,
+      0.0,
+      0.0,
+      0.0,
+      root.x,
+      root.y
+    )
+  }
+
+  def dimensionsToMap(): Map[String, Double] = Map("xSize" -> this.xSize, "ySize" -> this.ySize)
+}
+object CustomAxesShape {
+  def apply(j: GeometryShapeJson): CustomAxesShape = new CustomAxesShape(
+    j.id,
+    j.name,
+    ShapeRotationAngle(j.rotationAngle),
+    j.root,
+    j.dimensions("xSize"),
+    j.dimensions("ySize"),
+    j.sizeDirections,
+    j.settings,
+    j.props,
+    j.rotationPoint
+  )
+}

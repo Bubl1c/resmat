@@ -285,12 +285,18 @@ object CrossSectionProblemAnswer {
   object Mapping {
 
     object Input {
-      def name(shapeId: Int) = s"name_$shapeId"
-      def json(shapeId: Int) = s"json_$shapeId"
-      def square(shapeId: Int) = s"square_$shapeId"
-      def iy(shapeId: Int) = s"iy_$shapeId"
-      def iz(shapeId: Int) = s"iz_$shapeId"
-      def iyz(shapeId: Int) = s"iyz_$shapeId"
+      val nameKey = "name"
+      def name(shapeId: Int) = s"${nameKey}_$shapeId"
+      val jsonKey = "json"
+      def json(shapeId: Int) = s"${jsonKey}_$shapeId"
+      val squareKey = "square"
+      def square(shapeId: Int) = s"${squareKey}_$shapeId"
+      val iyKey = "iy"
+      def iy(shapeId: Int) = s"${iyKey}_$shapeId"
+      val izKey = "iz"
+      def iz(shapeId: Int) = s"${izKey}_$shapeId"
+      val iyzKey = "iyz"
+      def iyz(shapeId: Int) = s"${iyzKey}_$shapeId"
     }
 
     def a(shapeId: Int) = s"a_$shapeId"

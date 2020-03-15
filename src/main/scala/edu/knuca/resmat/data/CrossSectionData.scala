@@ -1,11 +1,12 @@
 package edu.knuca.resmat.data
 
-import edu.knuca.resmat.core.crosssection.{PlastynaShape, ShapeRotationAngle, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, XYCoords}
 import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
 import edu.knuca.resmat.exam._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import edu.knuca.resmat.http.JsonProtocol._
+import io.circe.JsonObject
 
 object CrossSectionData {
 
@@ -24,8 +25,14 @@ object CrossSectionData {
     )
 
     private val shapes = Vector(
-      PlastynaShape(1, "Plastyna1", ShapeRotationAngle.R0, XYCoords(5, 2), 2, 6),
-      PlastynaShape(2, "Plastyna2", ShapeRotationAngle.R0, XYCoords(3, 2), 3, 2)
+      PlastynaShape(1, "Пластина 1", ShapeRotationAngle.R0, XYCoords(5, 2), 2, 6),
+      KutykShape(2, "Кутик 2", ShapeRotationAngle.R0, XYCoords(3, 2), 20, 3),
+      DvotavrShape(3, "Двотавр 3", ShapeRotationAngle.R0, XYCoords(3, 2), 10),
+      ShvellerShape(4, "Швеллер 4", ShapeRotationAngle.R0, XYCoords(3, 2), 10),
+      EllipseShape(5, "Еліпс 5", ShapeRotationAngle.R0, XYCoords(3, 2), 5.0, 2.0),
+      CustomAxesShape(6, "Осі 6", ShapeRotationAngle.R90, XYCoords(3, 2), 10.0, 10.0,
+        props = JsonObject.fromMap(Map("xAxisName" -> "u".asJson, "yAxisName" -> "z".asJson))
+      )
     )
 
     private val varValues = CrossSectionProblemInput.toVariant(shapes)
@@ -37,7 +44,7 @@ object CrossSectionData {
     val solved = new CrossSectionSolver(input).solve()
     val variants: Seq[ProblemVariantConf] = Seq(
       ProblemVariantConf(
-        2, 2, ResmatImageType.Geogebra, solved.shapes.asJson.noSpaces, varValues, solved
+        2, 2, ResmatImageType.Geogebra, solved.shapes.map(_.toJson()).asJson.noSpaces, varValues, solved
       )
     )
 
@@ -53,10 +60,13 @@ object CrossSectionData {
           1,
           "Визначення геометричних характеристик окремих елементів складеного перерізу",
           M.shapeIdsDividedByComma,
-          "name",
-          "json",
+          M.Input.nameKey,
+          M.Input.jsonKey,
           Seq(
-            InputSetInput(1, "Площа фігури", "", "см2", "square", "Площа фігури опис")
+            InputSetInput(1, "Площа фігури", "", "см2", M.Input.squareKey, ""),
+            InputSetInput(2, "Iy", "", "см4", M.Input.iyKey, ""),
+            InputSetInput(3, "Iz", "", "см4", M.Input.izKey, ""),
+            InputSetInput(4, "Iyz", "", "см4", M.Input.iyzKey, "")
           )
         ).asJson.toString()
       ),

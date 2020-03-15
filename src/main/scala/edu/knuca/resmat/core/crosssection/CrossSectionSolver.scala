@@ -1,7 +1,7 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.DenseVector
-import edu.knuca.resmat.core.crosssection.{DvotavrShape, GeometryShape, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeRotationAngle, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeRotationAngle, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
 import edu.knuca.resmat.exam.{ProblemInputVariableConf, ProblemInputVariableValue}
 
 import scala.math._
@@ -254,7 +254,17 @@ object CrossSectionProblemInput {
           ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
           ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
         )
-        case k =>throw new IllegalArgumentException(s"Shape $k is unknown, while converting to variant")
+        //TODO remove - testing
+        case k: EllipseShape => Vector(
+          ProblemInputVariableValue(7, k.xR, None, Some(s"${s.id}.xR")),
+          ProblemInputVariableValue(7, k.yR, None, Some(s"${s.id}.yR"))
+        )
+        //TODO remove - testing
+        case k: CustomAxesShape => Vector(
+          ProblemInputVariableValue(7, k.xSize, None, Some(s"${s.id}.xSize")),
+          ProblemInputVariableValue(7, k.ySize, None, Some(s"${s.id}.ySize"))
+        )
+        case k => throw new IllegalArgumentException(s"Shape $k is unknown, while converting to variant")
       }
       commonVals ++ specificVals
     })
