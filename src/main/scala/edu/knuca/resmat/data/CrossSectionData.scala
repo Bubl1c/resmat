@@ -1,6 +1,6 @@
 package edu.knuca.resmat.data
 
-import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, SizeDirections, XYCoords}
 import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
 import edu.knuca.resmat.exam._
 import io.circe.generic.auto._
@@ -17,22 +17,16 @@ object CrossSectionData {
     private val confs = Vector(
       ProblemInputVariableConf(id = 1, name = "shapeIds", units = "string with shape ids delimited by comma", alias = M.shapeIds, showInExam = false),
       ProblemInputVariableConf(id = 2, name = "Тип фігури", alias = M.Shape.kind, showInExam = false),
-      ProblemInputVariableConf(id = 3, name = "Назва фігури", alias = M.Shape.name, showInExam = true),
+      ProblemInputVariableConf(id = 3, name = "Назва фігури", alias = M.Shape.name, showInExam = false),
       ProblemInputVariableConf(id = 4, name = "RootX", alias = M.Shape.rootX, showInExam = false),
       ProblemInputVariableConf(id = 5, name = "RootY", alias = M.Shape.rootY, showInExam = false),
-      ProblemInputVariableConf(id = 6, name = "Кут повороту", units = "градусів", alias = M.Shape.rotationAngle, showInExam = true),
-      ProblemInputVariableConf(id = 7, name = "Розміри", units = "json", alias = M.Shape.dimensions, showInExam = true)
+      ProblemInputVariableConf(id = 6, name = "Кут повороту", units = "градусів", alias = M.Shape.rotationAngle, showInExam = false),
+      ProblemInputVariableConf(id = 7, name = "Розміри", alias = M.Shape.dimensions, showInExam = true)
     )
 
     private val shapes = Vector(
-      PlastynaShape(1, "Пластина 1", ShapeRotationAngle.R0, XYCoords(5, 2), 2, 6),
-      KutykShape(2, "Кутик 2", ShapeRotationAngle.R0, XYCoords(3, 2), 20, 3),
-      DvotavrShape(3, "Двотавр 3", ShapeRotationAngle.R0, XYCoords(3, 2), 10),
-      ShvellerShape(4, "Швеллер 4", ShapeRotationAngle.R0, XYCoords(3, 2), 10),
-      EllipseShape(5, "Еліпс 5", ShapeRotationAngle.R0, XYCoords(3, 2), 5.0, 2.0),
-      CustomAxesShape(6, "Осі 6", ShapeRotationAngle.R90, XYCoords(3, 2), 10.0, 10.0,
-        props = JsonObject.fromMap(Map("xAxisName" -> "u".asJson, "yAxisName" -> "z".asJson))
-      )
+      DvotavrShape(1, "Двотавр", ShapeRotationAngle.R0, XYCoords(25, 2), 10),
+      ShvellerShape(2, "Швеллер", ShapeRotationAngle.R180, XYCoords(71, 2), 10)
     )
 
     private val varValues = CrossSectionProblemInput.toVariant(shapes)
@@ -44,7 +38,7 @@ object CrossSectionData {
     val solved = new CrossSectionSolver(input).solve()
     val variants: Seq[ProblemVariantConf] = Seq(
       ProblemVariantConf(
-        2, 2, ResmatImageType.Geogebra, solved.shapes.map(_.toJson()).asJson.noSpaces, varValues, solved
+        2, 2, ResmatImageType.Geogebra, solved.shapes.asJson.noSpaces, varValues, solved
       )
     )
 
@@ -60,7 +54,7 @@ object CrossSectionData {
           1,
           "Визначення геометричних характеристик окремих елементів складеного перерізу",
           M.shapeIdsDividedByComma,
-          M.Input.nameKey,
+          M.Input.titleKey,
           M.Input.jsonKey,
           Seq(
             InputSetInput(1, "Площа фігури", "", "см2", M.Input.squareKey, ""),

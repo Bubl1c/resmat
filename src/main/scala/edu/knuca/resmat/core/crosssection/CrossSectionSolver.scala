@@ -235,38 +235,38 @@ object CrossSectionProblemInput {
 
       val specificVals: Vector[ProblemInputVariableValue] = s match {
         case k: KutykShape => Vector(
-          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
-          ProblemInputVariableValue(7, k.t, None, Some(s"${s.id}.t"))
+          ProblemInputVariableValue(7, k.b, Some("b"), Some(s"${s.id}.b"), unitsOverride = Some("мм")),
+          ProblemInputVariableValue(7, k.t, Some("t"), Some(s"${s.id}.t"), unitsOverride = Some("мм"))
         )
-        case k: ShvellerShape => Vector(ProblemInputVariableValue(7, k.n, None, Some(s"${s.id}.n")))
-        case k: DvotavrShape => Vector(ProblemInputVariableValue(7, k.n, None, Some(s"${s.id}.n")))
-        case k: KoloShape => Vector(ProblemInputVariableValue(7, k.diametr, None, Some(s"${s.id}.diametr")))
-        case k: NapivkoloShape => Vector(ProblemInputVariableValue(7, k.diametr, None, Some(s"${s.id}.diametr")))
+        case k: ShvellerShape => Vector(ProblemInputVariableValue(7, k.n, Some("n"), Some(s"${s.id}.n")))
+        case k: DvotavrShape => Vector(ProblemInputVariableValue(7, k.n, Some("n"), Some(s"${s.id}.n")))
+        case k: KoloShape => Vector(ProblemInputVariableValue(7, k.diametr, Some("d"), Some(s"${s.id}.diametr"), unitsOverride = Some("мм")))
+        case k: NapivkoloShape => Vector(ProblemInputVariableValue(7, k.diametr, Some("d"), Some(s"${s.id}.diametr"), unitsOverride = Some("мм")))
         case k: Trykutnyk90Shape => Vector(
-          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
-          ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
+          ProblemInputVariableValue(7, k.b, Some("b"), Some(s"${s.id}.b"), unitsOverride = Some("мм")),
+          ProblemInputVariableValue(7, k.h, Some("h"), Some(s"${s.id}.h"), unitsOverride = Some("мм"))
         )
         case k: TrykutnykRBShape => Vector(
-          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
-          ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
+          ProblemInputVariableValue(7, k.b, Some("b"), Some(s"${s.id}.b"), unitsOverride = Some("мм")),
+          ProblemInputVariableValue(7, k.h, Some("h"), Some(s"${s.id}.h"), unitsOverride = Some("мм"))
         )
         case k: PlastynaShape => Vector(
-          ProblemInputVariableValue(7, k.b, None, Some(s"${s.id}.b")),
-          ProblemInputVariableValue(7, k.h, None, Some(s"${s.id}.h"))
+          ProblemInputVariableValue(7, k.b, Some("b"), Some(s"${s.id}.b"), unitsOverride = Some("мм")),
+          ProblemInputVariableValue(7, k.h, Some("h"), Some(s"${s.id}.h"), unitsOverride = Some("мм"))
         )
         //TODO remove - testing
         case k: EllipseShape => Vector(
-          ProblemInputVariableValue(7, k.xR, None, Some(s"${s.id}.xR")),
-          ProblemInputVariableValue(7, k.yR, None, Some(s"${s.id}.yR"))
+          ProblemInputVariableValue(7, k.xR, Some("xR"), Some(s"${s.id}.xR"), unitsOverride = Some("мм")),
+          ProblemInputVariableValue(7, k.yR, Some("yR"), Some(s"${s.id}.yR"), unitsOverride = Some("мм"))
         )
         //TODO remove - testing
         case k: CustomAxesShape => Vector(
-          ProblemInputVariableValue(7, k.xSize, None, Some(s"${s.id}.xSize")),
-          ProblemInputVariableValue(7, k.ySize, None, Some(s"${s.id}.ySize"))
+          ProblemInputVariableValue(7, k.xSize, Some("xSize"), Some(s"${s.id}.xSize"), unitsOverride = Some("мм")),
+          ProblemInputVariableValue(7, k.ySize, Some("ySize"), Some(s"${s.id}.ySize"), unitsOverride = Some("мм"))
         )
         case k => throw new IllegalArgumentException(s"Shape $k is unknown, while converting to variant")
       }
-      commonVals ++ specificVals
+      (commonVals ++ specificVals).map(v => v.copy(variableGroup = Some(s"Фігура ${s.id} - ${s.name}")))
     })
     Vector(shapeIds) ++ shapeVals
   }

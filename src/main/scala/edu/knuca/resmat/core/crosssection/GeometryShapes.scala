@@ -11,6 +11,13 @@ import io.circe.{Json, JsonObject}
 case class XYCoords(x: Double, y: Double)
 case class ShapePoint(name: String, coords: XYCoords)
 
+object SizeDirections {
+  val UP = "up"
+  val DOWN = "down"
+  val LEFT = "left"
+  val RIGHT = "right"
+}
+
 object ShapeRotationAngle extends PimpedEnumeration {
   type ShapeRotationAngle = Value
   val R0: ShapeRotationAngle = Value(0, "0")

@@ -190,7 +190,9 @@ case class ProblemInputVariableValue(
   variableConfId: Long,
   value: Double,
   strValue: Option[String] = None,
-  variableKey: Option[String] = None //For CrossSection "shapeId.fieldName"
+  variableKey: Option[String] = None, //For CrossSection "shapeId.fieldName"
+  variableGroup: Option[String] = None,
+  unitsOverride: Option[String] = None
 )
 //todo switch calculatedData to interface to allow to work with different problems
 case class PublicProblemVariantConf(id: Long,

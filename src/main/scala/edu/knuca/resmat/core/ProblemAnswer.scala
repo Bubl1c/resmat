@@ -246,7 +246,8 @@ case class CrossSectionProblemAnswer(
     val shapeDataMap: Map[String, String] = shapes.flatMap(s => {
       Map(
         M.Input.name(s.id) -> s.name,
-        M.Input.json(s.id) -> s.asJson.toString
+        M.Input.title(s.id) -> s"Фігура ${s.id} - ${s.name}",
+        M.Input.json(s.id) -> List(s).asJson.toString
       )
     }).toMap
     val inputsMap: Map[String, Option[Double]] = shapeInputs.flatMap(si => {
@@ -287,6 +288,8 @@ object CrossSectionProblemAnswer {
     object Input {
       val nameKey = "name"
       def name(shapeId: Int) = s"${nameKey}_$shapeId"
+      val titleKey = "title"
+      def title(shapeId: Int) = s"${titleKey}_$shapeId"
       val jsonKey = "json"
       def json(shapeId: Int) = s"${jsonKey}_$shapeId"
       val squareKey = "square"
