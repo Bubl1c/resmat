@@ -114,6 +114,10 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   private val z_c = shapeInputs.map(_.z_center)
 
   //Координати загального центра ваги
+  private val s_z0 = shapeInputs.foldLeft(0.0)((acc, s) => acc + s.square * s.y_center)
+  private val s_y0 = shapeInputs.foldLeft(0.0)((acc, s) => acc + s.square * s.z_center)
+  private val sumOfSquares = shapeInputs.foldLeft(0.0)((acc, s) => acc + s.square)
+  
   private var r1: BigDecimal = 0.0
   private var A_sum: BigDecimal = 0.0
   private var r3: BigDecimal = 0.0
@@ -135,11 +139,15 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   private val aOutput = scala.collection.mutable.ListBuffer[ShapeDistanceToCentralAxis]()
   private val b = DenseVector.zeros[BigDecimal](n)
   private val bOutput = scala.collection.mutable.ListBuffer[ShapeDistanceToCentralAxis]()
+  private var S_y_c: BigDecimal = 0.0
+  private var S_z_c: BigDecimal = 0.0
   for (i <- 0 until n) {
     a(i) = z_c(i) - z_center
     aOutput += ShapeDistanceToCentralAxis(shapeInputs(i).id, a(i).doubleValue())
     b(i) = y_c(i) - y_center
     bOutput += ShapeDistanceToCentralAxis(shapeInputs(i).id, b(i).doubleValue())
+    S_y_c += shapeInputs(i).square * a(i)
+    S_z_c += shapeInputs(i).square * b(i)
   }
 
   // центральні моменти інерції
@@ -186,8 +194,8 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
 
     val answer = CrossSectionProblemAnswer(
       input.shapes,
-      CenterOfGravity(y_center.doubleValue(), z_center.doubleValue()),
-      DistanceBetweenCentralAxes(aOutput.toVector, bOutput.toVector),
+      CenterOfGravity(s_z0, s_y0, sumOfSquares, y_center.doubleValue(), z_center.doubleValue()),
+      DistanceBetweenCentralAxes(S_y_c.doubleValue(), S_z_c.doubleValue(), aOutput.toVector, bOutput.toVector),
       CentralMomentsOfInertia(I_yc, I_zc, I_yzc),
       MainCoordinateSystem(alfaDegrees),
       MainMomentsOfInertia(I_u, I_v),
@@ -359,8 +367,8 @@ case class ShapeCalculatedData(
 /**
   * Координати загального центра ваги
   */
-case class CenterOfGravity(y_center: Double, z_center: Double) {
-  override def toString: String = s"CenterOfGravity y_center = $y_center, z_center = $z_center"
+case class CenterOfGravity(s_z0: Double, s_y0: Double, sumOfSquares: Double, y_center: Double, z_center: Double) {
+  override def toString: String = s"CenterOfGravity s_z0 = $s_z0, s_y0 = $s_y0, sumOfSquares = $sumOfSquares, y_center = $y_center, z_center = $z_center"
 }
 /**
   * центральні моменти інерції
@@ -396,8 +404,13 @@ case class RadiusesOfInertia(i_u: Double, i_v: Double) {
 /**
   * Відстані між центральними осями
   */
-case class DistanceBetweenCentralAxes(a: Vector[ShapeDistanceToCentralAxis], b: Vector[ShapeDistanceToCentralAxis]) {
-  override def toString: String = s"DistanceBetweenCentralAxes a = $a, b = $b"
+case class DistanceBetweenCentralAxes(
+  S_y_c: Double,
+  S_z_c: Double,
+  a: Vector[ShapeDistanceToCentralAxis],
+  b: Vector[ShapeDistanceToCentralAxis]
+) {
+  override def toString: String = s"DistanceBetweenCentralAxes S_y_c = $S_y_c, S_z_c = $S_z_c, a = $a, b = $b"
 }
 
 case class ShapeDistanceToCentralAxis(shapeId: Int, distance: Double)

@@ -317,11 +317,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           val eqSystem = decode[InputSetEquationSystem](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse InputSetEquationSystem in $taskFlowStepConf")
           )
-          val withMappedValues = eqSystem.copy(equations = eqSystem.equations.map(eq =>
-            eq.copy(
-              items = eq.items.map(i => i.copy(value = i.value.setValue(cd)))
-            )
-          ))
+          val withMappedValues = populateEquationSet(eqSystem, cd)
           withMappedValues.asJson.toString()
         case TaskFlowStepType.DynamicInputSet =>
           val dynamicISAnswer = decode[DynamicInputSetAnswer](taskFlowStep.answer).fold( e =>
@@ -521,7 +517,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             case a: SmartValueInput => true
             case _ => false
           }
-          val inputs = eqSystem.equations.flatMap(e =>
+          val inputs = populateEquationSet(eqSystem, cd).equations.flatMap(e =>
             e.items.filter(onlyInput).map(i => i.value.asInstanceOf[SmartValueInput])
           )
           inputs.map(i => InputSetInputAnswer(i.id, Some(cd.getDouble(i.answerMapping)))).asJson.toString()
@@ -565,6 +561,42 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
     }
 
     (taskFlow, taskFlowSteps)
+  }
+  
+  private def populateEquationSet(eqSystem: InputSetEquationSystem, cd: ProblemAnswer): InputSetEquationSystem = {
+    var inputIndex = 0
+    eqSystem.copy(equations = eqSystem.equations.map(eq =>
+      eq.copy(
+        items = eq.items.flatMap(i => {
+          i.value match {
+            case SmartValueForEach(idsMapping, itemTemplates, betweenTemplates) =>
+              val ids = cd.getString(idsMapping).split(",")
+              val generatedItems = ids.map(id => {
+                itemTemplates.map(tpl => tpl.setAnswerMapping(current => s"${current}_$id").setValue(cd).setLabel(lk => s"$lk$id"))
+              })
+              def betweenEqItems = betweenTemplates.map(bt => EquationItem(bt))
+              generatedItems.foldLeft(Seq.empty[EquationItem])((acc, gis) => {
+                val eqItems = gis.map(gi => EquationItem(gi))
+                acc ++ (if (acc.isEmpty) {
+                  eqItems
+                } else {
+                  betweenEqItems ++ eqItems
+                })
+              })
+            case _ =>
+              Seq(i.copy(value = i.value.setValue(cd)))
+          }
+        }).map(i => {
+          i.value match {
+            case iv: SmartValueInput => {
+              inputIndex = inputIndex + 1
+              i.copy(value = iv.copy(id = inputIndex))
+            }
+            case _ => i
+          }
+        })
+      )
+    ))
   }
 }
 

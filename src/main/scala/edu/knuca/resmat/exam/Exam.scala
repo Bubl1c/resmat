@@ -252,14 +252,25 @@ case class InputSetInput(id: Int, //unique within input set
                          value: Option[Double] = None)
 @JsonCodec sealed trait SmartValue {
   def setValue(answer: ProblemAnswer): SmartValue = this
+  def setAnswerMapping(setter: String => String): SmartValue = this
+  def setLabel(setter: String => String): SmartValue = this
 }
-case class SmartValueInput(id: Int, answerMapping: String) extends SmartValue
+case class SmartValueInput(id: Int, answerMapping: String, labelKey: String = "") extends SmartValue {
+  override def setAnswerMapping(setter: String => String): SmartValue =
+    this.copy(answerMapping = setter(this.answerMapping))
+  override def setLabel(setter: String => String): SmartValue =
+    this.copy(labelKey = setter(this.labelKey))
+}
 case class SmartValueDynamicDouble(answerMapping: String, value: Double = 0.0, digitsAfterComma: Int = 6) extends SmartValue {
   override def setValue(answer: ProblemAnswer): SmartValue =
     this.copy(value = answer.getDouble(answerMapping))
+  
+  override def setAnswerMapping(setter: String => String): SmartValue =
+    this.copy(answerMapping = setter(this.answerMapping))
 }
 case class SmartValueStaticDouble(value: Double, digitsAfterComma: Int = 6) extends SmartValue
 case class SmartValueStaticString(value: String) extends SmartValue
+case class SmartValueForEach(itemIdsMapping: String, itemTemplates: Seq[SmartValue], betweenItemTemplates: Seq[SmartValue]) extends SmartValue
 
 object SmartValue //to make JsonCodec work
 

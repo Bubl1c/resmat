@@ -1,4 +1,3 @@
-import edu.knuca.resmat.data.TaskFlowData
 import edu.knuca.resmat.data.Utils._
 import edu.knuca.resmat.exam._
 import org.scalatest.{FlatSpec, FunSpec}

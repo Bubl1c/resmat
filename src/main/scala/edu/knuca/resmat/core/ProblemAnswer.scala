@@ -22,7 +22,18 @@ import edu.knuca.resmat.http.JsonProtocol._
 
   def getDouble(key: String): Double = {
     mapping.get(key) match {
-      case v: Some[Double] => v.get
+      case Some(value) => {
+        value match {
+          case v: Option[Double] =>
+            v match {
+              case Some(doubleValue) => doubleValue
+              case _ => throw new IllegalArgumentException(s"No Double value found. Requested from ${this.getClass.getSimpleName} by key {$key}")
+            }
+          case v: Double => v
+          case _ =>
+            throw new IllegalArgumentException(s"No Double value found. Requested from ${this.getClass.getSimpleName} by key {$key}")
+        }
+      }
       case v => throw new IllegalArgumentException(s"{$v} is not a Double value. Requested from ${this.getClass.getSimpleName} by key {$key}")
     }
   }
@@ -225,8 +236,15 @@ case class CrossSectionProblemAnswer(
       M.amountOfShapes -> Some(shapeInputs.size.toDouble),
       M.shapeIdsDividedByComma -> shapeInputs.map(_.id).mkString(","),
 
+      M.s_z0 -> centerOfGravity.s_z0,
+      M.s_y0 -> centerOfGravity.s_y0,
+      M.sumOfSquares -> centerOfGravity.sumOfSquares,
+      
       M.y_center -> centerOfGravity.y_center,
       M.z_center -> centerOfGravity.z_center,
+      
+      M.S_y_c -> distanceBetweenCentralAxes.S_y_c,
+      M.S_z_c -> distanceBetweenCentralAxes.S_z_c,
 
       M.I_yc -> centralMomentsOfInertia.I_yc,
       M.I_zc -> centralMomentsOfInertia.I_zc,
@@ -302,15 +320,24 @@ object CrossSectionProblemAnswer {
       def iyz(shapeId: Int) = s"${iyzKey}_$shapeId"
     }
 
-    def a(shapeId: Int) = s"a_$shapeId"
-    def b(shapeId: Int) = s"b_$shapeId"
-
     val amountOfShapes = "amountOfShapes" //TODO: not needed
     val shapeIdsDividedByComma = "shapeIdsDividedByComma"
-
+    
     //CenterOfGravity
+    val s_z0 = "s_z0"
+    val s_y0 = "s_y0"
+    val sumOfSquares = "sumOfSquares"
     val y_center = "y_center"
     val z_center = "z_center"
+    
+    //DistanceBetweenCentralAxes
+    val S_y_c = "S_y_c"
+    val S_z_c = "S_z_c"
+    val aKey = "a"
+    val bKey = "b"
+    def a(shapeId: Int) = s"${aKey}_$shapeId"
+    def b(shapeId: Int) = s"${bKey}_$shapeId"
+    
     //CentralMomentsOfInertia - Загальні моменти інерції для всієї системи (відносно не повернутої системи)
     val I_yc = "I_zc"
     val I_zc = "I_zc"
