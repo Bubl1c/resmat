@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-ENV=${1}
-RELEASE_PARAM=${2}
+ENV=${1} #environment vm/aws
+RELEASE_PARAM=${2} #reload resources true/false
 
 case ${ENV} in
     vm)

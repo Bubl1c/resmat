@@ -5,6 +5,13 @@ import edu.knuca.resmat.utils.NumberUtils
 
 object InputSetUtils {
 
+  /**
+    * 
+    * @param submittedAnswer
+    * @param correctAnswer
+    * @param precision double value like 0.01
+    * @return
+    */
   def verify(submittedAnswer: InputSetAnswerDto, correctAnswer: Seq[InputSetInputAnswer], precision: Option[Double] = None): VerifiedInputSetAnswer = {
     var isCorrectAnswer = true
     var mistakesAmount = 0

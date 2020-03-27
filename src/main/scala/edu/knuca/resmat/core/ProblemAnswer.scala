@@ -339,7 +339,7 @@ object CrossSectionProblemAnswer {
     def b(shapeId: Int) = s"${bKey}_$shapeId"
     
     //CentralMomentsOfInertia - Загальні моменти інерції для всієї системи (відносно не повернутої системи)
-    val I_yc = "I_zc"
+    val I_yc = "I_yc"
     val I_zc = "I_zc"
     val I_yzc = "I_yzc"
     //MainCoordinateSystem - Положення головної системи координат U-V - центр в центрі ваги загальному
