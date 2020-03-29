@@ -1,7 +1,7 @@
 package edu.knuca.resmat.data
 
 import edu.knuca.resmat.core.ringplate.RingPlateSolver
-import edu.knuca.resmat.exam.{EquationItem, InputSet, InputSetEquation, InputSetEquationSystem, InputSetInput, ProblemConf, ProblemInputVariableValue, ProblemType, ProblemVariantConf, ResmatImageType, TaskFlowConf, TaskFlowConfDto, TaskFlowStepConf, TaskFlowStepType, TaskFlowTestConf, TestConf, TestOptionConf}
+import edu.knuca.resmat.exam.{EquationItem, InputSet, InputSetEquation, InputSetEquationSystem, InputSetInput, ProblemConf, ProblemConfProps, ProblemInputVariableValue, ProblemType, ProblemVariantConf, ResmatImageType, TaskFlowConf, TaskFlowConfDto, TaskFlowStepConf, TaskFlowStepType, TaskFlowTestConf, TestConf, TestOptionConf}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import edu.knuca.resmat.http.JsonProtocol._
@@ -84,7 +84,7 @@ object RingPlateData {
       VarVal(18, 160)
     )
 
-    val conf: ProblemConf = ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, problemVariableConfs)
+    val conf: ProblemConf = ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, problemVariableConfs, ProblemConfProps(Seq("img/equations.png")))
 
     val variants: Seq[ProblemVariantConf] = Seq(
       ProblemVariantConf(

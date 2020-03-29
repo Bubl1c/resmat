@@ -2,6 +2,7 @@ package edu.knuca.resmat.exam
 
 import edu.knuca.resmat.core.ProblemAnswer
 import edu.knuca.resmat.core.RingPlateProblemAnswer
+import edu.knuca.resmat.core.crosssection.{CustomAxesSettings, GeometryShapeInGroupSettingsJson, XYCoords}
 import edu.knuca.resmat.exam.taskflow.{TaskFlowDto, TaskFlowResultInfoStepDataDto}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
@@ -94,7 +95,9 @@ case class ExamStepTaskFlowDataSet(taskFlowConfId: Long, problemConfId: Long) ex
 case object ExamStepResultsDataSet extends ExamStepConfDataSet
 object ExamStepConfDataSet
 
-case class ExamConfWithStepsDto(examConf: ExamConf, stepConfs: Seq[ExamStepConf])
+case class ExamConfWithStepsDto(examConf: ExamConf, stepConfs: Seq[ExamStepConf]) {
+  lazy val firstStepId = stepConfs.head.id
+}
 
 case class ExamConfCreateDto(examConf: ExamConf, stepConfs: Seq[ExamStepConfCreateDto])
 case class ExamConfUpdateDto(examConf: ExamConf, stepConfs: Seq[ExamStepConfUpdateDto])
@@ -184,7 +187,8 @@ case class UserExamStepAttemptTestSetTest(id: Long,
 
 //====================Problem====================
 
-case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf])
+case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf], props: ProblemConfProps)
+case class ProblemConfProps(helpMaterials: Seq[String], customAxesSettings: Option[CustomAxesSettings] = None)
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
 case class ProblemInputVariableValue(
   variableConfId: Long,
@@ -289,11 +293,13 @@ case class DynamicTable(title: String, colNames: List[String], rows: List[Dynami
 /**
   * Dynamically generates (groups.size * inputConfs.size) inputs
   */
-case class DynamicInputSetConf(
+case class GroupedInputSetConf(
   id: Long,
   name: String,
   groupIdsAnswerMapping: String,
   groupNameKeyAnswerMapping: String,
-  groupJsonKeyAnswerMapping: String,
-  inputConfs: Seq[InputSetInput]
+  groupGraphJsonKeyAnswerMapping: String,
+  inputConfs: Seq[InputSetInput],
+  groupGraphSettings: Option[GeometryShapeInGroupSettingsJson] = None,
+  groupShapeGraphSettings: Option[GeometryShapeInGroupSettingsJson] = None
 ) extends TaskFlowStepData

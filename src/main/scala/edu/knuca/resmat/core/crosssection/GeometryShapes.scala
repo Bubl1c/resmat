@@ -8,6 +8,9 @@ import edu.knuca.resmat.utils.PimpedEnumeration
 import scala.math.pow
 import io.circe.{Json, JsonObject}
 
+/**
+  * Always in santimeters
+  */
 case class XYCoords(x: Double, y: Double)
 case class ShapePoint(name: String, coords: XYCoords)
 
@@ -39,6 +42,22 @@ object ShapeType extends PimpedEnumeration {
   val Ellipse: ShapeType = Value(8, "Ellipse")
   val CustomAxes: ShapeType = Value(9, "CustomAxes")
 }
+
+case class CustomAxesSettings(xAxisName: String, yAxisName: String, isInverted: Boolean, root: Option[XYCoords] = None)
+
+case class GeometryShapeInGroupSettingsJson(
+  customAxesSettings: Option[CustomAxesSettings]
+)
+
+case class GeometryShapeInGroupJson(
+  shape: GeometryShapeJson,
+  settings: GeometryShapeInGroupSettingsJson
+)
+
+case class GeometryShapeGroupJson(
+  shapes: Seq[GeometryShapeInGroupJson],
+  settings: Option[GeometryShapeInGroupSettingsJson]
+)
 
 case class GeometryShapeJson (
   id: Int,
@@ -87,10 +106,10 @@ sealed trait GeometryShape {
     */
   protected def getRotatedCenterCoords(xAdd: Double, yAdd: Double): XYCoords = {
     rotationAngle match {
-      case ShapeRotationAngle.R0 => XYCoords(root.x - xAdd, root.y - yAdd)
-      case ShapeRotationAngle.R90 => XYCoords(root.x - yAdd, root.y + xAdd)
-      case ShapeRotationAngle.R180 => XYCoords(root.x + xAdd, root.y + yAdd)
-      case ShapeRotationAngle.R270 => XYCoords(root.x + yAdd, root.y - xAdd)
+      case ShapeRotationAngle.R0 => XYCoords(root.x + xAdd, root.y + yAdd)
+      case ShapeRotationAngle.R90 => XYCoords(root.x + yAdd, root.y - xAdd)
+      case ShapeRotationAngle.R180 => XYCoords(root.x - xAdd, root.y - yAdd)
+      case ShapeRotationAngle.R270 => XYCoords(root.x - yAdd, root.y + xAdd)
       case ra => throw new IllegalArgumentException(s"Unhandled rotation angle $ra")
     }
   }
@@ -100,6 +119,10 @@ sealed trait GeometryShape {
     */
   protected def mmToSm(valueInMm: Double): Double = {
     valueInMm / 10
+  }
+
+  protected def smToMm(valueInSm: Double): Double = {
+    valueInSm * 10
   }
 
   def dimensionsToMap(): Map[String, Double]
@@ -150,8 +173,8 @@ case class KutykShape(
 ) extends GeometryShape {
   val shapeType: ShapeType.ShapeType = ShapeType.Kutyk
 
-  val bString = s"${b/10}".replace(".0", "")
-  val tString = s"$t".replace(".0", "")
+  val bString = s"$b".replace(".0", "")
+  val tString = s"${t*10}".replace(".0", "")
   private val sortamentKey = s"${bString}_$tString"
   private lazy val sortamentData = Sortament.sortament.kutyk.getOrElse(
     sortamentKey,
@@ -277,7 +300,7 @@ case class DvotavrShape(
       case _ => sortamentData.I_x
     }
     val iyz = 0
-    val center = getRotatedCenterCoords(0, mmToSm(sortamentData.h/2))
+    val center = getRotatedCenterCoords(mmToSm(sortamentData.b/2), mmToSm(sortamentData.h/2))
     ShapeCalculatedData(
       id,
       name,

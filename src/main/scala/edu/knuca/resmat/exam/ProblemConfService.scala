@@ -116,6 +116,7 @@ object ProblemQueries {
     val name = "name"
     val problemType = "problem_type"
     val inputVariableConfs = "input_variable_confs"
+    val props = "props"
   }
 
   object PV {
@@ -133,7 +134,8 @@ object ProblemQueries {
     name <- str(P.name)
     problemType <- int(P.problemType)
     inputVariableConfs <- str(P.inputVariableConfs)
-  } yield ProblemConf(id, name, ProblemType(problemType), decodeInputVariableConfs(inputVariableConfs))
+    props <- str(P.props)
+  } yield ProblemConf(id, name, ProblemType(problemType), decodeInputVariableConfs(inputVariableConfs), decodeProps(props))
 
   val problemVariantConfParser = for {
     id <- long(PV.id)
@@ -151,15 +153,18 @@ object ProblemQueries {
       s"""INSERT INTO ${P.table} (
          |${P.name},
          |${P.problemType},
-         |${P.inputVariableConfs})
+         |${P.inputVariableConfs},
+         |${P.props})
          |VALUES (
          |{name},
          |{problemType},
-         |{inputVariableConfs})
+         |{inputVariableConfs},
+         |{props})
        """.stripMargin)
       .on("name" -> p.name)
       .on("problemType" -> p.problemType.id)
       .on("inputVariableConfs" -> p.inputVariableConfs.asJson.toString)
+      .on("props" -> p.props.asJson.toString)
 
   def getProblemConfById(id: Long) = SQL(s"SELECT * FROM ${P.table} WHERE ${P.id} = {id}").on("id" -> id)
 
@@ -212,6 +217,13 @@ object ProblemQueries {
     SQL(s"SELECT * FROM ${TaskFlowQueries.UETF.table} WHERE ${TaskFlowQueries.UETF.problemVariantConfId} = {problemVariantConfId}")
       .on("problemVariantConfId" -> problemVariantConfId)
 
+  private def decodeProps(json: String): ProblemConfProps = {
+    decode[ProblemConfProps](json).fold( e =>
+      throw new RuntimeException(s"Failed to decode ProblemConfProps in json: $json", e),
+      r => r
+    )
+  }
+  
   private def decodeInputVariableConfs(json: String): Seq[ProblemInputVariableConf] = {
     decode[Seq[ProblemInputVariableConf]](json).fold( e =>
       throw new RuntimeException(s"Failed to decode InputVariableConfs in json: $json", e),

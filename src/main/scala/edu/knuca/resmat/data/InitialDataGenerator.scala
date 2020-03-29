@@ -64,8 +64,8 @@ object Data {
     (CrossSectionData.Problem.conf, CrossSectionData.Problem.variants)
   )
 
-  def userExam(examConfId: Long, userId: Long, status: ExamStatus = ExamStatus.Initial) =
-    UserExam(-1, userId, examConfId, 1, status, None, started = Some(DateTime.now), None)
+  def userExam(examConfId: Long, userId: Long, curStepConfId: Long, status: ExamStatus = ExamStatus.Initial) =
+    UserExam(-1, userId, examConfId, curStepConfId, status, None, started = Some(DateTime.now), None)
 
   val article = ArticleDto(
     -1,
@@ -177,14 +177,14 @@ class InitialDataGenerator(db: DatabaseService,
       newEC
     }
 
-    userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(onlyTaskExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(onlyTaskExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get))
-    userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get))
+    userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(onlyTaskExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(onlyTaskExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(simpleTestExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
+    userExamService.createUserExam(Data.userExam(defaultExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {

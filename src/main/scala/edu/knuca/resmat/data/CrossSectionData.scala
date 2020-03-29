@@ -1,6 +1,6 @@
 package edu.knuca.resmat.data
 
-import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, SizeDirections, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesSettings, CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupSettingsJson, KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, SizeDirections, XYCoords}
 import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
 import edu.knuca.resmat.data.Utils.{ed, ei, es}
 import edu.knuca.resmat.exam._
@@ -24,24 +24,44 @@ object CrossSectionData {
       ProblemInputVariableConf(id = 6, name = "Кут повороту", units = "градусів", alias = M.Shape.rotationAngle, showInExam = false),
       ProblemInputVariableConf(id = 7, name = "Розміри", alias = M.Shape.dimensions, showInExam = true)
     )
-
-    private val shapes = Vector(
-      DvotavrShape(1, "Двотавр", ShapeRotationAngle.R0, XYCoords(25, 2), 10),
-      ShvellerShape(2, "Швеллер", ShapeRotationAngle.R180, XYCoords(71, 2), 10)
+    
+    val conf: ProblemConf = ProblemConf(
+      2,
+      "Геометрія",
+      ProblemType.CrossSection,
+      confs,
+      ProblemConfProps(Seq("img/sortament.pdf"), Some(CustomAxesSettings("y0", "z0", isInverted = true, root = Some(XYCoords(0, 0)))))
     )
-
-    private val varValues = CrossSectionProblemInput.toVariant(shapes)
-
-    private val input = CrossSectionProblemInput(shapes)
-
-    val conf: ProblemConf = ProblemConf(2, "Геометрія", ProblemType.CrossSection, confs)
-
-    val solved = new CrossSectionSolver(input).solve()
+    
+    // 1. Поміняти знак в координатах рута
+    // 2. Взяти протилежний кут повороту
     val variants: Seq[ProblemVariantConf] = Seq(
-      ProblemVariantConf(
-        2, 2, ResmatImageType.Geogebra, solved.shapes.asJson.noSpaces, varValues, solved
-      )
+//      makeVariant(2, 2, Vector(
+//        ShvellerShape(1, "Швеллер №20", ShapeRotationAngle.R90, XYCoords(0, 7.6), 20, rotationPoint = Some(XYCoords(0, 7.6))),
+//        KutykShape(2, "Кутик 100х8", ShapeRotationAngle.R0, XYCoords(10, 7.6), 10, 0.8, rotationPoint = Some(XYCoords(10, 7.6)))
+//      )),
+//      makeVariant(3, 2, Vector(
+//        PlastynaShape(1, "Пластина 2x6", ShapeRotationAngle.R180, XYCoords(5, 2), 2, 6, rotationPoint = Some(XYCoords(5, 2))),
+//        PlastynaShape(2, "Пластина 3x2", ShapeRotationAngle.R180, XYCoords(3, 2), 3, 2, rotationPoint = Some(XYCoords(3, 2)))
+//      )),
+//      makeVariant(4, 2, Vector(
+//        DvotavrShape(1, "Двотавр №24", ShapeRotationAngle.R180, XYCoords(19, 24), 24, rotationPoint = Some(XYCoords(19, 24))),
+//        KutykShape(2, "Кутик 100х8", ShapeRotationAngle.R180, XYCoords(7.5, 24), 7.5, 0.5, rotationPoint = Some(XYCoords(7.5, 24)))
+//      )),
+      makeVariant(5, 2, Vector(
+        KutykShape(1, "Кутик 100х14", ShapeRotationAngle.R0, XYCoords(0, 0), 10, 1.4, rotationPoint = Some(XYCoords(0, 0))),
+        ShvellerShape(2, "Швеллер №20", ShapeRotationAngle.R270, XYCoords(30, 10), 30, rotationPoint = Some(XYCoords(30, 8.769)))
+      ))
     )
+    
+    def makeVariant(id: Long, problemConfId: Long, shapes: Vector[GeometryShape]): ProblemVariantConf = {
+      val varValues = CrossSectionProblemInput.toVariant(shapes)
+      val input = CrossSectionProblemInput(shapes)
+      val solved = new CrossSectionSolver(input).solve()
+      ProblemVariantConf(
+        id, problemConfId, ResmatImageType.Geogebra, solved.shapes.asJson.noSpaces, varValues, solved
+      )
+    }
 
   }
 
@@ -51,7 +71,7 @@ object CrossSectionData {
 
     private val steps = Seq(
       TaskFlowStepConf(-1, -1, 1, "Визначення геометричних характеристик окремих елементів складеного перерізу",
-        TaskFlowStepType.DynamicInputSet, DynamicInputSetConf(
+        TaskFlowStepType.DynamicInputSet, GroupedInputSetConf(
           1,
           "Визначення геометричних характеристик окремих елементів складеного перерізу",
           M.shapeIdsDividedByComma,
@@ -62,7 +82,9 @@ object CrossSectionData {
             InputSetInput(2, "Iy", "", "см4", M.Input.iyKey, ""),
             InputSetInput(3, "Iz", "", "см4", M.Input.izKey, ""),
             InputSetInput(4, "Iyz", "", "см4", M.Input.iyzKey, "")
-          )
+          ),
+          groupGraphSettings = Some(GeometryShapeInGroupSettingsJson(Some(CustomAxesSettings("y0", "z0", isInverted = true, root = Some(XYCoords(0, 0)))))),
+          groupShapeGraphSettings = Some(GeometryShapeInGroupSettingsJson(Some(CustomAxesSettings("y", "z", isInverted = true))))
         ).asJson.toString()
       ),
       TaskFlowStepConf(-1, -1, 2, "Визначення центру ваги складеного поперечного перерізу в системі координат $ y_0 {O_z}_0 $",
@@ -70,12 +92,12 @@ object CrossSectionData {
           "Заповніть коефіцієнти системи рівнянь", List(
             InputSetEquation(
               1, List[EquationItem](
-                es("$ y_c = \\frac{{S_z}_0}{\\sum_{i=0}^n A_i} = $"), ei(1, M.s_z0), es("/"), ei(2, M.sumOfSquares), es("="), ei(3, M.y_center, "[см] точність 0,001")
+                es("$ y_c = \\frac{\\sum_{i=0}^n {S_z}_{0i}}{\\sum_{i=0}^n A_i} = $"), ei(1, M.s_z0), es("/"), ei(2, M.sumOfSquares), es("="), ei(3, M.y_center, "[см] точність 0,001")
               )
             ),
             InputSetEquation(
               2, List[EquationItem](
-                es("$ z_c = \\frac{{S_y}_0}{\\sum_{i=0}^n A_i} = $"), ei(4, M.s_y0), es("/"), ei(5, M.sumOfSquares), es("="), ei(6, M.z_center, "[см] точність 0,001")
+                es("$ z_c = \\frac{\\sum_{i=0}^n {S_y}_{0i}}{\\sum_{i=0}^n A_i} = $"), ei(4, M.s_y0), es("/"), ei(5, M.sumOfSquares), es("="), ei(6, M.z_center, "[см] точність 0,001")
               )
             ),
             InputSetEquation(
@@ -84,8 +106,7 @@ object CrossSectionData {
               )
             )
           )
-        ).asJson.toString(),
-        Some(0.001)
+        ).asJson.toString()
       ),
       TaskFlowStepConf(-1, -1, 3, "Перевірка положення центральної системи координат",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
@@ -140,7 +161,7 @@ object CrossSectionData {
           )
         ).asJson.toString()
       ),
-      TaskFlowStepConf(-1, -1, 4, "На основі формул паралельного переходу визначаємо центральні моменти інреції складеного поперечного перерізу",
+      TaskFlowStepConf(-1, -1, 4, "На основі формул паралельного переходу визначаємо центральні моменти інерції складеного поперечного перерізу",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
           "", List(
             InputSetEquation(
@@ -157,7 +178,7 @@ object CrossSectionData {
                   ),
                   Seq(SmartValueStaticString("${}^2)\\;+\\;($"))
                 )),
-                es("$)\\;=$"),
+                es("${}^2)\\;=$"),
                 ei(-1, M.I_yc, "[$ см^4 $] точність 0,001")
               )
             ),
@@ -180,8 +201,7 @@ object CrossSectionData {
               )
             )
           )
-        ).asJson.toString(),
-        Some(0.001)
+        ).asJson.toString()
       ),
       TaskFlowStepConf(-1, -1, 5, "Визначаємо відцентровий момент інерції",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
@@ -207,8 +227,7 @@ object CrossSectionData {
               )
             )
           )
-        ).asJson.toString(),
-        Some(0.001)
+        ).asJson.toString()
       ),
       TaskFlowStepConf(-1, -1, 6, "Визначаємо положення головних центральних осей інерції",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
@@ -227,7 +246,7 @@ object CrossSectionData {
           )
         ).asJson.toString()
       ),
-      TaskFlowStepConf(-1, -1, 7, "Визначення головних центральних моментів інерції",
+      TaskFlowStepConf(-1, -1, 7, "Визначення головних центральних моментів інерції (формули повороту)",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
           "", List(
             InputSetEquation(
@@ -243,46 +262,44 @@ object CrossSectionData {
               )
             )
           )
-        ).asJson.toString(),
-        Some(0.001)
+        ).asJson.toString()
       ),
       TaskFlowStepConf(-1, -1, 8, "Перевірка головних центральних моментів інерції",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
           "", List(
             InputSetEquation(
               1, List[EquationItem](
-                es("$ I_{max} = $"),
+                es("$ I_{max} = \\frac{I_{y_c} + I_{z_c}}{2} + \\sqrt { (\\frac{I_{y_c} - I_{z_c}}{2})^2 + {I_{y_cz_c}}^2 }$"),
                 ei(-1, M.I_max, "$[см^4]$ точність 0,001")
               )
             ),
             InputSetEquation(
               1, List[EquationItem](
-                es("$ I_{min} = $"),
+                es("$ I_{min} = \\frac{I_{y_c} + I_{z_c}}{2} - \\sqrt { (\\frac{I_{y_c} - I_{z_c}}{2})^2 + {I_{y_cz_c}}^2 }$"),
                 ei(-1, M.I_min, "$[см^4]$ точність 0,001")
               )
             )
           )
-        ).asJson.toString(),
-        Some(0.001)
+        ).asJson.toString()
       ),
       TaskFlowStepConf(-1, -1, 9, "Головні радіуси інерції",
         TaskFlowStepType.EquationSet, InputSetEquationSystem(
           "", List(
             InputSetEquation(
               1, List[EquationItem](
-                es("$ i_u = $"),
+                es("$ i_u = \\sqrt \\frac{I_u}{A}$"),
                 ei(-1, M.i_u, "$[см]$ точність 0,001")
               )
             ),
             InputSetEquation(
               1, List[EquationItem](
-                es("$ i_v = $"),
+                es("$ i_v = \\sqrt \\frac{I_v}{A}$"),
                 ei(-1, M.i_v, "$[см]$ точність 0,001")
               )
             )
           )
         ).asJson.toString(),
-        Some(0.001)
+        Some(0.1)
       ),
       TaskFlowStepConf(-1, -1, 10, "Кінець", TaskFlowStepType.Finished, "{}")
     )

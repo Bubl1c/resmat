@@ -5,6 +5,7 @@ import java.sql.Connection
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.core._
+import edu.knuca.resmat.core.crosssection.{GeometryShapeInGroupJson, GeometryShapeInGroupSettingsJson}
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.testset.{TestSingleInputSubmittedAnswer, TestSubmittedAnswerDto, TestUtils}
@@ -31,9 +32,16 @@ case class TaskFlowResultInfoStepDataDto(id: Long, stepType: TaskFlowStepType.Ta
 case class InputSetAnswerDto(inputSetId: Long, inputAnswers: Seq[InputSetInputAnswer])
 case class InputSetInputAnswer(id: Int, value: Option[Double] = None)
 
-case class DynamicInputSetGroup(id: Int, name: String, imageType: ResmatImageType.ResmatImageType, image: String)
-case class DynamicInputSetInput(inputSet: InputSet, groups: Seq[DynamicInputSetGroup])
-case class DynamicInputSetAnswer(input: DynamicInputSetInput, answer: Seq[InputSetInputAnswer])
+case class GroupedInputSetGroup(
+  id: Int,
+  name: String,
+  imageType: ResmatImageType.ResmatImageType,
+  image: String,
+  groupGraphSettings: Option[GeometryShapeInGroupSettingsJson],
+  groupShapeGraphSettings: Option[GeometryShapeInGroupSettingsJson]
+)
+case class GroupedInputSetInput(inputSet: InputSet, groups: Seq[GroupedInputSetGroup])
+case class GroupedInputSetAnswer(input: GroupedInputSetInput, answer: Seq[InputSetInputAnswer])
 
 case class VerifiedTaskFlowStepAnswer(isCorrectAnswer: Boolean, mistakesAmount: Int, answer: String)
 
@@ -320,7 +328,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           val withMappedValues = populateEquationSet(eqSystem, cd)
           withMappedValues.asJson.toString()
         case TaskFlowStepType.DynamicInputSet =>
-          val dynamicISAnswer = decode[DynamicInputSetAnswer](taskFlowStep.answer).fold( e =>
+          val dynamicISAnswer = decode[GroupedInputSetAnswer](taskFlowStep.answer).fold( e =>
             throw new RuntimeException(s"Failed to parse DynamicInputSetAnswer from tf step answer ${taskFlowStep.answer}", e),
             r => r
           )
@@ -377,7 +385,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
         )
         val correctAnswer = taskFlowStepConf.stepType match {
-          case TaskFlowStepType.DynamicInputSet => decode[DynamicInputSetAnswer](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
+          case TaskFlowStepType.DynamicInputSet => decode[GroupedInputSetAnswer](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse DynamicInputSetAnswer in $answer")
           ).answer
           case _ => decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
@@ -469,32 +477,32 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             InputSetInputAnswer(input.id, cd.getDoubleOpt(input.answerMapping))
           ).asJson.toString()
         case TaskFlowStepType.DynamicInputSet =>
-          val dynamicInputSet = decode[DynamicInputSetConf](sc.stepData).fold( e =>
+          val groupedInputSet = decode[GroupedInputSetConf](sc.stepData).fold( e =>
             throw new RuntimeException(s"Failed to parse DynamicInputSet from step data ${sc.stepData}", e),
             r => r
           )
-          val groupIds = cd.getString(dynamicInputSet.groupIdsAnswerMapping).split(",")
+          val groupIds = cd.getString(groupedInputSet.groupIdsAnswerMapping).split(",")
           val groups = groupIds.map(id => {
-            val groupName = cd.getString(s"${dynamicInputSet.groupNameKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
-            val groupJson = cd.getString(s"${dynamicInputSet.groupJsonKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
-            DynamicInputSetGroup(id.toInt, groupName, ResmatImageType.Geogebra, groupJson)
+            val groupName = cd.getString(s"${groupedInputSet.groupNameKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
+            val groupJson = cd.getString(s"${groupedInputSet.groupGraphJsonKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
+            GroupedInputSetGroup(id.toInt, groupName, ResmatImageType.Geogebra, groupJson, groupedInputSet.groupGraphSettings, groupedInputSet.groupShapeGraphSettings)
           })
           val inputSet = InputSet(
-            dynamicInputSet.id,
-            dynamicInputSet.name,
+            groupedInputSet.id,
+            groupedInputSet.name,
             groups.flatMap(g => {
-              dynamicInputSet.inputConfs.map(ic =>
+              groupedInputSet.inputConfs.map(ic =>
                 InputSetInput(s"${g.id}${ic.id}".toInt, s"${ic.name}", g.name, ic.units, s"${ic.answerMapping}_${g.id}", ic.description, ic.value) //TODO: hardcoded, how to make reusable?
               )
             })
           )
-          val inputSetInput = DynamicInputSetInput(inputSet, groups)
+          val inputSetInput = GroupedInputSetInput(inputSet, groups)
           val inputAnswers = inputSetInput.groups.flatMap(g => {
-            dynamicInputSet.inputConfs.map(input =>
+            groupedInputSet.inputConfs.map(input =>
               InputSetInputAnswer(s"${g.id}${input.id}".toInt, cd.getDoubleOpt(s"${input.answerMapping}_${g.id}")) //TODO: hardcoded, how to make reusable?
             )
           })
-          val dInputSetAnswer = DynamicInputSetAnswer(
+          val dInputSetAnswer = GroupedInputSetAnswer(
             inputSetInput,
             inputAnswers
           )
