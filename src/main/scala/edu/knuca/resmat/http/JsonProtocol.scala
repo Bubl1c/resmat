@@ -1,6 +1,6 @@
 package edu.knuca.resmat.http
 
-import edu.knuca.resmat.core.crosssection.{GeometryShape, GeometryShapeJson, ShapeRotationAngle, ShapeType}
+import edu.knuca.resmat.core.crosssection.{GeometryShape, GeometryShapeJson, ShapeType}
 import edu.knuca.resmat.core.ringplate.BindingType
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowDto
@@ -57,9 +57,6 @@ object JsonProtocol {
 
   implicit val encodeShapeType: Encoder[ShapeType.ShapeType] = Encoder.encodeString.contramap[ShapeType.ShapeType](_.toString)
   implicit val decodeShapeType: Decoder[ShapeType.ShapeType] = enumDecoder(ShapeType)
-
-  implicit val encodeShapeRotationAngle: Encoder[ShapeRotationAngle.ShapeRotationAngle] = Encoder.encodeString.contramap[ShapeRotationAngle.ShapeRotationAngle](_.toString)
-  implicit val decodeShapeRotationAngle: Decoder[ShapeRotationAngle.ShapeRotationAngle] = enumDecoder(ShapeRotationAngle)
 
   implicit val encodeProblemVariantSchemaType: Encoder[ResmatImageType.ResmatImageType] = Encoder.encodeString.contramap[ResmatImageType.ResmatImageType](_.toString)
   implicit val decodeProblemVariantSchemaType: Decoder[ResmatImageType.ResmatImageType] = enumDecoder(ResmatImageType)

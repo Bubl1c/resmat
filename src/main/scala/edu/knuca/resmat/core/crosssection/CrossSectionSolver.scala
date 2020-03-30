@@ -1,7 +1,7 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.DenseVector
-import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeRotationAngle, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupJson, GeometryShapeInGroupSettingsJson, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
 import edu.knuca.resmat.exam.{ProblemInputVariableConf, ProblemInputVariableValue}
 
 import scala.math._
@@ -15,8 +15,8 @@ import scala.math._
 
 object CrossSectionSolver extends App {
   val shapes: Vector[GeometryShape] = Vector(
-    ShvellerShape(1, "Shveller1", ShapeRotationAngle.R270, XYCoords(0, 7.6), 20),
-    KutykShape(2, "Kutyk2", ShapeRotationAngle.R180, XYCoords(10, 7.6), 10, 8)
+    ShvellerShape(1, "Shveller1", 270, XYCoords(0, 7.6), 20),
+    KutykShape(2, "Kutyk2", 180, XYCoords(10, 7.6), 10, 8)
   )
   val input = CrossSectionProblemInput(shapes)
 
@@ -167,14 +167,14 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   println(s"I_yzc=$I_yzc")
 
   //головна система координат
-  private val alfaRad: Double = atan(2d * I_yzc / (I_zc - I_yc)) / 2d
-  private val alfaDegrees: Double = Math.toDegrees(alfaRad)
-  println(s"alfaRad=$alfaRad")
-  println(s"alfaDegrees=$alfaDegrees")
+  private val alphaRad: Double = atan(2d * I_yzc / (I_zc - I_yc)) / 2d
+  private val alphaDegrees: Double = Math.toDegrees(alphaRad)
+  println(s"alphaRad=$alphaRad")
+  println(s"alphaDegrees=$alphaDegrees")
 
   //головні моменти інерції
-  private val I_u: Double = I_yc*cos(alfaRad)*cos(alfaRad)+I_zc*sin(alfaRad)*sin(alfaRad)-I_yzc*sin(2d*alfaRad)
-  private val I_v: Double = I_zc*cos(alfaRad)*cos(alfaRad)+I_yc*sin(alfaRad)*sin(alfaRad)+I_yzc*sin(2d*alfaRad)
+  private val I_u: Double = I_yc*cos(alphaRad)*cos(alphaRad)+I_zc*sin(alphaRad)*sin(alphaRad)-I_yzc*sin(2d*alphaRad)
+  private val I_v: Double = I_zc*cos(alphaRad)*cos(alphaRad)+I_yc*sin(alphaRad)*sin(alphaRad)+I_yzc*sin(2d*alphaRad)
   println(s"I_u=$I_u")
   println(s"I_v=$I_v")
 
@@ -190,6 +190,36 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   println(s"i_u=$i_u")
   println(s"i_v=$i_v")
 
+  import edu.knuca.resmat.core.crosssection.{
+    GeometryShapeInGroupJson => ShapeJson,
+    GeometryShapeInGroupSettingsJson => SettingsJson,
+    CustomAxesSettings => CA
+  }
+  
+  private val rounded_y_c = y_center.setScale(2, BigDecimal.RoundingMode.HALF_UP).doubleValue()
+  private val rounded_z_c = z_center.setScale(2, BigDecimal.RoundingMode.HALF_UP).doubleValue()
+  private val centerCoords = XYCoords(rounded_y_c, rounded_z_c)
+  private val additionalAxesSize = input.shapes.flatMap(_.dimensionsToMap().values).max;
+  private val UVAxes = ShapeJson(CustomAxesShape(
+    200,
+    "UVAxes",
+    alphaDegrees,
+    centerCoords,
+    additionalAxesSize,
+    additionalAxesSize
+  ).toJson())
+  private val finalEllipse = ShapeJson(EllipseShape(
+    201,
+    "finalEllipse",
+    alphaDegrees,
+    centerCoords,
+    i_v,
+    i_u
+  ).toJson())
+  private val finalDrawingShapes: Seq[ShapeJson] = input.shapes.map(s => 
+    ShapeJson(s.toJson(), Some(SettingsJson(Some(CA("y", "z", true)))))
+  ) ++ Seq(UVAxes, finalEllipse)
+
   def solve(): CrossSectionProblemAnswer = {
 
     val answer = CrossSectionProblemAnswer(
@@ -197,10 +227,11 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
       CenterOfGravity(s_z0, s_y0, sumOfSquares, y_center.doubleValue(), z_center.doubleValue()),
       DistanceBetweenCentralAxes(S_y_c.doubleValue(), S_z_c.doubleValue(), aOutput.toVector, bOutput.toVector),
       CentralMomentsOfInertia(I_yc, I_zc, I_yzc),
-      MainCoordinateSystem(alfaDegrees),
+      MainCoordinateSystem(alphaDegrees),
       MainMomentsOfInertia(I_u, I_v),
       MainMomentsOfInertiaCheck(I_max, I_min),
-      RadiusesOfInertia(i_u, i_v)
+      RadiusesOfInertia(i_u, i_v),
+      FinalDrawingShapes(finalDrawingShapes)
     )
     println(s"Calculated CrossSectionAnswer $answer for input $input")
     answer
@@ -237,7 +268,7 @@ object CrossSectionProblemInput {
       val name = ProblemInputVariableValue(3, 0, Some(s.name), Some(s.id.toString))
       val rootX = ProblemInputVariableValue(4, s.root.x, None, Some(s.id.toString))
       val rootY = ProblemInputVariableValue(5, s.root.y, None, Some(s.id.toString))
-      val rotationAngle = ProblemInputVariableValue(6, s.rotationAngle.id, None, Some(s.id.toString))
+      val rotationAngle = ProblemInputVariableValue(6, s.rotationAngle, None, Some(s.id.toString))
 
       val commonVals = Vector(kind, name, rootX, rootY, rotationAngle)
 
@@ -313,7 +344,7 @@ object CrossSectionProblemInput {
       )
       val rootX = value(M.Shape.rootX).value
       val rootY = value(M.Shape.rootY).value
-      val rotationAngle = ShapeRotationAngle(value(M.Shape.rotationAngle).value.toInt)
+      val rotationAngle = value(M.Shape.rotationAngle).value.toInt
 
       def sValue(fieldName: String): ProblemInputVariableValue = mm.getOrElse(
         M.Shape.dimensions,
@@ -379,9 +410,11 @@ case class CentralMomentsOfInertia(I_yc: Double, I_zc: Double, I_yzc: Double) {
 
 /**
   * Головна система координат
-  * @param alfaDegrees - кут повороту основної системи координат. Якщо > 0 - проти годинникової
+  * @param alphaDegrees - кут повороту основної системи координат. Якщо > 0 - проти годинникової
   */
-case class MainCoordinateSystem(alfaDegrees: Double)
+case class MainCoordinateSystem(alphaDegrees: Double) {
+  override def toString: String = s"MainCoordinateSystem alphaDegrees = ${alphaDegrees}"
+}
 /**
   * Головні моменти інерції
   */
@@ -401,6 +434,10 @@ case class RadiusesOfInertia(i_u: Double, i_v: Double) {
   override def toString: String = s"RadiusesOfInertia i_u = $i_u, i_v = $i_v"
 }
 
+case class FinalDrawingShapes(shapes: Seq[GeometryShapeInGroupJson]) {
+  override def toString: String = s"FinalDrawingShapes [${shapes.map(s => s"{${s.shape.id}, ${s.shape.shapeType}, ${s.shape.root}}").mkString(", ")}]"
+}
+
 /**
   * Відстані між центральними осями
   */
@@ -413,4 +450,6 @@ case class DistanceBetweenCentralAxes(
   override def toString: String = s"DistanceBetweenCentralAxes S_y_c = $S_y_c, S_z_c = $S_z_c, a = $a, b = $b"
 }
 
-case class ShapeDistanceToCentralAxis(shapeId: Int, distance: Double)
+case class ShapeDistanceToCentralAxis(shapeId: Int, distance: Double) {
+  override def toString: String = s"$distance"
+}

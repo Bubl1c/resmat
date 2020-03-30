@@ -1,6 +1,6 @@
 package edu.knuca.resmat.data
 
-import edu.knuca.resmat.core.crosssection.{CustomAxesSettings, CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupSettingsJson, KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, SizeDirections, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesSettings, CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupSettingsJson, KutykShape, PlastynaShape, ShvellerShape, SizeDirections, XYCoords}
 import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
 import edu.knuca.resmat.data.Utils.{ed, ei, es}
 import edu.knuca.resmat.exam._
@@ -37,20 +37,24 @@ object CrossSectionData {
     // 2. Взяти протилежний кут повороту
     val variants: Seq[ProblemVariantConf] = Seq(
 //      makeVariant(2, 2, Vector(
-//        ShvellerShape(1, "Швеллер №20", ShapeRotationAngle.R90, XYCoords(0, 7.6), 20, rotationPoint = Some(XYCoords(0, 7.6))),
-//        KutykShape(2, "Кутик 100х8", ShapeRotationAngle.R0, XYCoords(10, 7.6), 10, 0.8, rotationPoint = Some(XYCoords(10, 7.6)))
+//        ShvellerShape(1, "Швеллер №20", 90, XYCoords(0, 7.6), 20, rotationPoint = Some(XYCoords(0, 7.6))),
+//        KutykShape(2, "Кутик 100х8", 0, XYCoords(10, 7.6), 10, 0.8, rotationPoint = Some(XYCoords(10, 7.6)))
 //      )),
 //      makeVariant(3, 2, Vector(
-//        PlastynaShape(1, "Пластина 2x6", ShapeRotationAngle.R180, XYCoords(5, 2), 2, 6, rotationPoint = Some(XYCoords(5, 2))),
-//        PlastynaShape(2, "Пластина 3x2", ShapeRotationAngle.R180, XYCoords(3, 2), 3, 2, rotationPoint = Some(XYCoords(3, 2)))
+//        PlastynaShape(1, "Пластина 2x6", 180, XYCoords(5, 2), 2, 6, rotationPoint = Some(XYCoords(5, 2))),
+//        PlastynaShape(2, "Пластина 3x2", 180, XYCoords(3, 2), 3, 2, rotationPoint = Some(XYCoords(3, 2)))
 //      )),
 //      makeVariant(4, 2, Vector(
-//        DvotavrShape(1, "Двотавр №24", ShapeRotationAngle.R180, XYCoords(19, 24), 24, rotationPoint = Some(XYCoords(19, 24))),
-//        KutykShape(2, "Кутик 100х8", ShapeRotationAngle.R180, XYCoords(7.5, 24), 7.5, 0.5, rotationPoint = Some(XYCoords(7.5, 24)))
+//        DvotavrShape(1, "Двотавр №24", 180, XYCoords(19, 24), 24, rotationPoint = Some(XYCoords(19, 24))),
+//        KutykShape(2, "Кутик 100х8", 180, XYCoords(7.5, 24), 7.5, 0.5, rotationPoint = Some(XYCoords(7.5, 24)))
 //      )),
-      makeVariant(5, 2, Vector(
-        KutykShape(1, "Кутик 100х14", ShapeRotationAngle.R0, XYCoords(0, 0), 10, 1.4, rotationPoint = Some(XYCoords(0, 0))),
-        ShvellerShape(2, "Швеллер №20", ShapeRotationAngle.R270, XYCoords(30, 10), 30, rotationPoint = Some(XYCoords(30, 8.769)))
+//      makeVariant(5, 2, Vector(
+//        KutykShape(1, "Кутик 100х14", 0, XYCoords(0, 0), 10, 1.4, rotationPoint = Some(XYCoords(0, 0))),
+//        ShvellerShape(2, "Швеллер №20", 270, XYCoords(30, 10), 30, rotationPoint = Some(XYCoords(30, 8.769)))
+//      ))
+      makeVariant(6, 2, Vector(
+        DvotavrShape(1, "Двотавр №14", 270, XYCoords(15, 26.7), 14, rotationPoint = Some(XYCoords(19, 24))),
+        PlastynaShape(2, "Пластина 340x10", 180, XYCoords(1, 34), 1, 34, rotationPoint = Some(XYCoords(1, 34)))
       ))
     )
     
@@ -71,7 +75,7 @@ object CrossSectionData {
 
     private val steps = Seq(
       TaskFlowStepConf(-1, -1, 1, "Визначення геометричних характеристик окремих елементів складеного перерізу",
-        TaskFlowStepType.DynamicInputSet, GroupedInputSetConf(
+        TaskFlowStepType.GroupedInputSet, GroupedInputSetConf(
           1,
           "Визначення геометричних характеристик окремих елементів складеного перерізу",
           M.shapeIdsDividedByComma,
@@ -301,7 +305,15 @@ object CrossSectionData {
         ).asJson.toString(),
         Some(0.1)
       ),
-      TaskFlowStepConf(-1, -1, 10, "Кінець", TaskFlowStepType.Finished, "{}")
+//      TaskFlowStepConf(-1, -1, 10, "",
+//        TaskFlowStepType.Drawing, DrawingConf(
+//          "Фінальне креслення",
+//          M.finalDrawingShapes,
+//          Some(GeometryShapeInGroupSettingsJson(Some(CustomAxesSettings("yc", "zc", true, Some(XYCoords(0, 0))))))
+//        ).asJson.toString(),
+//        Some(0.1)
+//      ),
+      TaskFlowStepConf(-1, -1, 11, "Кінець", TaskFlowStepType.Finished, "{}")
     )
 
     val taskFlowConf: TaskFlowConfDto = TaskFlowConfDto(

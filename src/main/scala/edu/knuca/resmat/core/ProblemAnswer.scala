@@ -220,7 +220,8 @@ case class CrossSectionProblemAnswer(
   mainCoordinateSystem: MainCoordinateSystem,
   mainMomentsOfInertia: MainMomentsOfInertia,
   mainMomentsOfInertiaCheck: MainMomentsOfInertiaCheck,
-  radiusesOfInertia: RadiusesOfInertia
+  radiusesOfInertia: RadiusesOfInertia,
+  finalDrawingShapes: FinalDrawingShapes
 ) extends ProblemAnswer {
 
   import edu.knuca.resmat.core.CrossSectionProblemAnswer.{Mapping => M}
@@ -250,7 +251,7 @@ case class CrossSectionProblemAnswer(
       M.I_zc -> centralMomentsOfInertia.I_zc,
       M.I_yzc -> centralMomentsOfInertia.I_yzc,
 
-      M.alfaDegrees -> mainCoordinateSystem.alfaDegrees,
+      M.alfaDegrees -> mainCoordinateSystem.alphaDegrees,
 
       M.I_u -> mainMomentsOfInertia.I_u,
       M.I_v -> mainMomentsOfInertia.I_v,
@@ -259,7 +260,9 @@ case class CrossSectionProblemAnswer(
       M.I_min -> mainMomentsOfInertiaCheck.I_min,
 
       M.i_u -> radiusesOfInertia.i_u,
-      M.i_v -> radiusesOfInertia.i_v
+      M.i_v -> radiusesOfInertia.i_v,
+      
+      M.finalDrawingShapes -> finalDrawingShapes.shapes.asJson.toString
     )
     val shapeDataMap: Map[String, String] = shapes.flatMap(s => {
       Map(
@@ -295,6 +298,7 @@ case class CrossSectionProblemAnswer(
        |$mainMomentsOfInertia
        |$mainMomentsOfInertiaCheck
        |$radiusesOfInertia
+       |$finalDrawingShapes
        |---------------------------------------------
        |""".stripMargin
   }
@@ -354,6 +358,8 @@ object CrossSectionProblemAnswer {
     //RadiusesOfInertia
     val i_u = "i_u"
     val i_v = "i_v"
+
+    val finalDrawingShapes = "finalDrawingShapes"
   }
 
 }

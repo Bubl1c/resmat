@@ -52,7 +52,7 @@ case class KutykSortamentData(
   i_x: Double,
   I_x_0_I_max: Double,
   i_x_0_i_max: Double,
-  I_y_0_i_min: Double,
+  I_y_0_I_min: Double,
   W_y_0: Double,
   i_y_0_i_min: Double,
   I_x_1: Double,

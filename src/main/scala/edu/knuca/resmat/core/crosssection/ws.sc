@@ -1,7 +1,7 @@
-val i = Map(
-  "key1" -> "value1",
-  "key2" -> 1,
-  "key3" -> 2.5
-)
+val i = 10;
 
-println(i)
+val j = i match {
+  case 1 | 2 => 12
+  case 10 | 100 => 100
+  case _ => 200
+}

@@ -26,7 +26,8 @@ object TaskFlowStepType extends PimpedEnumeration {
   val VariableValueSet = Value(4, "var-value-set")
   val EquationSet = Value(5, "equation-set")
   val DynamicTable = Value(6, "dynamic-table")
-  val DynamicInputSet = Value(7, "dynamic-input-set")
+  val GroupedInputSet = Value(7, "grouped-input-set")
+  val Drawing = Value(8, "drawing")
   val Finished = Value(-1, "finished")
 }
 
@@ -302,4 +303,13 @@ case class GroupedInputSetConf(
   inputConfs: Seq[InputSetInput],
   groupGraphSettings: Option[GeometryShapeInGroupSettingsJson] = None,
   groupShapeGraphSettings: Option[GeometryShapeInGroupSettingsJson] = None
+) extends TaskFlowStepData
+
+/**
+  * Dynamically generates a drawing
+  */
+case class DrawingConf(
+  name: String,
+  shapesJsonAnswerMapping: String,
+  graphSettings: Option[GeometryShapeInGroupSettingsJson] = None
 ) extends TaskFlowStepData

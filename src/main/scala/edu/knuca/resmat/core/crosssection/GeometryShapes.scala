@@ -1,6 +1,5 @@
 package edu.knuca.resmat.core.crosssection
 
-import edu.knuca.resmat.core.crosssection.ShapeRotationAngle.ShapeRotationAngle
 import edu.knuca.resmat.core.{ShapeCalculatedData, Sortament}
 import edu.knuca.resmat.exam.ProblemInputVariableValue
 import edu.knuca.resmat.utils.PimpedEnumeration
@@ -11,7 +10,9 @@ import io.circe.{Json, JsonObject}
 /**
   * Always in santimeters
   */
-case class XYCoords(x: Double, y: Double)
+case class XYCoords(x: Double, y: Double) {
+  override def toString: String = s"($x, $y)"
+}
 case class ShapePoint(name: String, coords: XYCoords)
 
 object SizeDirections {
@@ -19,14 +20,6 @@ object SizeDirections {
   val DOWN = "down"
   val LEFT = "left"
   val RIGHT = "right"
-}
-
-object ShapeRotationAngle extends PimpedEnumeration {
-  type ShapeRotationAngle = Value
-  val R0: ShapeRotationAngle = Value(0, "0")
-  val R90: ShapeRotationAngle = Value(90, "90")
-  val R180: ShapeRotationAngle = Value(180, "180")
-  val R270: ShapeRotationAngle = Value(270, "270")
 }
 
 object ShapeType extends PimpedEnumeration {
@@ -46,24 +39,24 @@ object ShapeType extends PimpedEnumeration {
 case class CustomAxesSettings(xAxisName: String, yAxisName: String, isInverted: Boolean, root: Option[XYCoords] = None)
 
 case class GeometryShapeInGroupSettingsJson(
-  customAxesSettings: Option[CustomAxesSettings]
+  customAxesSettings: Option[CustomAxesSettings] = None
 )
 
 case class GeometryShapeInGroupJson(
   shape: GeometryShapeJson,
-  settings: GeometryShapeInGroupSettingsJson
+  settings: Option[GeometryShapeInGroupSettingsJson] = None
 )
 
 case class GeometryShapeGroupJson(
   shapes: Seq[GeometryShapeInGroupJson],
-  settings: Option[GeometryShapeInGroupSettingsJson]
+  settings: Option[GeometryShapeInGroupSettingsJson] = None
 )
 
 case class GeometryShapeJson (
   id: Int,
   name: String,
   shapeType: ShapeType.ShapeType,
-  rotationAngle: Int, //0-360
+  rotationAngle: Double, //0-360
   root: XYCoords,
   dimensions: Map[String, Double],
   sizeDirections: JsonObject,
@@ -76,7 +69,7 @@ sealed trait GeometryShape {
   val id: Int
   val name: String
   val shapeType: ShapeType.ShapeType
-  val rotationAngle: ShapeRotationAngle.ShapeRotationAngle
+  val rotationAngle: Double
   val rotationPoint: Option[XYCoords]
   val root: XYCoords
   val sizeDirections: JsonObject
@@ -94,7 +87,7 @@ sealed trait GeometryShape {
   protected def isNegativeShapeSign: Boolean = {
     shapeType match {
       case ShapeType.Kutyk | ShapeType.Trykutnyk90 => rotationAngle match {
-        case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => true
+        case 0d | 180d => true
         case _ => false
       }
       case _ => false
@@ -106,10 +99,10 @@ sealed trait GeometryShape {
     */
   protected def getRotatedCenterCoords(xAdd: Double, yAdd: Double): XYCoords = {
     rotationAngle match {
-      case ShapeRotationAngle.R0 => XYCoords(root.x + xAdd, root.y + yAdd)
-      case ShapeRotationAngle.R90 => XYCoords(root.x + yAdd, root.y - xAdd)
-      case ShapeRotationAngle.R180 => XYCoords(root.x - xAdd, root.y - yAdd)
-      case ShapeRotationAngle.R270 => XYCoords(root.x - yAdd, root.y + xAdd)
+      case 0d | 360d => XYCoords(root.x + xAdd, root.y + yAdd)
+      case 90d | -270d => XYCoords(root.x + yAdd, root.y - xAdd)
+      case 180d | -180d => XYCoords(root.x - xAdd, root.y - yAdd)
+      case 270d | -90d => XYCoords(root.x - yAdd, root.y + xAdd)
       case ra => throw new IllegalArgumentException(s"Unhandled rotation angle $ra")
     }
   }
@@ -131,7 +124,7 @@ sealed trait GeometryShape {
     this.id,
     this.name,
     this.shapeType,
-    this.rotationAngle.id,
+    this.rotationAngle,
     this.root,
     dimensionsToMap(),
     this.sizeDirections,
@@ -162,7 +155,7 @@ object GeometryShape {
 case class KutykShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   b: Double,
   t: Double,
@@ -202,7 +195,7 @@ object KutykShape {
   def apply(j: GeometryShapeJson): KutykShape = new KutykShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("b"),
     j.dimensions("t"),
@@ -216,7 +209,7 @@ object KutykShape {
 case class ShvellerShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   n: Int,
   sizeDirections: JsonObject = JsonObject.empty,
@@ -234,11 +227,11 @@ case class ShvellerShape(
 
   def getShapeCalculatedData: ShapeCalculatedData = {
     val iy = rotationAngle match {
-      case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => sortamentData.I_x
+      case 0d | 180d => sortamentData.I_x
       case _ => sortamentData.I_y
     }
     val iz = rotationAngle match {
-      case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => sortamentData.I_y
+      case 0d | 180d => sortamentData.I_y
       case _ => sortamentData.I_x
     }
     val iyz = 0
@@ -261,7 +254,7 @@ object ShvellerShape {
   def apply(j: GeometryShapeJson): ShvellerShape = new ShvellerShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("n").toInt,
     j.sizeDirections,
@@ -274,7 +267,7 @@ object ShvellerShape {
 case class DvotavrShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   n: Int,
   sizeDirections: JsonObject = JsonObject.empty,
@@ -292,11 +285,11 @@ case class DvotavrShape(
 
   def getShapeCalculatedData: ShapeCalculatedData = {
     val iy = rotationAngle match {
-      case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => sortamentData.I_x
+      case 0d | 180d => sortamentData.I_x
       case _ => sortamentData.I_y
     }
     val iz = rotationAngle match {
-      case ShapeRotationAngle.R0 | ShapeRotationAngle.R180 => sortamentData.I_y
+      case 0d | 180d => sortamentData.I_y
       case _ => sortamentData.I_x
     }
     val iyz = 0
@@ -319,7 +312,7 @@ object DvotavrShape {
   def apply(j: GeometryShapeJson): DvotavrShape = new DvotavrShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("n").toInt,
     j.sizeDirections,
@@ -332,7 +325,7 @@ object DvotavrShape {
 case class KoloShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   diametr: Double,
   sizeDirections: JsonObject = JsonObject.empty,
@@ -366,7 +359,7 @@ object KoloShape {
   def apply(j: GeometryShapeJson): KoloShape = new KoloShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("diametr"),
     j.sizeDirections,
@@ -382,7 +375,7 @@ object KoloShape {
 case class NapivkoloShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   diametr: Double,
   sizeDirections: JsonObject = JsonObject.empty,
@@ -416,7 +409,7 @@ object NapivkoloShape {
   def apply(j: GeometryShapeJson): NapivkoloShape = new NapivkoloShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("diametr"),
     j.sizeDirections,
@@ -429,7 +422,7 @@ object NapivkoloShape {
 case class Trykutnyk90Shape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   b: Double,
   h: Double,
@@ -464,7 +457,7 @@ object Trykutnyk90Shape {
   def apply(j: GeometryShapeJson): Trykutnyk90Shape = new Trykutnyk90Shape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("b"),
     j.dimensions("h"),
@@ -478,7 +471,7 @@ object Trykutnyk90Shape {
 case class TrykutnykRBShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   b: Double,
   h: Double,
@@ -513,7 +506,7 @@ object TrykutnykRBShape {
   def apply(j: GeometryShapeJson): TrykutnykRBShape = new TrykutnykRBShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("b"),
     j.dimensions("h"),
@@ -527,7 +520,7 @@ object TrykutnykRBShape {
 case class PlastynaShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   b: Double,
   h: Double,
@@ -561,7 +554,7 @@ object PlastynaShape {
   def apply(j: GeometryShapeJson): PlastynaShape = new PlastynaShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("b"),
     j.dimensions("h"),
@@ -575,7 +568,7 @@ object PlastynaShape {
 case class EllipseShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   xR: Double,
   yR: Double,
@@ -605,7 +598,7 @@ object EllipseShape {
   def apply(j: GeometryShapeJson): EllipseShape = new EllipseShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("xR"),
     j.dimensions("yR"),
@@ -619,7 +612,7 @@ object EllipseShape {
 case class CustomAxesShape(
   id: Int,
   name: String,
-  rotationAngle: ShapeRotationAngle.ShapeRotationAngle,
+  rotationAngle: Double,
   root: XYCoords,
   xSize: Double,
   ySize: Double,
@@ -649,7 +642,7 @@ object CustomAxesShape {
   def apply(j: GeometryShapeJson): CustomAxesShape = new CustomAxesShape(
     j.id,
     j.name,
-    ShapeRotationAngle(j.rotationAngle),
+    j.rotationAngle,
     j.root,
     j.dimensions("xSize"),
     j.dimensions("ySize"),

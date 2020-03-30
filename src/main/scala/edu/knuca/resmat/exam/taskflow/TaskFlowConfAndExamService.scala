@@ -327,7 +327,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           )
           val withMappedValues = populateEquationSet(eqSystem, cd)
           withMappedValues.asJson.toString()
-        case TaskFlowStepType.DynamicInputSet =>
+        case TaskFlowStepType.GroupedInputSet =>
           val dynamicISAnswer = decode[GroupedInputSetAnswer](taskFlowStep.answer).fold( e =>
             throw new RuntimeException(s"Failed to parse DynamicInputSetAnswer from tf step answer ${taskFlowStep.answer}", e),
             r => r
@@ -380,12 +380,12 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             verifiedAnswer.answer.asJson.toString()
           )
         )
-      case TaskFlowStepType.InputSet | TaskFlowStepType.DynamicInputSet | TaskFlowStepType.EquationSet =>
+      case TaskFlowStepType.InputSet | TaskFlowStepType.GroupedInputSet | TaskFlowStepType.EquationSet =>
         val inputSetAnswer = decode[InputSetAnswerDto](answer).fold(_=>None,Some(_)).getOrElse(
           throw new RuntimeException(s"Failed to parse data in $taskFlowStepConf")
         )
         val correctAnswer = taskFlowStepConf.stepType match {
-          case TaskFlowStepType.DynamicInputSet => decode[GroupedInputSetAnswer](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
+          case TaskFlowStepType.GroupedInputSet => decode[GroupedInputSetAnswer](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse DynamicInputSetAnswer in $answer")
           ).answer
           case _ => decode[Seq[InputSetInputAnswer]](taskFlowStep.answer).fold(_=>None,Some(_)).getOrElse(
@@ -476,7 +476,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           stepInputSet.inputs.map(input =>
             InputSetInputAnswer(input.id, cd.getDoubleOpt(input.answerMapping))
           ).asJson.toString()
-        case TaskFlowStepType.DynamicInputSet =>
+        case TaskFlowStepType.GroupedInputSet =>
           val groupedInputSet = decode[GroupedInputSetConf](sc.stepData).fold( e =>
             throw new RuntimeException(s"Failed to parse DynamicInputSet from step data ${sc.stepData}", e),
             r => r
