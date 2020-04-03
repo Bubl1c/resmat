@@ -3,7 +3,7 @@ package edu.knuca.resmat.core
 import breeze.linalg.DenseMatrix
 import edu.knuca.resmat.core.crosssection.GeometryShape
 import edu.knuca.resmat.core.ringplate.{CoordinateResult, ExtremeConditionsResult, ExtremeStressResult, GaussResult, ShiftAndForceResult}
-import edu.knuca.resmat.exam.{ChartData, ChartSet, DynamicTable, DynamicTableRow, SmartValueStaticDouble}
+import edu.knuca.resmat.exam.{ChartData, ChartSet, DynamicTable, DynamicTableRow, SmartValueStaticDouble, SmartValueStaticString}
 import io.circe.generic.JsonCodec
 
 //Both needed for ProblemAnswer
@@ -20,6 +20,9 @@ import edu.knuca.resmat.http.JsonProtocol._
     }
   }
 
+  /**
+    * Works with both Double and Option[Double] values
+    */
   def getDouble(key: String): Double = {
     mapping.get(key) match {
       case Some(value) => {
@@ -38,10 +41,14 @@ import edu.knuca.resmat.http.JsonProtocol._
     }
   }
 
+  /**
+    * Works with both Double and Option[Double] values
+    */
   def getDoubleOpt(key: String): Option[Double] = {
-    mapping.get(key) match {
-      case v: Some[Option[Double]] => v.get
-      case v => throw new IllegalArgumentException(s"{$v} is not an Option[Double] value. Requested from ${this.getClass.getSimpleName} by key {$key}")
+    mapping.get(key).flatMap {
+      case v: Option[Double] => v
+      case v: Double => Some(v)
+      case _ => None
     }
   }
 
@@ -113,8 +120,7 @@ case class RingPlateProblemAnswer(del_t: Double,
       DynamicTableRow("Mr", shiftAndForce.mr_1.map(d => SmartValueStaticDouble(d)).toList),
       DynamicTableRow("M{theta}", shiftAndForce.mt_1.map(d => SmartValueStaticDouble(d)).toList),
       DynamicTableRow("Qr", shiftAndForce.qr_1.map(d => SmartValueStaticDouble(d)).toList)
-    )
-    ),
+    )),
 
     M.r -> Some(coordinateResult.r),
     M.sigma_r -> Some(coordinateResult.qr),
@@ -231,11 +237,20 @@ case class CrossSectionProblemAnswer(
   import io.circe.syntax._
   import edu.knuca.resmat.http.JsonProtocol._
 
+  def round(v: Double) = BigDecimal(v).setScale(2, BigDecimal.RoundingMode.HALF_UP); 
+  
   override protected val mapping: Map[String, Any] = {
     val shapeInputs = shapes.map(_.getShapeCalculatedData)
     val static = Map(
       M.amountOfShapes -> Some(shapeInputs.size.toDouble),
       M.shapeIdsDividedByComma -> shapeInputs.map(_.id).mkString(","),
+
+      M.shapeCalculatedDataDynamicTable -> DynamicTable("Характеристики фігур", shapeInputs.map(_.shapeName).toList, List(
+        DynamicTableRow("$A$", shapeInputs.map(i => SmartValueStaticDouble(i.square)).toList),
+        DynamicTableRow("$I_y$", shapeInputs.map(i => SmartValueStaticDouble(i.I_y)).toList),
+        DynamicTableRow("$I_z$", shapeInputs.map(i => SmartValueStaticDouble(i.I_z)).toList),
+        DynamicTableRow("$I_{yz}$", shapeInputs.map(i => SmartValueStaticDouble(i.I_yz)).toList)
+      )),
 
       M.s_z0 -> centerOfGravity.s_z0,
       M.s_y0 -> centerOfGravity.s_y0,
@@ -273,10 +288,13 @@ case class CrossSectionProblemAnswer(
     }).toMap
     val inputsMap: Map[String, Option[Double]] = shapeInputs.flatMap(si => {
       Map(
+        M.Input.id(si.id) -> Some(si.id.toDouble),
         M.Input.square(si.id) -> Some(si.square),
         M.Input.iy(si.id) -> Some(si.I_y),
         M.Input.iz(si.id) -> Some(si.I_z),
-        M.Input.iyz(si.id) -> Some(si.I_yz)
+        M.Input.iyz(si.id) -> Some(si.I_yz),
+        M.Input.yCenter(si.id) -> Some(si.y_center),
+        M.Input.zCenter(si.id) -> Some(si.z_center)
       )
     }).toMap
     val aMap: Map[String, Double] = distanceBetweenCentralAxes.a.map(ai => M.a(ai.shapeId) -> ai.distance).toMap
@@ -308,6 +326,8 @@ object CrossSectionProblemAnswer {
   object Mapping {
 
     object Input {
+      val idKey = "id"
+      def id(shapeId: Int) = s"${idKey}_$shapeId"
       val nameKey = "name"
       def name(shapeId: Int) = s"${nameKey}_$shapeId"
       val titleKey = "title"
@@ -322,10 +342,16 @@ object CrossSectionProblemAnswer {
       def iz(shapeId: Int) = s"${izKey}_$shapeId"
       val iyzKey = "iyz"
       def iyz(shapeId: Int) = s"${iyzKey}_$shapeId"
+      val yCenterKey = "y_center"
+      def yCenter(shapeId: Int) = s"${yCenterKey}_$shapeId"
+      val zCenterKey = "z_center"
+      def zCenter(shapeId: Int) = s"${zCenterKey}_$shapeId"
     }
 
     val amountOfShapes = "amountOfShapes" //TODO: not needed
     val shapeIdsDividedByComma = "shapeIdsDividedByComma"
+    
+    val shapeCalculatedDataDynamicTable = "shapeCalculatedDataDynamicTable"
     
     //CenterOfGravity
     val s_z0 = "s_z0"
@@ -363,4 +389,4 @@ object CrossSectionProblemAnswer {
   }
 
 }
-object ProblemAnswer // to make JsonCodex work
+object ProblemAnswer // to make JsonCodec work

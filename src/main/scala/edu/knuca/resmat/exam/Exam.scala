@@ -2,7 +2,7 @@ package edu.knuca.resmat.exam
 
 import edu.knuca.resmat.core.ProblemAnswer
 import edu.knuca.resmat.core.RingPlateProblemAnswer
-import edu.knuca.resmat.core.crosssection.{CustomAxesSettings, GeometryShapeInGroupSettingsJson, XYCoords}
+import edu.knuca.resmat.core.crosssection.{ShapeCustomAxesSettings, GeometryShapeInGroupSettingsJson, XYCoords}
 import edu.knuca.resmat.exam.taskflow.{TaskFlowDto, TaskFlowResultInfoStepDataDto}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
@@ -28,6 +28,7 @@ object TaskFlowStepType extends PimpedEnumeration {
   val DynamicTable = Value(6, "dynamic-table")
   val GroupedInputSet = Value(7, "grouped-input-set")
   val Drawing = Value(8, "drawing")
+  val EquationSetHelp = Value(9, "equation-set-help")
   val Finished = Value(-1, "finished")
 }
 
@@ -189,7 +190,7 @@ case class UserExamStepAttemptTestSetTest(id: Long,
 //====================Problem====================
 
 case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf], props: ProblemConfProps)
-case class ProblemConfProps(helpMaterials: Seq[String], customAxesSettings: Option[CustomAxesSettings] = None)
+case class ProblemConfProps(helpMaterials: Seq[String], customAxesSettings: Option[ShapeCustomAxesSettings] = None)
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
 case class ProblemInputVariableValue(
   variableConfId: Long,
@@ -275,7 +276,14 @@ case class SmartValueDynamicDouble(answerMapping: String, value: Double = 0.0, d
 }
 case class SmartValueStaticDouble(value: Double, digitsAfterComma: Int = 6) extends SmartValue
 case class SmartValueStaticString(value: String) extends SmartValue
-case class SmartValueForEach(itemIdsMapping: String, itemTemplates: Seq[SmartValue], betweenItemTemplates: Seq[SmartValue]) extends SmartValue
+case class SmartValueDynamicString(answerMapping: String, value: String = "") extends SmartValue {
+  override def setValue(answer: ProblemAnswer): SmartValue =
+    this.copy(value = answer.getString(answerMapping))
+
+  override def setAnswerMapping(setter: String => String): SmartValue =
+    this.copy(answerMapping = setter(this.answerMapping))
+}
+case class SmartValueForEach(itemIdsMapping: String, itemTemplates: Seq[EquationItem], betweenItemTemplates: Seq[EquationItem]) extends SmartValue
 
 object SmartValue //to make JsonCodec work
 

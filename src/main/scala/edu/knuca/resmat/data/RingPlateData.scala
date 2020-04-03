@@ -148,7 +148,7 @@ object RingPlateData {
             )
           ).normalised.asJson.toString(),
           None,
-          true
+          isHelpStep = true
         ),
         TaskFlowStepConf(
           4, 1, 4, "Циліндрична жорсткість",
@@ -196,7 +196,7 @@ object RingPlateData {
             )
           ).normalised.asJson.toString(),
           None,
-          true
+          isHelpStep = true
         ),
         TaskFlowStepConf(
           7, 1, 7, "Введіть значення шуканих функцій в перерізі на відстані 0,2 м від лівої опори.",

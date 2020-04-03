@@ -47,6 +47,8 @@ case class VerifiedTaskFlowStepAnswer(isCorrectAnswer: Boolean, mistakesAmount: 
 
 case class VerifiedInputSetAnswer(inputSetId: Long, isCorrectAnswer: Boolean, mistakesAmount: Int, answer: Map[Int, Boolean])
 
+case class DrawingStepAnswer(shapes: String, settings: Option[GeometryShapeInGroupSettingsJson])
+
 case class ResourceNotFoundException(message: String) extends IllegalArgumentException {
   override def getMessage: String = super.getMessage + " " + message
 }
@@ -321,6 +323,8 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           taskFlowStep.answer
         case TaskFlowStepType.DynamicTable =>
           taskFlowStep.answer
+        case TaskFlowStepType.EquationSetHelp =>
+          taskFlowStep.answer
         case TaskFlowStepType.EquationSet =>
           val eqSystem = decode[InputSetEquationSystem](taskFlowStepConf.stepData).fold(_=>None,Some(_)).getOrElse(
             throw new RuntimeException(s"Failed to parse InputSetEquationSystem in $taskFlowStepConf")
@@ -333,6 +337,8 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             r => r
           )
           dynamicISAnswer.input.asJson.toString
+        case TaskFlowStepType.Drawing =>
+          taskFlowStep.answer
         case TaskFlowStepType.Finished =>
           updateTaskFlowStep(taskFlowStep.copy(done = true))
           "Task flow has been finished successfully".asJson.toString()
@@ -419,7 +425,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
   def getAvailableProblemVariantConf(problemConfId: Long, examConfId: Long): ProblemVariantConf = db.run { implicit c =>
     val allProblemVariantConfs = problemService.findProblemVariantConfsByProblemConfId(problemConfId)
     val allTaskFlows = Q.findTaskFlowsByExamConfId(examConfId).as(Q.uetfParser.*)
-    val usedVariantConfIds = allTaskFlows.map(_.problemVariantConfId)
+    val usedVariantConfIds = allTaskFlows.map(_.problemVariantConfId).toSet
     val unusedVariantConfs = allProblemVariantConfs.filterNot(vc => usedVariantConfIds.contains(vc.id))
     if(unusedVariantConfs.nonEmpty) {
       scala.util.Random.shuffle(unusedVariantConfs).head
@@ -481,32 +487,8 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             throw new RuntimeException(s"Failed to parse DynamicInputSet from step data ${sc.stepData}", e),
             r => r
           )
-          val groupIds = cd.getString(groupedInputSet.groupIdsAnswerMapping).split(",")
-          val groups = groupIds.map(id => {
-            val groupName = cd.getString(s"${groupedInputSet.groupNameKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
-            val groupJson = cd.getString(s"${groupedInputSet.groupGraphJsonKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
-            GroupedInputSetGroup(id.toInt, groupName, ResmatImageType.Geogebra, groupJson, groupedInputSet.groupGraphSettings, groupedInputSet.groupShapeGraphSettings)
-          })
-          val inputSet = InputSet(
-            groupedInputSet.id,
-            groupedInputSet.name,
-            groups.flatMap(g => {
-              groupedInputSet.inputConfs.map(ic =>
-                InputSetInput(s"${g.id}${ic.id}".toInt, s"${ic.name}", g.name, ic.units, s"${ic.answerMapping}_${g.id}", ic.description, ic.value) //TODO: hardcoded, how to make reusable?
-              )
-            })
-          )
-          val inputSetInput = GroupedInputSetInput(inputSet, groups)
-          val inputAnswers = inputSetInput.groups.flatMap(g => {
-            groupedInputSet.inputConfs.map(input =>
-              InputSetInputAnswer(s"${g.id}${input.id}".toInt, cd.getDoubleOpt(s"${input.answerMapping}_${g.id}")) //TODO: hardcoded, how to make reusable?
-            )
-          })
-          val dInputSetAnswer = GroupedInputSetAnswer(
-            inputSetInput,
-            inputAnswers
-          )
-          dInputSetAnswer.asJson.toString
+          val answer = makeGroupedInputSetAnswer(groupedInputSet, cd)
+          answer.asJson.toString
         case TaskFlowStepType.VariableValueSet =>
           val stepInputSet = decode[InputSet](sc.stepData).fold( e =>
             throw new RuntimeException(s"Failed to parse InputSet from step data ${sc.stepData}", e),
@@ -529,6 +511,13 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             e.items.filter(onlyInput).map(i => i.value.asInstanceOf[SmartValueInput])
           )
           inputs.map(i => InputSetInputAnswer(i.id, Some(cd.getDouble(i.answerMapping)))).asJson.toString()
+        case TaskFlowStepType.EquationSetHelp =>
+          val eqSystem = decode[InputSetEquationSystem](sc.stepData).fold( e =>
+            throw new RuntimeException(s"Failed to parse InputSetEquationSystem from step data ${sc.stepData}", e),
+            r => r
+          )
+          val withMappedValues = populateEquationSet(eqSystem, cd)
+          withMappedValues.asJson.toString()
         case TaskFlowStepType.Charts =>
           val decoded = decode[String](sc.stepData).fold(e =>
             throw new RuntimeException(s"Failed to parse string from step data ${sc.stepData}", e),
@@ -561,6 +550,15 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
           } else {
             throw new RuntimeException(s"Unknown DynamicTable step data ${sc.stepData}")
           }
+        case TaskFlowStepType.Drawing =>
+          val decoded = decode[DrawingConf](sc.stepData).fold(e =>
+            throw new RuntimeException(s"Failed to parse DrawingConf from step data ${sc.stepData}", e),
+            r => r
+          )
+          DrawingStepAnswer(
+            cd.getString(decoded.shapesJsonAnswerMapping),
+            decoded.graphSettings
+          ).asJson.toString()
         case TaskFlowStepType.Finished =>
           "".asJson.toString()
         case st => throw new RuntimeException(s"Unhandled step type: $st")
@@ -569,6 +567,35 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
     }
 
     (taskFlow, taskFlowSteps)
+  }
+  
+  private def makeGroupedInputSetAnswer(groupedInputSet: GroupedInputSetConf, cd: ProblemAnswer): GroupedInputSetAnswer = {
+    val groupIds = cd.getString(groupedInputSet.groupIdsAnswerMapping).split(",")
+    val groups = groupIds.map(id => {
+      val groupName = cd.getString(s"${groupedInputSet.groupNameKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
+      val groupJson = cd.getString(s"${groupedInputSet.groupGraphJsonKeyAnswerMapping}_$id") //TODO: hardcoded, how to make reusable?
+      GroupedInputSetGroup(id.toInt, groupName, ResmatImageType.Geogebra, groupJson, groupedInputSet.groupGraphSettings, groupedInputSet.groupShapeGraphSettings)
+    })
+    val inputSet = InputSet(
+      groupedInputSet.id,
+      groupedInputSet.name,
+      groups.flatMap(g => {
+        groupedInputSet.inputConfs.map(ic =>
+          InputSetInput(s"${g.id}${ic.id}".toInt, s"${ic.name}", g.name, ic.units, s"${ic.answerMapping}_${g.id}", ic.description, ic.value) //TODO: hardcoded, how to make reusable?
+        )
+      })
+    )
+    val inputSetInput = GroupedInputSetInput(inputSet, groups)
+    val inputAnswers = inputSetInput.groups.flatMap(g => {
+      groupedInputSet.inputConfs.map(input =>
+        InputSetInputAnswer(s"${g.id}${input.id}".toInt, cd.getDoubleOpt(s"${input.answerMapping}_${g.id}")) //TODO: hardcoded, how to make reusable?
+      )
+    })
+    val dInputSetAnswer = GroupedInputSetAnswer(
+      inputSetInput,
+      inputAnswers
+    )
+    dInputSetAnswer
   }
   
   private def populateEquationSet(eqSystem: InputSetEquationSystem, cd: ProblemAnswer): InputSetEquationSystem = {
@@ -580,15 +607,18 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
             case SmartValueForEach(idsMapping, itemTemplates, betweenTemplates) =>
               val ids = cd.getString(idsMapping).split(",")
               val generatedItems = ids.map(id => {
-                itemTemplates.map(tpl => tpl.setAnswerMapping(current => s"${current}_$id").setValue(cd).setLabel(lk => s"$lk$id"))
+                itemTemplates.map(tpl => 
+                  tpl.copy(value = 
+                    tpl.value.setAnswerMapping(current => s"${current}_$id")
+                      .setValue(cd).setLabel(lk => s"$lk$id")
+                  )
+                )
               })
-              def betweenEqItems = betweenTemplates.map(bt => EquationItem(bt))
               generatedItems.foldLeft(Seq.empty[EquationItem])((acc, gis) => {
-                val eqItems = gis.map(gi => EquationItem(gi))
                 acc ++ (if (acc.isEmpty) {
-                  eqItems
+                  gis
                 } else {
-                  betweenEqItems ++ eqItems
+                  betweenTemplates ++ gis
                 })
               })
             case _ =>

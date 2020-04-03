@@ -3,7 +3,7 @@ package edu.knuca.resmat.data
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.articles.{ArticleDto, ArticleQueries, ArticleService}
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
-import edu.knuca.resmat.core.crosssection.{KutykShape, PlastynaShape, ShapeRotationAngle, ShvellerShape, XYCoords}
+import edu.knuca.resmat.core.crosssection.{KutykShape, PlastynaShape, ShvellerShape, XYCoords}
 import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
 import edu.knuca.resmat.core.ringplate.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService

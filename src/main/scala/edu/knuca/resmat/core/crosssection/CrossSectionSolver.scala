@@ -1,8 +1,9 @@
 package edu.knuca.resmat.core
 
 import breeze.linalg.DenseVector
-import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupJson, GeometryShapeInGroupSettingsJson, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
+import edu.knuca.resmat.core.crosssection.{CustomAxesRootPointSettings, CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupJson, GeometryShapeInGroupSettingsJson, GeometryShapeSettingsLabelMode, KoloShape, KutykShape, NapivkoloShape, PlastynaShape, ShapeType, ShvellerShape, Trykutnyk90Shape, TrykutnykRBShape, XYCoords}
 import edu.knuca.resmat.exam.{ProblemInputVariableConf, ProblemInputVariableValue}
+import io.circe.JsonObject
 
 import scala.math._
 
@@ -193,31 +194,34 @@ class CrossSectionSolver(input: CrossSectionProblemInput) {
   import edu.knuca.resmat.core.crosssection.{
     GeometryShapeInGroupJson => ShapeJson,
     GeometryShapeInGroupSettingsJson => SettingsJson,
-    CustomAxesSettings => CA
+    ShapeCustomAxesSettings => CA
   }
   
   private val rounded_y_c = y_center.setScale(2, BigDecimal.RoundingMode.HALF_UP).doubleValue()
   private val rounded_z_c = z_center.setScale(2, BigDecimal.RoundingMode.HALF_UP).doubleValue()
   private val centerCoords = XYCoords(rounded_y_c, rounded_z_c)
   private val additionalAxesSize = input.shapes.flatMap(_.dimensionsToMap().values).max;
+  private val shapeMaxId = input.shapes.map(_.id).max;
   private val UVAxes = ShapeJson(CustomAxesShape(
-    200,
+    shapeMaxId + 2,
     "UVAxes",
-    alphaDegrees,
+    -alphaDegrees,
     centerCoords,
     additionalAxesSize,
-    additionalAxesSize
-  ).toJson())
+    additionalAxesSize,
+    props = CustomAxesShape.props("U", "V"),
+    settings = CustomAxesShape.settings("red", CustomAxesRootPointSettings(isLableVisible = true, GeometryShapeSettingsLabelMode.CaptionValue, "C"))
+  ).toJson(), Some(SettingsJson()))
   private val finalEllipse = ShapeJson(EllipseShape(
-    201,
+    shapeMaxId + 1,
     "finalEllipse",
-    alphaDegrees,
+    -alphaDegrees,
     centerCoords,
     i_v,
     i_u
-  ).toJson())
+  ).toJson(), Some(SettingsJson()))
   private val finalDrawingShapes: Seq[ShapeJson] = input.shapes.map(s => 
-    ShapeJson(s.toJson(), Some(SettingsJson(Some(CA("y", "z", true)))))
+    ShapeJson(s.toJson(), Some(SettingsJson(Some(CA("y", "z")))))
   ) ++ Seq(UVAxes, finalEllipse)
 
   def solve(): CrossSectionProblemAnswer = {

@@ -36,10 +36,11 @@ object ShapeType extends PimpedEnumeration {
   val CustomAxes: ShapeType = Value(9, "CustomAxes")
 }
 
-case class CustomAxesSettings(xAxisName: String, yAxisName: String, isInverted: Boolean, root: Option[XYCoords] = None)
+case class ShapeCustomAxesSettings(xAxisName: String, yAxisName: String, root: Option[XYCoords] = None)
 
 case class GeometryShapeInGroupSettingsJson(
-  customAxesSettings: Option[CustomAxesSettings] = None
+  customAxesSettings: Option[ShapeCustomAxesSettings] = None,
+  isInverted: Boolean = true
 )
 
 case class GeometryShapeInGroupJson(
@@ -64,6 +65,14 @@ case class GeometryShapeJson (
   props: JsonObject,
   rotationPoint: Option[XYCoords] = None
 )
+
+object GeometryShapeSettingsLabelMode extends Enumeration {
+  val Name = Value(0)
+  val NameValue = Value(1)
+  val ValueMode = Value(2)
+  val Caption = Value(3)
+  val CaptionValue = Value(4)
+}
 
 sealed trait GeometryShape {
   val id: Int
@@ -609,6 +618,7 @@ object EllipseShape {
   )
 }
 
+case class CustomAxesRootPointSettings(isLableVisible: Boolean, labelMode: GeometryShapeSettingsLabelMode.Value, caption: String)
 case class CustomAxesShape(
   id: Int,
   name: String,
@@ -651,4 +661,21 @@ object CustomAxesShape {
     j.props,
     j.rotationPoint
   )
+  
+  def props(xAxisName: String, yAxisName: String): JsonObject = {
+    JsonObject.fromMap(Map("xAxisName" -> Json.fromString(xAxisName), "yAxisName" -> Json.fromString(yAxisName)))
+  }
+  
+  def settings(color: String, rootPointSettings: CustomAxesRootPointSettings): JsonObject = {
+    val styles = Json.fromJsonObject(JsonObject.fromMap(Map("color" -> Json.fromString(color))))
+    val rootPoint = Json.fromJsonObject(JsonObject.fromMap(Map(
+      "isLabelVisible" -> Json.fromBoolean(rootPointSettings.isLableVisible),
+      "labelMode" -> Json.fromInt(rootPointSettings.labelMode.id), //CaptionValue
+      "caption" -> Json.fromString(rootPointSettings.caption)
+    )))
+    JsonObject.fromMap(Map(
+      "styles" -> styles,
+      "rootPoint" -> rootPoint
+    ))
+  }
 }
