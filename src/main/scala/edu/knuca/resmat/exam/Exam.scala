@@ -1,8 +1,7 @@
 package edu.knuca.resmat.exam
 
-import edu.knuca.resmat.core.ProblemAnswer
-import edu.knuca.resmat.core.RingPlateProblemAnswer
-import edu.knuca.resmat.core.crosssection.{ShapeCustomAxesSettings, GeometryShapeInGroupSettingsJson, XYCoords}
+import edu.knuca.resmat.core.{ProblemAnswer, ProblemInputConf, ProblemVariantInputData, RingPlateProblemAnswer}
+import edu.knuca.resmat.core.crosssection.{GeometryShapeInGroupSettingsJson, ShapeCustomAxesSettings, XYCoords}
 import edu.knuca.resmat.exam.taskflow.{TaskFlowDto, TaskFlowResultInfoStepDataDto}
 import edu.knuca.resmat.utils.PimpedEnumeration
 import io.circe.generic.JsonCodec
@@ -189,8 +188,8 @@ case class UserExamStepAttemptTestSetTest(id: Long,
 
 //====================Problem====================
 
-case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputVariableConfs: Seq[ProblemInputVariableConf], props: ProblemConfProps)
-case class ProblemConfProps(helpMaterials: Seq[String], customAxesSettings: Option[ShapeCustomAxesSettings] = None)
+case class ProblemConf(id: Long, name: String, problemType: ProblemType.ProblemType, inputConf: ProblemInputConf, props: ProblemConfProps)
+case class ProblemConfProps(helpMaterials: Seq[String])
 case class ProblemInputVariableConf(id: Int, name: String, units: String = "", alias: String, showInExam: Boolean = true)
 case class ProblemInputVariableValue(
   variableConfId: Long,
@@ -205,14 +204,14 @@ case class PublicProblemVariantConf(id: Long,
                                     problemConfId: Long,
                                     schemaType: ResmatImageType.ResmatImageType,
                                     schemaUrl: String,
-                                    inputVariableValues: Seq[ProblemInputVariableValue])
+                                    inputData: ProblemVariantInputData)
 case class ProblemVariantConf(id: Long,
                               problemConfId: Long,
                               schemaType: ResmatImageType.ResmatImageType,
                               schemaUrl: String,
-                              inputVariableValues: Seq[ProblemInputVariableValue],
+                              inputData: ProblemVariantInputData,
                               calculatedData: ProblemAnswer) {
-  val withoutCalculatedData = PublicProblemVariantConf(id, problemConfId, schemaType, schemaUrl, inputVariableValues)
+  val withoutCalculatedData = PublicProblemVariantConf(id, problemConfId, schemaType, schemaUrl, inputData)
 }
 
 //====================TaskFlow====================

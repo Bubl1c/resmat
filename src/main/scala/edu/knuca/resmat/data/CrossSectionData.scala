@@ -1,7 +1,7 @@
 package edu.knuca.resmat.data
 
-import edu.knuca.resmat.core.crosssection.{ShapeCustomAxesSettings, CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupSettingsJson, KutykShape, PlastynaShape, ShvellerShape, SizeDirections, XYCoords}
-import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
+import edu.knuca.resmat.core.crosssection.{CustomAxesShape, DvotavrShape, EllipseShape, GeometryShape, GeometryShapeInGroupSettingsJson, KutykShape, PlastynaShape, ShapeCustomAxesSettings, ShvellerShape, SizeDirections, XYCoords}
+import edu.knuca.resmat.core.{CrossSectionSolver, GeometryShapesProblemInputConf, GeometryShapesProblemVariantInputData}
 import edu.knuca.resmat.data.Utils.{ed, ei, es, esd}
 import edu.knuca.resmat.exam._
 import io.circe.generic.auto._
@@ -12,25 +12,15 @@ import io.circe.JsonObject
 object CrossSectionData {
 
   object Problem {
-
-    import edu.knuca.resmat.core.CrossSectionProblemInput.{Mapping => M}
-
-    private val confs = Vector(
-      ProblemInputVariableConf(id = 1, name = "shapeIds", units = "string with shape ids delimited by comma", alias = M.shapeIds, showInExam = false),
-      ProblemInputVariableConf(id = 2, name = "Тип фігури", alias = M.Shape.kind, showInExam = false),
-      ProblemInputVariableConf(id = 3, name = "Назва фігури", alias = M.Shape.name, showInExam = false),
-      ProblemInputVariableConf(id = 4, name = "RootX", alias = M.Shape.rootX, showInExam = false),
-      ProblemInputVariableConf(id = 5, name = "RootY", alias = M.Shape.rootY, showInExam = false),
-      ProblemInputVariableConf(id = 6, name = "Кут повороту", units = "градусів", alias = M.Shape.rotationAngle, showInExam = false),
-      ProblemInputVariableConf(id = 7, name = "Розміри", alias = M.Shape.dimensions, showInExam = true)
-    )
     
     val conf: ProblemConf = ProblemConf(
       2,
       "Геометрія",
       ProblemType.CrossSection,
-      confs,
-      ProblemConfProps(Seq("img/sortament.pdf"), Some(ShapeCustomAxesSettings("y0", "z0", root = Some(XYCoords(0, 0)))))
+      GeometryShapesProblemInputConf(
+        Some(ShapeCustomAxesSettings("y0", "z0", root = Some(XYCoords(0, 0))))
+      ),
+      ProblemConfProps(Seq("img/sortament.pdf"))
     )
     
     // 1. Поміняти знак в координатах рута
@@ -59,11 +49,15 @@ object CrossSectionData {
     )
     
     def makeVariant(id: Long, problemConfId: Long, shapes: Vector[GeometryShape]): ProblemVariantConf = {
-      val varValues = CrossSectionProblemInput.toVariant(shapes)
-      val input = CrossSectionProblemInput(shapes)
+      val input = GeometryShapesProblemVariantInputData(shapes)
       val solved = new CrossSectionSolver(input).solve()
       ProblemVariantConf(
-        id, problemConfId, ResmatImageType.Geogebra, solved.shapes.asJson.noSpaces, varValues, solved
+        id,
+        problemConfId,
+        ResmatImageType.Geogebra,
+        solved.shapes.asJson.noSpaces,
+        GeometryShapesProblemVariantInputData(shapes),
+        solved
       )
     }
 
@@ -317,13 +311,13 @@ object CrossSectionData {
           "", List(
             InputSetEquation(
               1, List[EquationItem](
-                es("$ i_u = \\sqrt \\frac{I_u}{A}$"),
+                es("$ i_u = \\sqrt \\frac{I_u}{A} = $"),
                 ei(-1, M.i_u, "$[см]$ точність 0,001")
               )
             ),
             InputSetEquation(
               1, List[EquationItem](
-                es("$ i_v = \\sqrt \\frac{I_v}{A}$"),
+                es("$ i_v = \\sqrt \\frac{I_v}{A} = $"),
                 ei(-1, M.i_v, "$[см]$ точність 0,001")
               )
             )

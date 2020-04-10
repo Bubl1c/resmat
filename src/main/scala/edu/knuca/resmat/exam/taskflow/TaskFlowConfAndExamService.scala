@@ -277,7 +277,7 @@ class TaskFlowConfAndExamService(val db: DatabaseService)
       problemVariantConf.problemConfId,
       problemVariantConf.schemaType,
       problemVariantConf.schemaUrl,
-      problemVariantConf.inputVariableValues
+      problemVariantConf.inputData
     )
     Some(TaskFlowDto(problemConf, pvcDto, taskFlow))
   }

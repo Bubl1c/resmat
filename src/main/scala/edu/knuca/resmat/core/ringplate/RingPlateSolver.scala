@@ -1,7 +1,7 @@
 package edu.knuca.resmat.core.ringplate
 
 import breeze.linalg.{DenseMatrix, DenseVector}
-import edu.knuca.resmat.core.RingPlateProblemAnswer
+import edu.knuca.resmat.core.{InputVariableValuesProblemInputConf, InputVariableValuesProblemVariantInputData, RingPlateProblemAnswer}
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.utils.PimpedEnumeration
 
@@ -17,10 +17,10 @@ object RingPlateSolver extends App {
 
 class RingPlateSolver(input: RingPlateProblemInput) {
 
-  def this(variableConfs: Seq[ProblemInputVariableConf], variableValues: Seq[ProblemInputVariableValue]) = {
+  def this(inputConf: InputVariableValuesProblemInputConf, inputData: InputVariableValuesProblemVariantInputData) = {
     this(RingPlateProblemInput(
-      variableConfs.map(pc => {
-        val varVal = variableValues.find(_.variableConfId == pc.id).get
+      inputConf.inputVariableConfs.map(pc => {
+        val varVal = inputData.inputVariableValues.find(_.variableConfId == pc.id).get
         (pc, varVal)
       })
     ))

@@ -49,6 +49,13 @@ class UserExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamR
         }
       }
     } ~
+    (pathPrefix("deleteAll") & authorize(user.isAssistantOrHigher)) {
+      (parameters('groupId.as[Long], 'examConfId.as[Long]) & delete) { (groupId, examConfId) =>
+        complete {
+          Future(deleteExamForAllStudentsInGroup(examConfId, groupId))
+        }
+      }
+    } ~ 
     (pathPrefix("current") & get) {
       complete {
         Future(getCurrentUserExam(user.id))

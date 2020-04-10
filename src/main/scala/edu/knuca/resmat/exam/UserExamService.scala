@@ -1,5 +1,7 @@
 package edu.knuca.resmat.exam
 
+import java.sql.Connection
+
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.GeneralHelpers
@@ -15,7 +17,6 @@ import org.joda.time.DateTime
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
-
 import io.circe.syntax._
 import io.circe.generic.auto._
 import edu.knuca.resmat.http.JsonProtocol._
@@ -146,6 +147,23 @@ class UserExamService(val db: DatabaseService)
     val affected = Q.deleteUserExam(id).executeUpdate()
     if(affected != 1) {
       throw new RuntimeException(s"Failed to delete user exam with id $id")
+    }
+  }
+
+  def deleteUserExamInternal(id: Long)(implicit c: Connection) = {
+    val affected = Q.deleteUserExam(id).executeUpdate()
+    if(affected != 1) {
+      throw new RuntimeException(s"Failed to delete user exam with id $id")
+    }
+  }
+
+  def deleteExamForAllStudentsInGroup(examConfId: Long, studentGroupId: Long) = {
+    usersService.getStudentsByGroup(studentGroupId).flatMap{ students =>
+      val exams = students.flatMap(s => findUserExamsAvailableForUser(s.id.get).filter(_.examConf.id == examConfId))
+      db.runTransaction { implicit c =>
+        exams.foreach(e => deleteUserExamInternal(e.userExam.id))
+      }
+      Future()
     }
   }
 

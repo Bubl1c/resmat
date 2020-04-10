@@ -220,6 +220,7 @@ object RingPlateProblemAnswer {
 
 case class CrossSectionProblemAnswer(
   shapes: Vector[GeometryShape],
+  shapeGeometryCharacteristics: Vector[ShapeCalculatedData],
   centerOfGravity: CenterOfGravity,
   distanceBetweenCentralAxes: DistanceBetweenCentralAxes,
   centralMomentsOfInertia: CentralMomentsOfInertia,
@@ -308,7 +309,7 @@ case class CrossSectionProblemAnswer(
        |CrossSectionProblemAnswer
        |---------------------------------------------
        |${shapes.map(_.toString)}
-       |${shapes.map(_.getShapeCalculatedData).mkString("")}
+       |${shapeGeometryCharacteristics.mkString("")}
        |$centerOfGravity
        |$centralMomentsOfInertia
        |$distanceBetweenCentralAxes

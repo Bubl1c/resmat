@@ -1,5 +1,6 @@
 package edu.knuca.resmat.data
 
+import edu.knuca.resmat.core.{InputVariableValuesProblemInputConf, InputVariableValuesProblemVariantInputData}
 import edu.knuca.resmat.core.ringplate.RingPlateSolver
 import edu.knuca.resmat.exam.{EquationItem, InputSet, InputSetEquation, InputSetEquationSystem, InputSetInput, ProblemConf, ProblemConfProps, ProblemInputVariableValue, ProblemType, ProblemVariantConf, ResmatImageType, TaskFlowConf, TaskFlowConfDto, TaskFlowStepConf, TaskFlowStepType, TaskFlowTestConf, TestConf, TestOptionConf}
 import io.circe.generic.auto._
@@ -84,18 +85,30 @@ object RingPlateData {
       VarVal(18, 160)
     )
 
-    val conf: ProblemConf = ProblemConf(1, "Кільцева пластина", ProblemType.RingPlate, problemVariableConfs, ProblemConfProps(Seq("img/equations.png")))
+    val conf: ProblemConf = ProblemConf(
+      1,
+      "Кільцева пластина",
+      ProblemType.RingPlate,
+      InputVariableValuesProblemInputConf(problemVariableConfs),
+      ProblemConfProps(Seq("img/equations.png"))
+    )
 
     val variants: Seq[ProblemVariantConf] = Seq(
       ProblemVariantConf(
         1, 1, ResmatImageType.ImgUrl, "img/tasks/variants/sc1.png",
-        problemVarValues,
-        new RingPlateSolver(problemVariableConfs, problemVarValues).solve()
+        InputVariableValuesProblemVariantInputData(problemVarValues),
+        new RingPlateSolver(
+          InputVariableValuesProblemInputConf(problemVariableConfs),
+          InputVariableValuesProblemVariantInputData(problemVarValues)
+        ).solve()
       ),
       ProblemVariantConf(
         1, 1, ResmatImageType.ImgUrl, "img/tasks/variants/sc2.png",
-        problemVarValues2,
-        new RingPlateSolver(problemVariableConfs, problemVarValues2).solve()
+        InputVariableValuesProblemVariantInputData(problemVarValues2),
+        new RingPlateSolver(
+          InputVariableValuesProblemInputConf(problemVariableConfs),
+          InputVariableValuesProblemVariantInputData(problemVarValues2)
+        ).solve()
       )
     )
   }

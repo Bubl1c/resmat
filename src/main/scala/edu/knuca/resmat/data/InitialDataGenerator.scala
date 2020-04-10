@@ -3,19 +3,14 @@ package edu.knuca.resmat.data
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.articles.{ArticleDto, ArticleQueries, ArticleService}
 import edu.knuca.resmat.auth.{AuthService, TokenEntity, TokensQueries}
-import edu.knuca.resmat.core.crosssection.{KutykShape, PlastynaShape, ShvellerShape, XYCoords}
-import edu.knuca.resmat.core.{CrossSectionProblemInput, CrossSectionSolver}
-import edu.knuca.resmat.core.ringplate.RingPlateSolver
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.ExamStatus.ExamStatus
 import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
-import edu.knuca.resmat.exam.{ProblemInputVariableConf => VarConf, ProblemInputVariableValue => VarVal}
 import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
-import io.circe.parser.parse
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, ExecutionContext}
@@ -82,33 +77,37 @@ object Data {
       "Lorem Ipsum.</p>",
     "<div><h2><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"https://www.sessions.edu/wp-content/uploads/1-PJgt-UmbqBXXGiDBL1KG0A.jpeg\" width=\"700\" height=\"399\" /></h2><h2>Почему он используется?</h2><p>Давно выяснено, что при оценке дизайна и композиции читаемый текст мешает сосредоточиться. Lorem Ipsum используют потому, что тот обеспечивает более или менее стандартное заполнение шаблона, а также реальное распределение букв и пробелов в абзацах, которое не получается при простой дубликации \"Здесь ваш текст.. Здесь ваш текст.. Здесь ваш текст..\" Многие программы электронной вёрстки и редакторы HTML используют Lorem Ipsum в качестве текста по умолчанию, так что поиск по ключевым словам \"lorem ipsum\" сразу показывает, как много веб-страниц всё ещё дожидаются своего настоящего рождения. За прошедшие годы текст Lorem Ipsum получил много версий. Некоторые версии появились по ошибке, некоторые - намеренно (например, юмористические варианты).</p></div><p style=\"text-align: center;\">&nbsp;<iframe src=\"//www.youtube.com/embed/9t3kU77C7H4\" width=\"560\" height=\"314\" allowfullscreen=\"allowfullscreen\"></iframe></p><div><h2>Откуда он появился?</h2><p>Многие думают, что Lorem Ipsum - взятый с потолка псевдо-латинский набор слов, но это не совсем так. Его корни уходят в один фрагмент классической латыни 45 года н.э., то есть более двух тысячелетий назад. Ричард МакКлинток, профессор латыни из колледжа Hampden-Sydney, штат Вирджиния, взял одно из самых странных слов в Lorem Ipsum, \"consectetur\", и занялся его поисками в классической латинской литературе. В результате он нашёл неоспоримый первоисточник Lorem Ipsum в разделах 1.10.32 и 1.10.33 книги \"de Finibus Bonorum et Malorum\" (\"О пределах добра и зла\"), написанной Цицероном в 45 году н.э. Этот трактат по теории этики был очень популярен в эпоху Возрождения. Первая строка Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", происходит от одной из строк в разделе 1.10.32</p></div>",
     true,
-    ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }"))
+    ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }")
+  )
   val article2 = ArticleDto(
     -1,
     "Lorem Ipsum 2",
     "<h4>Что такое Lorem Ipsum?</h4><p style=\"text-align: center;\"><iframe src=\"//www.youtube.com/embed/9t3kU77C7H4\" width=\"560\" height=\"314\" allowfullscreen=\"allowfullscreen\"></iframe></p>",
     "<div><h2><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"https://www.sessions.edu/wp-content/uploads/1-PJgt-UmbqBXXGiDBL1KG0A.jpeg\" width=\"700\" height=\"399\" /></h2><h2>Почему он используется?</h2><p>Давно выяснено, что при оценке дизайна и композиции читаемый текст мешает сосредоточиться. Lorem Ipsum используют потому, что тот обеспечивает более или менее стандартное заполнение шаблона, а также реальное распределение букв и пробелов в абзацах, которое не получается при простой дубликации \"Здесь ваш текст.. Здесь ваш текст.. Здесь ваш текст..\" Многие программы электронной вёрстки и редакторы HTML используют Lorem Ipsum в качестве текста по умолчанию, так что поиск по ключевым словам \"lorem ipsum\" сразу показывает, как много веб-страниц всё ещё дожидаются своего настоящего рождения. За прошедшие годы текст Lorem Ipsum получил много версий. Некоторые версии появились по ошибке, некоторые - намеренно (например, юмористические варианты).</p></div><p style=\"text-align: center;\">&nbsp;<iframe src=\"//www.youtube.com/embed/9t3kU77C7H4\" width=\"560\" height=\"314\" allowfullscreen=\"allowfullscreen\"></iframe></p><div><h2>Откуда он появился?</h2><p>Многие думают, что Lorem Ipsum - взятый с потолка псевдо-латинский набор слов, но это не совсем так. Его корни уходят в один фрагмент классической латыни 45 года н.э., то есть более двух тысячелетий назад. Ричард МакКлинток, профессор латыни из колледжа Hampden-Sydney, штат Вирджиния, взял одно из самых странных слов в Lorem Ipsum, \"consectetur\", и занялся его поисками в классической латинской литературе. В результате он нашёл неоспоримый первоисточник Lorem Ipsum в разделах 1.10.32 и 1.10.33 книги \"de Finibus Bonorum et Malorum\" (\"О пределах добра и зла\"), написанной Цицероном в 45 году н.э. Этот трактат по теории этики был очень популярен в эпоху Возрождения. Первая строка Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", происходит от одной из строк в разделе 1.10.32</p></div>",
     true,
-    ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }"))
+    ArticleQueries.parseMeta("{ \"uploadedFileUrls\": [] }")
+  )
 }
 
-class InitialDataGenerator(db: DatabaseService,
-                           usersService: UsersService,
-                           authService: AuthService,
-                           examService: ExamConfService,
-                           problemService: ProblemConfService,
-                           userExamService: UserExamService,
-                           testSetExamService: TestSetExamService,
-                           taskFlowExamService: TaskFlowConfAndExamService,
-                           testConfsService: TestConfService,
-                           articleService: ArticleService) extends LazyLogging {
+class InitialDataGenerator(
+  db: DatabaseService,
+  usersService: UsersService,
+  authService: AuthService,
+  examService: ExamConfService,
+  problemService: ProblemConfService,
+  userExamService: UserExamService,
+  testSetExamService: TestSetExamService,
+  taskFlowExamService: TaskFlowConfAndExamService,
+  testConfsService: TestConfService,
+  articleService: ArticleService
+) extends LazyLogging {
 
   def generate()(implicit executionContext: ExecutionContext) = {
 
     val article = articleService.create(Data.article)
     val article2 = articleService.create(Data.article2)
 
-    Data.problemConfs.foreach{ case((pc: ProblemConf, pvcs: Seq[ProblemVariantConf])) =>
+    Data.problemConfs.foreach { case ((pc: ProblemConf, pvcs: Seq[ProblemVariantConf])) =>
       generateProblemConf(pc, pvcs)
     }
 
@@ -188,7 +187,7 @@ class InitialDataGenerator(db: DatabaseService,
   }
 
   def insertToken(token: TokenEntity): TokenEntity = {
-    db.run{ implicit c =>
+    db.run { implicit c =>
       val createdId: Option[Long] = TokensQueries.insert(token.userId, token.token, token.created, token.expires).executeInsert()
       token.copy(id = createdId)
     }
