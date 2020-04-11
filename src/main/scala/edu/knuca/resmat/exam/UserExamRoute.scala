@@ -23,12 +23,19 @@ class UserExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamR
     pathEndOrSingleSlash{
       (parameters('userId.as[Long].?) & get) { userId =>
         complete {
-          Future(findUserExamsAvailableForUser(userId.getOrElse(user.id)))
+          Future(findUserExamsByUserId(userId.getOrElse(user.id)))
         }
       } ~
       (parameters('userId.as[Long], 'examConfId.as[Long]) & post & authorize(user.isAssistantOrHigher)) { (userId, examConfId) =>
         complete {
           Future(createUserExam(userId, examConfId))
+        }
+      }
+    } ~
+    (pathPrefix("find") & authorize(user.isAssistantOrHigher)) {
+      (parameters('examConfId.as[Long],'studentGroupId.as[Long]) & get) { (examConfId, studentGroupId) =>
+        complete {
+          Future(findUserExamsExamConfAndStudentGroup(examConfId, studentGroupId))
         }
       }
     } ~
@@ -76,6 +83,11 @@ class UserExamRoute(examService: UserExamService, testSetExamRoute: TestSetExamR
         (delete & authorize(user.isInstructorOrHigher)) {
           complete(Future(deleteUserExam(userExamId)))
         }
+      } ~
+      (pathPrefix("result") & get) {
+          complete {
+            Future(getUserExamResultByUserExamId(userExamId))
+          }
       } ~
       (pathPrefix("unlock") & authorize(user.isAssistantOrHigher)) {
         put {

@@ -177,6 +177,12 @@ trait UsersService { this: LazyLogging =>
 
 object UsersQueries {
   import anorm.SqlParser.{int, long, str}
+  
+  object U {
+    val table = "users"
+    val id = "id"
+    val groupId = "group_id"
+  }
 
   object SGA {
     val table = "student_group_articles"

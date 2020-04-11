@@ -269,8 +269,8 @@ object TestSetData {
   val simpleTestSetConf: TestSetConf = TestSetConf(2, "Набір тестів з питаннями", 9)
   val simpleTestSetTestGroups: List[(TestGroupConf, Seq[TestConf])] = List(
     (TestGroupConf(6, "Питання", None), Seq(
-      testSI("Текст", "текст", TestOptionValueType.Text),
-      testSI("Число", "77.77", TestOptionValueType.Number, Some(0.001), help = Some(s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png"))
+      testSI("Текст текст", "текст", TestOptionValueType.Text),
+      testSI("Число 77.77", "77.77", TestOptionValueType.Number, Some(0.001), help = Some(s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png"))
     ))
   )
 

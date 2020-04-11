@@ -11,7 +11,7 @@ import edu.knuca.resmat.exam.taskflow.{TaskFlowConfAndExamService, TaskFlowStepD
 import edu.knuca.resmat.exam.testset._
 import edu.knuca.resmat.http.{NotAuthorized, ResourceLocked}
 import edu.knuca.resmat.tests.TestConfService
-import edu.knuca.resmat.user.{AuthenticatedUser, UsersService}
+import edu.knuca.resmat.user.{AuthenticatedUser, UsersQueries, UsersService}
 import org.joda.time.DateTime
 
 import scala.concurrent.duration._
@@ -76,7 +76,7 @@ class UserExamService(val db: DatabaseService)
 
   def unlockAllForGroup(groupId: Long) = {
     usersService.getStudentsByGroup(groupId).flatMap{ students =>
-      val exams = students.flatMap(s => findUserExamsAvailableForUser(s.id.get))
+      val exams = students.flatMap(s => findUserExamsByUserId(s.id.get))
       exams.foreach( e => unlockUserExam(e.userExam.id))
       Future()
     }
@@ -84,7 +84,7 @@ class UserExamService(val db: DatabaseService)
 
   def lockAllForGroup(groupId: Long, hoursAmount: Int) = {
     usersService.getStudentsByGroup(groupId).flatMap{ students =>
-      val exams = students.flatMap(s => findUserExamsAvailableForUser(s.id.get))
+      val exams = students.flatMap(s => findUserExamsByUserId(s.id.get))
       exams.foreach( e => lockUserExam(e.userExam.id, hoursAmount))
       Future()
     }
@@ -120,8 +120,13 @@ class UserExamService(val db: DatabaseService)
     mapToDto(exam)
   }
 
-  def findUserExamsAvailableForUser(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
+  def findUserExamsByUserId(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
     val ues = Q.findUserExamsByUserId(userId).as(Q.ueParser.*)
+    ues.map(mapToDto)
+  }
+
+  def findUserExamsExamConfAndStudentGroup(examConfId: Long, studentGroupId: Long): Seq[UserExamDto] = db.run{ implicit c =>
+    val ues = Q.findUserExamsByExamConfAndStudentGroup(examConfId, studentGroupId).as(Q.ueParser.*)
     ues.map(mapToDto)
   }
 
@@ -159,7 +164,7 @@ class UserExamService(val db: DatabaseService)
 
   def deleteExamForAllStudentsInGroup(examConfId: Long, studentGroupId: Long) = {
     usersService.getStudentsByGroup(studentGroupId).flatMap{ students =>
-      val exams = students.flatMap(s => findUserExamsAvailableForUser(s.id.get).filter(_.examConf.id == examConfId))
+      val exams = students.flatMap(s => findUserExamsByUserId(s.id.get).filter(_.examConf.id == examConfId))
       db.runTransaction { implicit c =>
         exams.foreach(e => deleteUserExamInternal(e.userExam.id))
       }
@@ -836,6 +841,17 @@ object UserExamQueries {
 
   def findUserExamsByUserId(userId: Long) =
     SQL(s"SELECT * FROM ${UE.table} WHERE ${UE.userId} = {userId}").on("userId" -> userId)
+
+  def findUserExamsByExamConfAndStudentGroup(examConfId: Long, studentGroupId: Long) =
+    SQL(
+      s"""
+         |SELECT ue.*
+         |FROM ${UE.table} ue
+         |JOIN ${UsersQueries.U.table} u ON u.${UsersQueries.U.id} = ue.${UE.userId}
+         |where ${UE.examConfId} = {examConfId} AND u.${UsersQueries.U.groupId} = {studentGroupId};
+         |""".stripMargin
+    ).on("examConfId" -> examConfId)
+      .on("studentGroupId" -> studentGroupId)
 
   def findUserExamsInProgress(userId: Long) =
     SQL(s"SELECT * FROM ${UE.table} " +
