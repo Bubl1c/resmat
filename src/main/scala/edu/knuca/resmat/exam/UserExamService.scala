@@ -24,7 +24,7 @@ import edu.knuca.resmat.http.JsonProtocol._
 
 trait StepDataDto
 
-case class UserExamDto(userExam: UserExam, currentStepPreview: Option[UserExamStepPreviewDto], examConf: ExamConf)
+case class UserExamDto(userExam: UserExam, currentStepPreview: Option[UserExamStepPreviewDto], examConf: ExamConf, result: Option[UserExamResult] = None)
 case class UserExamStepPreviewDto(sequence: Int, stepType: ExamStepType, description: String)
 case class UserExamStepInfoDto(stepConf: ExamStepConf, attempts: Seq[UserExamStepAttempt])
 case class UserExamStepAttemptDto(stepConf: ExamStepConf, attempt: UserExamStepAttempt, stepData: StepDataDto)
@@ -127,7 +127,13 @@ class UserExamService(val db: DatabaseService)
 
   def findUserExamsExamConfAndStudentGroup(examConfId: Long, studentGroupId: Long): Seq[UserExamDto] = db.run{ implicit c =>
     val ues = Q.findUserExamsByExamConfAndStudentGroup(examConfId, studentGroupId).as(Q.ueParser.*)
-    ues.map(mapToDto)
+    ues.map(mapToDto).map(ue => {
+      if (Seq(ExamStatus.Success, ExamStatus.Failed).contains(ue.userExam.status)) {
+        ue.copy(result = Some(this.getUserExamResultByUserExamId(ue.userExam.id)))
+      } else {
+        ue
+      }
+    })
   }
 
   def getCurrentUserExam(userId: Long): Option[UserExamDto] = db.run{ implicit c =>
