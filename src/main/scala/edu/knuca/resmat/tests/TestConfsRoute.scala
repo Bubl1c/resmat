@@ -50,11 +50,14 @@ class TestConfsRoute(val testConfsService: TestConfService) extends CirceSupport
             } ~
             get {
               complete(Future(testConfsService.findTestConfsByGroup(testGroupConfId)))
+            } ~
+            (put & entity(as[Seq[TestConf]])) { testConfs =>
+              complete(Future(testConfsService.bulkSetGroupTestConfs(testGroupConfId, testConfs)))
             }
           } ~
           pathPrefix(LongNumber) { testConfId =>
             (put & entity(as[TestConf])) { testConf =>
-              complete(Future(testConfsService.editTestConf(testConfId, testConf)))
+              complete(Future(testConfsService.updateTestConf(testConfId, testConf)))
             } ~
             delete {
               complete(204, Future(testConfsService.deleteTestConf(testConfId)))

@@ -6,9 +6,9 @@ import anorm.{BatchSql, NamedParameter, SQL}
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
-import edu.knuca.resmat.utils.{S3Manager, SqlUtils}
+import edu.knuca.resmat.utils.{CollectionUtils, S3Manager, SqlUtils}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
                      (implicit val executionContext: ExecutionContext) extends LazyLogging {
@@ -131,21 +131,30 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
   //====================TestConf====================
 
   def createTestConf(testConf: TestConf): TestConf = {
-    val id = db.runTransaction { implicit c =>
-      val insertedIdOpt: Option[Long] = Q.createTestConf(testConf).executeInsert()
-      val insertedId = insertedIdOpt.getOrElse(
-        throw new RuntimeException(s"Failed to create $testConf")
-      )
-      Q.updateTestConf(
-        insertedId,
-        TestConfsQueries.updateUrlsToS3Keys(testConf.copy(id = insertedId), s3Manager)
-      ).executeUpdate()
-      insertedId
+    val id = db.run { implicit c =>
+      createTestConfInternal(testConf)
     }
     getTestConf(id)
   }
 
-  def editTestConf(id: Long, testConf: TestConf): TestConf = db.run { implicit c =>
+  private def createTestConfInternal(testConf: TestConf)(implicit c: Connection): Long = {
+    val insertedIdOpt: Option[Long] = Q.createTestConf(testConf).executeInsert()
+    val insertedId = insertedIdOpt.getOrElse(
+      throw new RuntimeException(s"Failed to create $testConf")
+    )
+    Q.updateTestConf(
+      insertedId,
+      TestConfsQueries.updateUrlsToS3Keys(testConf.copy(id = insertedId), s3Manager)
+    ).executeUpdate()
+    insertedId
+  }
+
+  def updateTestConf(id: Long, testConf: TestConf): TestConf = db.run { implicit c =>
+    updateTestConfInternal(id, testConf)
+    getTestConf(id)
+  }
+
+  private def updateTestConfInternal(id: Long, testConf: TestConf)(implicit c: Connection): Unit = {
     val updatedRows: Int = Q.updateTestConf(
       id,
       TestConfsQueries.updateUrlsToS3Keys(testConf, s3Manager)
@@ -156,10 +165,13 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
     if(updatedRows > 1) {
       throw new RuntimeException(s"Updated $updatedRows rows while updating $testConf by id $id")
     }
-    getTestConf(id)
   }
 
-  def deleteTestConf(id: Long): Unit = db.runTransaction { implicit c =>
+  def deleteTestConf(id: Long): Unit = db.run { implicit c =>
+    deleteTestConfInternal(id)
+  }
+
+  def deleteTestConfInternal(id: Long)(implicit c: Connection): Unit = {
     val updatedRows = Q.deleteTestConf(id).executeUpdate()
     if(updatedRows == 0) {
       throw new RuntimeException(s"Failed to delete test conf with id $id")
@@ -167,6 +179,37 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
     if(updatedRows > 1) {
       throw new RuntimeException(s"Deleted $updatedRows rows while deleting test conf by id $id")
     }
+  }
+  
+  def bulkSetGroupTestConfs(groupId: Long, testConfs: Seq[TestConf]): Seq[TestConf] = {
+    db.runTransaction { implicit c =>
+      val existingTestConfs = findTestConfsByGroup(groupId)
+      val diff = CollectionUtils.diff[TestConf, TestConf](existingTestConfs, testConfs, (tc1, tc2) => tc1.id == tc2.id)
+      val addedFuture = Future.sequence(
+        diff.added.map(tc =>
+          Future(createTestConfInternal(tc))
+        )
+      )
+      val updated = diff.same.filterNot(tc => existingTestConfs.contains(tc))
+      val updatedFuture = Future.sequence(
+        updated.map(tc =>
+          Future(updateTestConfInternal(tc.id, tc))
+        )
+      )
+      val removedFuture = Future.sequence(
+        diff.removed.map(tc =>
+          Future(deleteTestConfInternal(tc.id))
+        )
+      )
+      val resultFuture = for {
+        _ <- addedFuture
+        _ <- updatedFuture
+        _ <- removedFuture
+      } yield ()
+      import scala.concurrent.duration._
+      Await.result(resultFuture, 30 seconds)
+    }
+    findTestConfsByGroup(groupId)
   }
 
   def getTestConf(id: Long): TestConf = db.run { implicit c =>
@@ -229,6 +272,7 @@ object TestConfsQueries {
     val question = "question"
     val imageUrl = "image_url"
     val options = "options"
+    val sequence = "sequence"
     val testType = "test_type"
     val precision = "calculation_precision"
     val help = "help"
@@ -270,8 +314,9 @@ object TestConfsQueries {
     testType <- int(T.testType)
     help <- str(T.help).?
     precision <- double(T.precision).?
+    sequence <- int(T.sequence)
   } yield updateS3KeysToUrls(
-    TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help, precision),
+    TestConf(id, groupConfId, question, imageUrl, decodeTestOptions(options), TestType(testType), help, precision, sequence),
     s3Manager
   )
 
@@ -359,7 +404,8 @@ object TestConfsQueries {
          |${T.options},
          |${T.testType},
          |${T.help},
-         |${T.precision}
+         |${T.precision},
+         |${T.sequence}
          |) VALUES (
          |{groupConfId},
          |{question},
@@ -367,7 +413,8 @@ object TestConfsQueries {
          |{options},
          |{testType},
          |{help},
-         |{precision}
+         |{precision},
+         |{sequence}
          |)""".stripMargin)
       .on("groupConfId" -> tc.groupId)
       .on("question" -> tc.question)
@@ -376,6 +423,7 @@ object TestConfsQueries {
       .on("testType" -> tc.testType.id)
       .on("help" -> tc.help)
       .on("precision" -> tc.precision)
+      .on("sequence" -> tc.sequence)
 
   def updateTestConf(id: Long, tc: TestConf) =
     SQL(
@@ -386,7 +434,8 @@ object TestConfsQueries {
          |${T.options} = {options},
          |${T.testType} = {testType},
          |${T.help} = {help},
-         |${T.precision} = {precision}
+         |${T.precision} = {precision},
+         |${T.sequence} = {sequence}
          |WHERE ${T.id} = {id}
          |""".stripMargin)
       .on("id" -> id)
@@ -397,6 +446,7 @@ object TestConfsQueries {
       .on("testType" -> tc.testType.id)
       .on("help" -> tc.help)
       .on("precision" -> tc.precision)
+      .on("sequence" -> tc.sequence)
 
   def deleteTestConf(testConfId: Long) =
     SQL(s"DELETE FROM ${T.table} WHERE ${T.id} = {id}").on("id" -> testConfId)
@@ -426,7 +476,8 @@ object TestConfsQueries {
     SQL(s"SELECT * FROM ${T.table} WHERE ${T.id} IN ({ids})").on("ids" -> ids)
 
   def findTestConfsByGroup(groupConfId: Long) =
-    SQL(s"SELECT * FROM ${T.table} WHERE ${T.groupConfId} = {groupConfId}").on("groupConfId" -> groupConfId)
+    SQL(s"SELECT * FROM ${T.table} WHERE ${T.groupConfId} = {groupConfId} ORDER BY ${T.sequence}")
+      .on("groupConfId" -> groupConfId)
 
   private def decodeTestOptions(json: String): Seq[TestOptionConf] = decode[Seq[TestOptionConf]](json).fold( e =>
     throw new RuntimeException(s"Failed to decode TestOptionConf in json: $json", e),

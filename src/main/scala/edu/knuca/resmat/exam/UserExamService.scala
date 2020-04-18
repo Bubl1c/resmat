@@ -128,8 +128,8 @@ class UserExamService(val db: DatabaseService)
   def findUserExamsExamConfAndStudentGroup(examConfId: Long, studentGroupId: Long): Seq[UserExamDto] = db.run{ implicit c =>
     val ues = Q.findUserExamsByExamConfAndStudentGroup(examConfId, studentGroupId).as(Q.ueParser.*)
     ues.map(mapToDto).map(ue => {
-      if (Seq(ExamStatus.Success, ExamStatus.Failed).contains(ue.userExam.status)) {
-        ue.copy(result = Some(this.getUserExamResultByUserExamId(ue.userExam.id)))
+      if (ue.userExam.status.id == ExamStatus.Success.id) {
+        ue.copy(result = Try(this.getUserExamResultByUserExamId(ue.userExam.id)).toOption)
       } else {
         ue
       }
@@ -218,7 +218,7 @@ class UserExamService(val db: DatabaseService)
 
   def getUserExamResultByUserExamId(userExamId: Long): UserExamResult = db.run{ implicit c =>
     Q.getUserExamResultByUserExamId(userExamId).as(Q.uerParser.singleOpt).getOrElse(
-      throw new RuntimeException(s"User exam result with id: $userExamId not found.")
+      throw new RuntimeException(s"User exam result with userExamId: $userExamId not found.")
     )
   }
 
