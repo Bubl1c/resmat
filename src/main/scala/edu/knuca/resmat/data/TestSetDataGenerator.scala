@@ -11,7 +11,7 @@ object TestSetData {
   val defaultTestSetConf: TestSetConf = TestSetConf(1, "Набір тестів для крутих студентів", 9)
 
   val defaultTestSetTestGroupConfs: List[(TestGroupConf, Seq[TestConf])] = List(
-    (TestGroupConf(-1, "Знання змінних та коефіцієнтів, гіпотез та об’єктів теорії пружності"), Seq(
+    (TestGroupConf(-1, "Знання змінних та коефіцієнтів, гіпотез та об’єктів теорії пружності", false), Seq(
       test("Коефіцієнт Пуассона – це", Seq(
         opt("Міра зміни поперечних розмірів ізотропного тіла при деформації розтягу", true),
         opt("Міра зміни відносної деформації по відношенню до нормального напруження"),
@@ -73,7 +73,7 @@ object TestSetData {
         opt("відношення деформацій до напружень при розтягу-стиску")
       ))
     )),
-    (TestGroupConf(-1, "Формули"), Seq(
+    (TestGroupConf(-1, "Формули", false), Seq(
       test("У чому вимірюється модуль Юнга?", Seq(
         opt("$[кН*м]$"),
         opt("$[кН*м^2]$"),
@@ -135,7 +135,7 @@ object TestSetData {
         opt("$\\sigma_\\theta = \\frac{6M_\\theta}{h^2}$", true)
       ))
     )),
-    (TestGroupConf(3, "Перевірка граничних умов"), Seq(
+    (TestGroupConf(3, "Перевірка граничних умов", false), Seq(
       test("Визначити граничні умови кільцевої пластини вказаної на рисунку, невідомі умови позначити знаком «?»", Seq(
         cond(null, null, 0d, 0d,   0d, null, 0d, null, true),
         cond(null, 0d, 0d, 0d,   0d, null, 0d, null),
@@ -262,13 +262,20 @@ object TestSetData {
         cond(0d, 0d, null, null,   null, 0.01, null, 0d)
       ), s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png")
     )),
-    (TestGroupConf(4, "Батьківська група"), Seq()),
-    (TestGroupConf(5, "Дочірня група", Some(4)), Seq())
+    (TestGroupConf(4, "Батьківська група", false), Seq()),
+    (TestGroupConf(5, "Дочірня група", false, Some(4)), Seq())
   )
 
   val simpleTestSetConf: TestSetConf = TestSetConf(2, "Набір тестів з питаннями", 9)
   val simpleTestSetTestGroups: List[(TestGroupConf, Seq[TestConf])] = List(
-    (TestGroupConf(6, "Питання", None), Seq(
+    (TestGroupConf(6, "Питання", false, None), Seq(
+      testSI("Текст текст", "текст", TestOptionValueType.Text),
+      testSI("Число 77.77", "77.77", TestOptionValueType.Number, Some(0.001), help = Some(s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png"))
+    ))
+  )
+
+  val archivedTestGroup: List[(TestGroupConf, Seq[TestConf])] = List(
+    (TestGroupConf(7, "Група тестів заархівована", true), Seq(
       testSI("Текст текст", "текст", TestOptionValueType.Text),
       testSI("Число 77.77", "77.77", TestOptionValueType.Number, Some(0.001), help = Some(s"https://s3.eu-central-1.amazonaws.com/$awsBucketName/img/tests/extreme-conditions/ec26.png"))
     ))
@@ -324,6 +331,11 @@ class TestSetDataGenerator(testConfsService: TestConfService) {
       groups
     )
   }
+
+  val archivedTestGroupConfs: Seq[TestGroupConf] = insertGroupConfsWithTests(TestSetData.archivedTestGroup)
+  archivedTestGroupConfs.foreach(tgc => {
+    testConfsService.updateTestGroupConf(tgc.id, tgc.copy(isArchived = true))
+  })
 
   private def makeGroupsForTestSetConf(groups: Seq[TestGroupConf]): Seq[TestSetConfTestGroup] = {
     val balancedProportion = 100 / groups.size

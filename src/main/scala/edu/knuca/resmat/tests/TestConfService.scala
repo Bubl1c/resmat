@@ -85,8 +85,8 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
     )
   }
 
-  def getTestGroupConfs(): Seq[TestGroupConf] = db.run { implicit c =>
-    Q.getTestGroupConfs.as(Q.tgcParser.*)
+  def getTestGroupConfs(isArchived: Option[Boolean] = None): Seq[TestGroupConf] = db.run { implicit c =>
+    Q.getTestGroupConfs(isArchived).as(Q.tgcParser.*)
   }
 
   def getTestGroupConfsWithAmountOfTests(): Seq[TestGroupConfWithAmountOfTestsDto] = db.run { implicit c =>
@@ -240,7 +240,7 @@ object TestConfsQueries {
   import io.circe.generic.auto._
   import edu.knuca.resmat.http.JsonProtocol._
 
-  import anorm.SqlParser.{int, long, str, double}
+  import anorm.SqlParser.{int, long, str, double, bool}
 
   object TSC {
     val table = "test_set_confs"
@@ -254,6 +254,7 @@ object TestConfsQueries {
     val id = "id"
     val name = "name"
     val parentGroupId = "parent_group_id"
+    val isArchived = "is_archived"
   }
 
   object TSCTGC {
@@ -288,14 +289,16 @@ object TestConfsQueries {
     id <- long(TG.id)
     parentGroupId <- long(TG.parentGroupId).?
     name <- str(TG.name)
-  } yield TestGroupConf(id, name, parentGroupId)
+    isArchived <- bool(TG.isArchived)
+  } yield TestGroupConf(id, name, isArchived, parentGroupId)
 
   val tgcWithAmountOftestsParser  = for {
     id <- long(TG.id)
     parentGroupId <- long(TG.parentGroupId).?
     name <- str(TG.name)
+    isArchived <- bool(TG.isArchived)
     amountOfTests <- int("amountOfTests")
-  } yield TestGroupConfWithAmountOfTestsDto(TestGroupConf(id, name, parentGroupId), amountOfTests)
+  } yield TestGroupConfWithAmountOfTestsDto(TestGroupConf(id, name, isArchived, parentGroupId), amountOfTests)
 
   val tsctgcParser  = for {
     id <- long(TG.id)
@@ -342,9 +345,10 @@ object TestConfsQueries {
   }
 
   def updateTestGroupConf(id: Long, tsc: TestGroupConf) =
-    SQL(s"UPDATE ${TG.table} SET ${TG.name} = {name}, ${TG.parentGroupId} = {parentGroupId} WHERE ${TG.id} = {id}")
+    SQL(s"UPDATE ${TG.table} SET ${TG.name} = {name}, ${TG.isArchived} = {isArchived}, ${TG.parentGroupId} = {parentGroupId} WHERE ${TG.id} = {id}")
       .on("id" -> id)
       .on("name" -> tsc.name)
+      .on("isArchived" -> tsc.isArchived)
       .on("parentGroupId" -> tsc.parentGroupId.map(java.lang.Long.valueOf(_)).orNull)
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup) =
@@ -455,7 +459,9 @@ object TestConfsQueries {
 
   def getTestGroupConf(id: Long) = SqlUtils.get(TG.table, id)
 
-  def getTestGroupConfs = SqlUtils.get(TG.table)
+  def getTestGroupConfs(isArchived: Option[Boolean] = None) = SQL(
+    s"SELECT * FROM ${TG.table} ${isArchived.map(ia => s"WHERE ${TG.isArchived} IS $ia").getOrElse(s"WHERE ${TG.isArchived} IS FALSE")}"
+  )
 
   def getTestGroupConfsWithAmountOfTests =
     SQL(

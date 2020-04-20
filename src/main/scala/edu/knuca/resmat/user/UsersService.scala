@@ -130,9 +130,9 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
-  def getAllStudentGroups(): Future[Seq[StudentGroupEntity]] = Future {
+  def getAllStudentGroups(isArchived: Option[Boolean] = None): Future[Seq[StudentGroupEntity]] = Future {
     db.run { implicit c =>
-      UsersQueries.getAllStudentGroups().as(UsersQueries.groupParser.*)
+      UsersQueries.getAllStudentGroups(isArchived).as(UsersQueries.groupParser.*)
     }
   }
 
@@ -176,12 +176,19 @@ trait UsersService { this: LazyLogging =>
 }
 
 object UsersQueries {
-  import anorm.SqlParser.{int, long, str}
+  import anorm.SqlParser.{int, long, str, bool}
   
   object U {
     val table = "users"
     val id = "id"
     val groupId = "group_id"
+  }
+
+  object SG {
+    val table = "student_groups"
+    val id = "id"
+    val name = "name"
+    val isArchived = "is_archived"
   }
 
   object SGA {
@@ -265,21 +272,27 @@ object UsersQueries {
   val groupParser = for {
     id <- long("id")
     name <- str("name")
-  } yield StudentGroupEntity(Some(id), name)
+    isArchived <- bool(SG.isArchived)
+  } yield StudentGroupEntity(Some(id), name, isArchived)
 
   def insertStudentGroup(group: StudentGroupEntity) = SQL(
-    """
-      |INSERT INTO student_groups (name)
+    s"""
+      |INSERT INTO ${SG.table} (${SG.name})
       |VALUES ({name})
     """.stripMargin
   ).on("name" -> group.name)
 
-  def getAllStudentGroups() = SQL("SELECT * FROM student_groups")
+  def getAllStudentGroups(isArchived: Option[Boolean] = None) = SQL(
+    s"SELECT * FROM ${SG.table} ${isArchived.map(ia => s"WHERE ${SG.isArchived} IS $ia").getOrElse(s"WHERE ${SG.isArchived} IS FALSE")}"
+  )
 
-  def getStudentGroupById(groupId: Long) = SQL("SELECT * FROM student_groups WHERE id = {groupId}").on("groupId" -> groupId)
+  def getStudentGroupById(groupId: Long) = SQL(s"SELECT * FROM ${SG.table} WHERE ${SG.id} = {groupId}").on("groupId" -> groupId)
 
-  def updateStudentGroup(groupId: Long, groupUpdate: StudentGroupEntityUpdate) =
-    SQL("UPDATE student_groups SET name = {name} WHERE id = {id}").on("id" -> groupId, "name" -> groupUpdate.name)
+  def updateStudentGroup(groupId: Long, groupUpdate: StudentGroupEntityUpdate) = {
+    val query = SQL(s"UPDATE ${SG.table} SET ${SG.name} = {name}, ${SG.isArchived} = {isArchived} WHERE ${SG.id} = {id}")
+      .on("id" -> groupId, "name" -> groupUpdate.name, "isArchived" -> groupUpdate.isArchived)
+    query
+  }
 
   def createGroupArticles(groupId: Long, articleIds: Seq[Long]) =
     SQL(s"INSERT INTO ${SGA.table} (${SGA.studentGroupId}, ${SGA.articleId}) VALUES ${articleIds.map(aid => s"($groupId, $aid)").mkString(", ")}")

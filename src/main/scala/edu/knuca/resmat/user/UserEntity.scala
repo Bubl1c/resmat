@@ -43,9 +43,9 @@ case class UserEntity(id: Option[Long] = None,
   require(!accessKey.isEmpty, "accessKey.empty")
 }
 
-case class StudentGroupEntityUpdate(name: String)
+case class StudentGroupEntityUpdate(name: String, isArchived: Boolean)
 
-case class StudentGroupEntity(id: Option[Long] = None, name: String)
+case class StudentGroupEntity(id: Option[Long] = None, name: String, isArchived: Boolean)
 
 case class UserEntityUpdate(username: Option[String] = None,
                             password: Option[String] = None,

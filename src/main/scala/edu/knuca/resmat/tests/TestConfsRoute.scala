@@ -26,8 +26,8 @@ class TestConfsRoute(val testConfsService: TestConfService) extends CirceSupport
         (post & entity(as[TestGroupConf])) { testGroupConf =>
           complete(Future(testConfsService.createTestGroupConf(testGroupConf)))
         } ~
-        get {
-          complete(Future(testConfsService.getTestGroupConfs()))
+        (parameters('isArchived.as[Boolean].?) & get) { isArchived =>
+          complete(Future(testConfsService.getTestGroupConfs(isArchived)))
         }
       } ~
       pathPrefix("with-amount-of-tests") {

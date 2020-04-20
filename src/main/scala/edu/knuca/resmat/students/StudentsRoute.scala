@@ -22,8 +22,8 @@ class StudentsRoute(usersService: UsersService)
 
   def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("student-groups") & authorize(user.isAssistantOrHigher)) {
     pathEndOrSingleSlash {
-      get {
-        complete(getAllStudentGroups().map(_.asJson))
+      (parameters('isArchived.as[Boolean].?) & get) { isArchived => 
+        complete(getAllStudentGroups(isArchived).map(_.asJson))
       } ~
       post {
         entity(as[StudentGroupEntity]) { userGroupEntity =>

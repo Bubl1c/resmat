@@ -9,15 +9,16 @@ import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.tests.TestConfService
-import edu.knuca.resmat.user.{StudentGroupEntity, UserEntity, UserType, UsersService}
+import edu.knuca.resmat.user.{StudentGroupEntity, StudentGroupEntityUpdate, UserEntity, UserType, UsersService}
 import org.joda.time.DateTime
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Awaitable, ExecutionContext}
 
 object Data {
-  val group1 = StudentGroupEntity(None, "Назва твоєї групи в університеті")
-  val group2 = StudentGroupEntity(None, "ІО-41")
+  val group1 = StudentGroupEntity(None, "Назва твоєї групи в університеті", false)
+  val group2 = StudentGroupEntity(None, "ІО-41", false)
+  val archivedGroup = StudentGroupEntity(None, "Група студентів заархівована", true)
 
   val userAdmin = UserEntity(None, "admin", "root", "Андрій", "Можаровський", "admin@email.com", UserType.Admin, "admin", None)
   val userAssistant = UserEntity(None, "assistant", "root", "Лаборант", "Лаборант", "assistant@email.com", UserType.Assistant, "assistant", None)
@@ -118,6 +119,9 @@ class InitialDataGenerator(
     usersService.setArticlesToGroup(group.id.get, Seq(article.id))
 
     val group2 = await(usersService.createStudentGroup(Data.group2))
+
+    val archivedGroup = await(usersService.createStudentGroup(Data.archivedGroup))
+    await(usersService.updateStudentGroup(archivedGroup.id.get, StudentGroupEntityUpdate(archivedGroup.name, true)))
 
     val student1 = await(
       usersService.createUser(Data.student(group.id.get, "lev", "Дмитро Левківський", "1"))

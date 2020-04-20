@@ -10,9 +10,14 @@ case ${ENV} in
         REMOTE_HOST=192.168.2.146
         REMOTE_USER=resmat
     ;;
-    aws)
+    knuca)
         CERT=~/.ssh/aws_key_pair.pem
         REMOTE_HOST=ec2-52-57-195-49.eu-central-1.compute.amazonaws.com
+        REMOTE_USER=ubuntu
+    ;;
+    zmi)
+        CERT=~/.ssh/aws_key_pair.pem
+        REMOTE_HOST=ec2-3-120-209-125.eu-central-1.compute.amazonaws.com
         REMOTE_USER=ubuntu
     ;;
     *)

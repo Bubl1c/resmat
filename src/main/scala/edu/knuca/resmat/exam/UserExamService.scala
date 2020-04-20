@@ -104,7 +104,7 @@ class UserExamService(val db: DatabaseService)
     if(userExam.status == ExamStatus.Failed) {
       throw new IllegalStateException("Already failed")
     }
-    val isLocked = userExam.lockedUntil.exists(lu => lu.getMillis > DateTime.now.getMillis)
+    val isLocked = isUserExamLocked(userExam)
     if(isLocked) throw ResourceLocked(userExam.lockedUntil.get)
     if(userExam.status == ExamStatus.Initial) {
       userExam = updateUserExam(userExam.copy(status = ExamStatus.InProgress, started = Some(DateTime.now())))
@@ -122,12 +122,30 @@ class UserExamService(val db: DatabaseService)
 
   def findUserExamsByUserId(userId: Long): Seq[UserExamDto] = db.run{ implicit c =>
     val ues = Q.findUserExamsByUserId(userId).as(Q.ueParser.*)
-    ues.map(mapToDto)
+    val unlocked = unlockLockedUserExams(ues)
+    unlocked.map(mapToDto)
+  }
+  
+  private def unlockLockedUserExams(ues: Seq[UserExam])(implicit c: Connection): Seq[UserExam] = {
+    ues.map(ue => {
+      if (ue.lockedUntil.isDefined && !isUserExamLocked(ue)) {
+        val copied = ue.copy(lockedUntil = None)
+        updateUserExamInternal(copied)
+        copied
+      } else {
+        ue
+      }
+    })
+  }
+  
+  private def isUserExamLocked(ue: UserExam): Boolean = {
+    ue.lockedUntil.exists(lu => lu.getMillis > DateTime.now.getMillis)
   }
 
   def findUserExamsExamConfAndStudentGroup(examConfId: Long, studentGroupId: Long): Seq[UserExamDto] = db.run{ implicit c =>
     val ues = Q.findUserExamsByExamConfAndStudentGroup(examConfId, studentGroupId).as(Q.ueParser.*)
-    ues.map(mapToDto).map(ue => {
+    val unlocked = unlockLockedUserExams(ues)
+    unlocked.map(mapToDto).map(ue => {
       if (ue.userExam.status.id == ExamStatus.Success.id) {
         ue.copy(result = Try(this.getUserExamResultByUserExamId(ue.userExam.id)).toOption)
       } else {
@@ -139,19 +157,23 @@ class UserExamService(val db: DatabaseService)
   def getCurrentUserExam(userId: Long): Option[UserExamDto] = db.run{ implicit c =>
     val currentInProgress = Q.findUserExamsInProgress(userId).as(Q.ueParser.singleOpt)
     currentInProgress.fold{
-      val userExams = Q.findUserExamsByUserId(userId).as(Q.ueParser.*)
-      userExams.find(_.status == ExamStatus.Initial).map(mapToDto)
+      val userExamDtos = findUserExamsByUserId(userId)
+      userExamDtos.find(_.userExam.status == ExamStatus.Initial)
     }{ ue =>
       Some(mapToDto(ue))
     }
   }
 
   def updateUserExam(userExam: UserExam): UserExam = db.run{ implicit c =>
+    updateUserExamInternal(userExam)
+    Q.getUserExam(userExam.id).as(Q.ueParser.single)
+  }
+
+  private def updateUserExamInternal(userExam: UserExam)(implicit c: Connection): Unit = {
     val affected = Q.updateUserExam(userExam).executeUpdate()
     if(affected != 1) {
       throw new RuntimeException(s"Failed to update $userExam")
     }
-    Q.getUserExam(userExam.id).as(Q.ueParser.single)
   }
 
   def deleteUserExam(id: Long) = db.run{ implicit c =>
