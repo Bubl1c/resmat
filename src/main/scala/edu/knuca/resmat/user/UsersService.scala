@@ -1,5 +1,7 @@
 package edu.knuca.resmat.user
 
+import java.sql.Connection
+
 import anorm.SQL
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
@@ -76,6 +78,24 @@ trait UsersService { this: LazyLogging =>
     }
   }
 
+  def createStudents(groupId: Long, users: Seq[UserEntity], replaceExisting: Option[Boolean]): Future[Unit] = Future {
+    db.runTransaction{ implicit c =>
+      if (replaceExisting.getOrElse(false)) {
+        val existingUsers = UsersQueries.getStudentsByGroup(groupId).as(UsersQueries.parser.*)
+        existingUsers.foreach(u => {
+          deleteUserInternal(u.id.get)
+        })
+      }
+      users.foreach(user => {
+        logger.debug(s"Creating user: $user")
+        val insertedUserIdOpt: Option[Long] = UsersQueries.insert(user).executeInsert()
+        if (insertedUserIdOpt.isEmpty) {
+          throw new RuntimeException(s"User wasn't created, failed to insert. $user")
+        }
+      })
+    }
+  }
+
   def updateUser(id: Long, userUpdate: UserEntityUpdate, requireUserType: Option[UserType.UserType] = None): Future[Option[UserEntity]] = getByIdWithPassword(id).flatMap {
     case Some(userEntity) =>
       if(requireUserType.isDefined && userEntity.userType != requireUserType.get) {
@@ -92,13 +112,17 @@ trait UsersService { this: LazyLogging =>
       }
     case None => Future.successful(None)
   }
-
+  
+  private def deleteUserInternal(id: Long)(implicit c: Connection): Int = {
+    UsersQueries.delete(id).executeUpdate()
+  }
+  
   def deleteUser(id: Long, checkType: Option[UserType.UserType] = None): Future[Int] = Future { db.run { implicit c =>
     val userOpt = UsersQueries.getById(id).as(UsersQueries.parser.singleOpt)
     userOpt match {
       case Some(user) =>
         checkUserType(user, checkType).get
-        UsersQueries.delete(id).executeUpdate()
+        deleteUserInternal(id)
       case None => 0
     }
   }}

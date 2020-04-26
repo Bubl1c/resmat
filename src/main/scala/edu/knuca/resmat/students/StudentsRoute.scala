@@ -64,6 +64,18 @@ class StudentsRoute(usersService: UsersService)
             }
           }
         } ~
+        pathPrefix("bulk") {
+          pathEndOrSingleSlash {
+            (parameters('replaceExisting.as[Boolean].?) & post) { replaceExisting =>
+              entity(as[Seq[UserEntity]]) { userEntities =>
+                userEntities.foreach(ue => {
+                  require(ue.userType == UserType.Student, "Cannot add not student to the student group")
+                })
+                complete(Created -> createStudents(studentGroupId, userEntities, replaceExisting).map(_.asJson))
+              }
+            }
+          }
+        } ~
         pathPrefix(LongNumber) { studentId =>
           pathEndOrSingleSlash {
             get {

@@ -39,7 +39,6 @@ case class UserEntity(id: Option[Long] = None,
                       studentGroupId: Option[Long]) {
   require(!username.isEmpty, "username.empty")
   require(!firstName.isEmpty, "firstName.empty")
-  require(!lastName.isEmpty, "lastName.empty")
   require(!accessKey.isEmpty, "accessKey.empty")
 }
 
