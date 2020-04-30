@@ -183,6 +183,7 @@ case class UserExamStepAttemptTestSet(id: Long, stepAttemptId: Long, testSetConf
 case class UserExamStepAttemptTestSetTest(id: Long,
                                           stepAttemptTestSetId: Long,
                                           testConfId: Long,
+                                          testConfSnapshot: Option[TestConf],
                                           mistakeValue: Option[Double],
                                           done: Boolean = false,
                                           mistakes: Int = 0)

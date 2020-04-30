@@ -184,7 +184,8 @@ case class KutykShape(
   )
 
   def getShapeCalculatedData: ShapeCalculatedData = {
-    val iyz = if (isNegativeShapeSign) -sortamentData.I_x_y else sortamentData.I_x_y
+    val unsignedIyz = (sortamentData.I_x_0_I_max - sortamentData.I_y_0_I_min) / 2
+    val iyz = if (isNegativeShapeSign) - unsignedIyz else unsignedIyz
     val center = getRotatedCenterCoords(sortamentData.z_0, sortamentData.z_0)
     ShapeCalculatedData(
       id,

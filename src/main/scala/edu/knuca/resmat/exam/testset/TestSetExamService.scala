@@ -130,7 +130,7 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
 
     testSetTestsFromGroups
       .flatMap{ case (testGroup, testConfs) =>
-        testConfs.map(testConf => UserExamStepAttemptTestSetTest(-1, newTestSet.id, testConf.id, testGroup.mistakeValue))
+        testConfs.map(testConf => UserExamStepAttemptTestSetTest(-1, newTestSet.id, testConf.id, Some(testConf), testGroup.mistakeValue))
       }
       .foreach(createUserExamTestSetTest)
 
@@ -178,7 +178,7 @@ class TestSetExamService(val db: DatabaseService, val testConfsService: TestConf
 }
 
 object TestSetQueries {
-  import anorm.SqlParser.{bool, double, int, long}
+  import anorm.SqlParser.{bool, double, int, long, str}
 
   object UETS {
     val table = "user_exam_step_attempt_test_sets"
@@ -192,6 +192,7 @@ object TestSetQueries {
     val id = "id"
     val stepAttemptTestSetId = "step_attempt_test_set_id"
     val testConfId = "test_conf_id"
+    val testConfSnapshot = "test_conf_snapshot"
     val mistakeValue = "mistake_value"
     val done = "done"
     val mistakes = "mistakes"
@@ -207,10 +208,11 @@ object TestSetQueries {
     id <- long(UETST.id)
     stepAttemptTestSetId <- long(UETST.stepAttemptTestSetId)
     testConfId <- long(UETST.testConfId)
+    testConfSnapshot <- str(UETST.testConfSnapshot).?
     mistakeValue <- double(UETST.mistakeValue).?
     done <- bool(UETST.done)
     mistakes <- int(UETST.mistakes)
-  } yield UserExamStepAttemptTestSetTest(id, stepAttemptTestSetId, testConfId, mistakeValue, done, mistakes)
+  } yield UserExamStepAttemptTestSetTest(id, stepAttemptTestSetId, testConfId, testConfSnapshot.map(JsonTools.decodeTC), mistakeValue, done, mistakes)
 
   def createUserExamTestSet(uets: UserExamStepAttemptTestSet) =
     SQL(
@@ -229,18 +231,21 @@ object TestSetQueries {
       s"""INSERT INTO ${UETST.table} (
          |${UETST.stepAttemptTestSetId},
          |${UETST.testConfId},
+         |${UETST.testConfSnapshot},
          |${UETST.mistakeValue},
          |${UETST.done},
          |${UETST.mistakes}
          |) VALUES (
          |{stepAttemptTestSetId},
          |{testConfId},
+         |{testConfSnapshot},
          |{mistakeValue},
          |{done},
          |{mistakes}
          |)""".stripMargin)
       .on("stepAttemptTestSetId" -> uetst.stepAttemptTestSetId)
       .on("testConfId" -> uetst.testConfId)
+      .on("testConfSnapshot" -> uetst.testConfSnapshot.map(JsonTools.encodeTC).orNull)
       .on("mistakeValue" -> uetst.mistakeValue)
       .on("done" -> uetst.done)
       .on("mistakes" -> uetst.mistakes)
@@ -280,4 +285,21 @@ object TestSetQueries {
 
   def getUserExamTestSetByAttemptId(stepAttemptId: Long) =
     SQL(s"SELECT * FROM ${UETS.table} WHERE ${UETS.stepAttemptId} = {stepAttemptId}").on("stepAttemptId" -> stepAttemptId)
+}
+
+object JsonTools {
+  import io.circe.parser._
+  import io.circe.syntax._
+  import io.circe.generic.auto._
+  import edu.knuca.resmat.http.JsonProtocol._
+  
+  def encodeTC(tc: TestConf): String = {
+    tc.asJson.toString()
+  }
+
+  def decodeTC(json: String): TestConf = decode[TestConf](json).fold( e =>
+    throw new RuntimeException(s"Failed to decode TestConf in json: $json", e),
+    r => r
+  )
+  
 }
