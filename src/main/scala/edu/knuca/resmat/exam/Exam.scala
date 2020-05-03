@@ -73,7 +73,7 @@ object TestOptionValueType extends PimpedEnumeration {
   val Number = Value(3, "number") // for SingleInput only
 }
 
-case class ExamConf(id: Long, name: String, description: String, maxScore: Int)
+case class ExamConf(id: Long, name: String, description: String, maxScore: Int, isArchived: Boolean = false)
 case class ExamStepConf(id: Long,
                         examConfId: Long,
                         sequence: Int,
@@ -99,6 +99,8 @@ object ExamStepConfDataSet
 case class ExamConfWithStepsDto(examConf: ExamConf, stepConfs: Seq[ExamStepConf]) {
   lazy val firstStepId = stepConfs.head.id
 }
+
+case class UserExamConfAccessDto(userId: Long, examConfIds: Set[Long])
 
 case class ExamConfCreateDto(examConf: ExamConf, stepConfs: Seq[ExamStepConfCreateDto])
 case class ExamConfUpdateDto(examConf: ExamConf, stepConfs: Seq[ExamStepConfUpdateDto])
@@ -159,6 +161,7 @@ case class TestSetConfTestGroup(id: Long, testSetConfId: Long, testGroupConfId: 
 
 case class TestGroupConf(id: Long, name: String, isArchived: Boolean, parentGroupId: Option[Long] = None)
 case class TestGroupConfWithAmountOfTestsDto(testGroupConf: TestGroupConf, amountOfTests: Int)
+case class UserTestGroupAccessDto(userId: Long, testGroupIds: Set[Long])
 case class TestConf(id: Long,
                     groupId: Long,
                     question: String,

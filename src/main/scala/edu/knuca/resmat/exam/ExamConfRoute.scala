@@ -19,17 +19,31 @@ class ExamConfRoute(examConfService: ExamConfService)
 
   def route(implicit user: AuthenticatedUser): Route = (pathPrefix("exam-confs") & authorize(user.isAssistantOrHigher)) {
     pathEndOrSingleSlash{
-      get {
+      (parameters('isArchived.as[Boolean].?) & get) { isArchived =>
         complete {
-          Future(examConfService.findExamConfs())
+          Future(examConfService.findExamConfs(isArchived, onlyAccessible = !user.isAdmin))
         }
       } ~ (post & entity(as[ExamConfCreateDto])) { examConfDto =>
         complete {
-          Future(examConfService.createExamConfWithSteps(examConfDto))
+          Future(examConfService.createExamConfWithSteps(examConfDto, Some(user.id)))
         }
       }
     } ~
-    (pathPrefix(LongNumber) & authorize(user.isAdmin)) { examConfId =>
+    (pathPrefix("access") & authorize(user.isAdmin)) {
+      pathEndOrSingleSlash {
+        (parameters('userId.as[Long]) & get) { userId => 
+          complete {
+            Future(examConfService.getAccessToExamConfs(userId))
+          }
+        } ~
+        (put & entity(as[UserExamConfAccessDto])) { accessDto =>
+          complete {
+            Future(examConfService.setUserExamConfAccess(accessDto))
+          }
+        }
+      }
+    } ~
+    (pathPrefix(LongNumber) & authorize(user.isAssistantOrHigher)) { examConfId =>
       pathEndOrSingleSlash {
         get {
           complete {
@@ -50,6 +64,15 @@ class ExamConfRoute(examConfService: ExamConfService)
         (pathEndOrSingleSlash & get) {
           complete {
             Future(examConfService.getExamConfDto(examConfId))
+          }
+        }
+      } ~
+      pathPrefix("archive") {
+        pathEndOrSingleSlash {
+          (parameters('isArchived.as[Boolean]) & put) { isArchived =>
+            complete {
+              Future(examConfService.setArchivedForExamConf(examConfId, isArchived))
+            }
           }
         }
       }

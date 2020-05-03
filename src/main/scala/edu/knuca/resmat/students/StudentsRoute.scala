@@ -23,11 +23,25 @@ class StudentsRoute(usersService: UsersService)
   def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("student-groups") & authorize(user.isAssistantOrHigher)) {
     pathEndOrSingleSlash {
       (parameters('isArchived.as[Boolean].?) & get) { isArchived => 
-        complete(getAllStudentGroups(isArchived).map(_.asJson))
+        complete(getAllStudentGroups(isArchived, onlyAccessible = !user.isAdmin).map(_.asJson))
       } ~
       post {
         entity(as[StudentGroupEntity]) { userGroupEntity =>
-          complete(createStudentGroup(userGroupEntity).map(_.asJson))
+          complete(createStudentGroup(userGroupEntity, Some(user.id)).map(_.asJson))
+        }
+      }
+    } ~
+    (pathPrefix("access") & authorize(user.isAdmin)) {
+      pathEndOrSingleSlash {
+        (parameters('userId.as[Long]) & get) { userId =>
+          complete {
+            Future(getAccessToStudentGroups(userId))
+          }
+        } ~
+        (put & entity(as[UserStudentGroupAccessDto])) { accessDto =>
+          complete {
+            Future(setUserStudentGroupAccess(accessDto))
+          }
         }
       }
     } ~

@@ -6,6 +6,7 @@ import anorm.{BatchSql, NamedParameter, SQL}
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam._
+import edu.knuca.resmat.user.AuthenticatedUser
 import edu.knuca.resmat.utils.{CollectionUtils, S3Manager, SqlUtils}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -66,12 +67,18 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
 
   //====================TestGroupConf====================
 
-  def createTestGroupConf(testGroupConf: TestGroupConf): TestGroupConf = db.run { implicit c =>
-    val insertedIdOpt: Option[Long] = Q.createTestGroupConf(testGroupConf).executeInsert()
-    val insertedId = insertedIdOpt.getOrElse(
-      throw new RuntimeException(s"Failed to create $testGroupConf")
-    )
-    getTestGroupConf(insertedId)
+  def createTestGroupConf(testGroupConf: TestGroupConf, ownerUserIdOpt: Option[Long] = None): TestGroupConf = {
+    val id = db.runTransaction { implicit c =>
+      val insertedIdOpt: Option[Long] = Q.createTestGroupConf(testGroupConf).executeInsert()
+      val insertedId = insertedIdOpt.getOrElse(
+        throw new RuntimeException(s"Failed to create $testGroupConf")
+      )
+      ownerUserIdOpt.foreach(ownerUserId => {
+        Q.grantAccessToTestGroups(ownerUserId, Set(insertedId)).execute()
+      })
+      insertedId
+    }
+    getTestGroupConf(id)
   }
 
   def updateTestGroupConf(id: Long, testGroupConf: TestGroupConf) = db.run { implicit c =>
@@ -85,12 +92,25 @@ class TestConfService(val db: DatabaseService, s3Manager: S3Manager)
     )
   }
 
-  def getTestGroupConfs(isArchived: Option[Boolean] = None): Seq[TestGroupConf] = db.run { implicit c =>
-    Q.getTestGroupConfs(isArchived).as(Q.tgcParser.*)
+  def getTestGroupConfs(isArchived: Option[Boolean], onlyAccessible: Boolean = false)(implicit user: AuthenticatedUser): Seq[TestGroupConf] = db.run { implicit c =>
+    val accessibleForUserId = if (onlyAccessible) { Some(user.id) } else None
+    Q.getTestGroupConfs(isArchived, accessibleForUserId).as(Q.tgcParser.*)
   }
 
   def getTestGroupConfsWithAmountOfTests(): Seq[TestGroupConfWithAmountOfTestsDto] = db.run { implicit c =>
     Q.getTestGroupConfsWithAmountOfTests.as(Q.tgcWithAmountOftestsParser.*)
+  }
+
+  def getAccessToTestGroups(userId: Long): UserTestGroupAccessDto = db.run{ implicit c =>
+    val sgIds = Q.getAccessToTestGroups(userId).as(Q.userTestGroupAccessParser.*)
+    UserTestGroupAccessDto(userId, sgIds.toSet)
+  }
+
+  def setUserTestGroupAccess(dto: UserTestGroupAccessDto): Unit = db.runTransaction { implicit c =>
+    Q.removeAccessToTestGroups(dto.userId).execute()
+    if (dto.testGroupIds.nonEmpty) {
+      Q.grantAccessToTestGroups(dto.userId, dto.testGroupIds).execute()
+    }
   }
 
   //====================TestSetConfTestGroup====================
@@ -279,6 +299,15 @@ object TestConfsQueries {
     val help = "help"
   }
 
+  object UsTGs {
+    val table = "users_test_groups"
+    val userId = "user_id"
+    val testGroupId = "test_group_id"
+  }
+  val userTestGroupAccessParser = for {
+    testGroupId <- long(UsTGs.testGroupId)
+  } yield testGroupId
+
   val tscParser  = for {
     id <- long(TSC.id)
     name <- str(TSC.name)
@@ -350,6 +379,34 @@ object TestConfsQueries {
       .on("name" -> tsc.name)
       .on("isArchived" -> tsc.isArchived)
       .on("parentGroupId" -> tsc.parentGroupId.map(java.lang.Long.valueOf(_)).orNull)
+
+  def getAccessToTestGroups(userId: Long) = {
+    SQL(s"SELECT * FROM ${UsTGs.table} WHERE ${UsTGs.userId} = {userId}")
+      .on("userId" -> userId)
+  }
+  def grantAccessToTestGroups(userId: Long, tgIds: Set[Long]): BatchSql = {
+    val values = tgIds.toSeq.map( ecId =>
+      Seq[NamedParameter](
+        "userId" -> userId,
+        "testGroupId" -> ecId
+      )
+    )
+    BatchSql(
+      s"""INSERT INTO ${UsTGs.table} (
+         |${UsTGs.userId},
+         |${UsTGs.testGroupId}
+         |) VALUES (
+         |{userId},
+         |{testGroupId}
+         |)""".stripMargin,
+      values.head,
+      values.tail : _*
+    )
+  }
+  def removeAccessToTestGroups(userId: Long) = {
+    SQL(s"DELETE FROM ${UsTGs.table} WHERE ${UsTGs.userId} = {userId}")
+      .on("userId" -> userId)
+  }
 
   def createTestSetConfTestGroup(tsctg: TestSetConfTestGroup) =
     SQL(
@@ -459,9 +516,17 @@ object TestConfsQueries {
 
   def getTestGroupConf(id: Long) = SqlUtils.get(TG.table, id)
 
-  def getTestGroupConfs(isArchived: Option[Boolean] = None) = SQL(
-    s"SELECT * FROM ${TG.table} ${isArchived.map(ia => s"WHERE ${TG.isArchived} IS $ia").getOrElse(s"WHERE ${TG.isArchived} IS FALSE")}"
-  )
+  def getTestGroupConfs(isArchived: Option[Boolean], accessibleForUserId: Option[Long]) = {
+    val archivedCondition = isArchived
+      .map(ia => s"WHERE ${TG.isArchived} IS $ia")
+      .getOrElse(s"WHERE ${TG.isArchived} IS FALSE")
+    val accessibleJoin = accessibleForUserId
+      .map(userId => s"JOIN ${UsTGs.table} ON ${UsTGs.table}.${UsTGs.testGroupId} = ${TG.table}.${TG.id} AND ${UsTGs.table}.${UsTGs.userId} = $userId")
+      .getOrElse("")
+    SQL(
+      s"SELECT ${TG.table}.* FROM ${TG.table} $accessibleJoin $archivedCondition"
+    )
+  }
 
   def getTestGroupConfsWithAmountOfTests =
     SQL(

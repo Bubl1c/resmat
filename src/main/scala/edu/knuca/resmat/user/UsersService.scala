@@ -2,7 +2,7 @@ package edu.knuca.resmat.user
 
 import java.sql.Connection
 
-import anorm.SQL
+import anorm.{BatchSql, NamedParameter, SQL}
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 
@@ -143,20 +143,38 @@ trait UsersService { this: LazyLogging =>
 
   /*===================== GROUPS ============================*/
 
-  def createStudentGroup(group: StudentGroupEntity): Future[StudentGroupEntity] = Future {
-    db.run{ implicit c =>
+  def createStudentGroup(group: StudentGroupEntity, ownerUserIdOpt: Option[Long] = None): Future[StudentGroupEntity] = Future {
+    db.runTransaction { implicit c =>
       logger.debug(s"Creating group: $group")
       val groupIdOpt: Option[Long] = UsersQueries.insertStudentGroup(group).executeInsert()
       groupIdOpt match {
-        case Some(groupId) => group.copy(id = Some(groupId))
+        case Some(groupId) => {
+          ownerUserIdOpt.foreach(ownerUserId => {
+            UsersQueries.grantAccessToStudentGroups(ownerUserId, Set(groupId)).execute()
+          })
+          group.copy(id = Some(groupId))
+        }
         case None => throw new RuntimeException(s"User group wasn't created, failed to insert. $group")
       }
     }
   }
 
-  def getAllStudentGroups(isArchived: Option[Boolean] = None): Future[Seq[StudentGroupEntity]] = Future {
+  def getAccessToStudentGroups(userId: Long): UserStudentGroupAccessDto = db.run{ implicit c =>
+    val sgIds = UsersQueries.getAccessToStudentGroups(userId).as(UsersQueries.userStudentGroupAccessParser.*)
+    UserStudentGroupAccessDto(userId, sgIds.toSet)
+  }
+
+  def setUserStudentGroupAccess(dto: UserStudentGroupAccessDto): Unit = db.runTransaction { implicit c =>
+    UsersQueries.removeAccessToStudentGroups(dto.userId).execute()
+    if (dto.studentGroupIds.nonEmpty) {
+      UsersQueries.grantAccessToStudentGroups(dto.userId, dto.studentGroupIds).execute()
+    }
+  }
+
+  def getAllStudentGroups(isArchived: Option[Boolean] = None, onlyAccessible: Boolean = false)(implicit user: AuthenticatedUser): Future[Seq[StudentGroupEntity]] = Future {
+    val accessibleForUserId = if (onlyAccessible) { Some(user.id) } else None
     db.run { implicit c =>
-      UsersQueries.getAllStudentGroups(isArchived).as(UsersQueries.groupParser.*)
+      UsersQueries.getAllStudentGroups(isArchived, accessibleForUserId).as(UsersQueries.groupParser.*)
     }
   }
 
@@ -220,6 +238,15 @@ object UsersQueries {
     val studentGroupId = "student_group_id"
     val articleId = "article_id"
   }
+
+  object UsSGs {
+    val table = "users_student_groups"
+    val userId = "user_id"
+    val studentGroupId = "student_group_id"
+  }
+  val userStudentGroupAccessParser = for {
+    studentGroupId <- long(UsSGs.studentGroupId)
+  } yield studentGroupId
 
   val parserWithPassword  = for {
     id <- long("id")
@@ -306,9 +333,47 @@ object UsersQueries {
     """.stripMargin
   ).on("name" -> group.name)
 
-  def getAllStudentGroups(isArchived: Option[Boolean] = None) = SQL(
-    s"SELECT * FROM ${SG.table} ${isArchived.map(ia => s"WHERE ${SG.isArchived} IS $ia").getOrElse(s"WHERE ${SG.isArchived} IS FALSE")}"
-  )
+  def getAccessToStudentGroups(userId: Long) = {
+    SQL(s"SELECT * FROM ${UsSGs.table} WHERE ${UsSGs.userId} = {userId}")
+      .on("userId" -> userId)
+  }
+
+  def grantAccessToStudentGroups(userId: Long, sgIds: Set[Long]): BatchSql = {
+    val values = sgIds.toSeq.map( ecId =>
+      Seq[NamedParameter](
+        "userId" -> userId,
+        "studentGroupId" -> ecId
+      )
+    )
+    BatchSql(
+      s"""INSERT INTO ${UsSGs.table} (
+         |${UsSGs.userId},
+         |${UsSGs.studentGroupId}
+         |) VALUES (
+         |{userId},
+         |{studentGroupId}
+         |)""".stripMargin,
+      values.head,
+      values.tail : _*
+    )
+  }
+
+  def removeAccessToStudentGroups(userId: Long) = {
+    SQL(s"DELETE FROM ${UsSGs.table} WHERE ${UsSGs.userId} = {userId}")
+      .on("userId" -> userId)
+  }
+
+  def getAllStudentGroups(isArchived: Option[Boolean], accessibleForUserId: Option[Long]) = {
+    val archivedCondition = isArchived
+      .map(ia => s"WHERE ${SG.isArchived} IS $ia")
+      .getOrElse(s"WHERE ${SG.isArchived} IS FALSE")
+    val accessibleJoin = accessibleForUserId
+      .map(userId => s"JOIN ${UsSGs.table} ON ${UsSGs.table}.${UsSGs.studentGroupId} = ${SG.table}.${SG.id} AND ${UsSGs.table}.${UsSGs.userId} = $userId")
+      .getOrElse("")
+    SQL(
+      s"SELECT ${SG.table}.* FROM ${SG.table} $accessibleJoin $archivedCondition"
+    )
+  }
 
   def getStudentGroupById(groupId: Long) = SQL(s"SELECT * FROM ${SG.table} WHERE ${SG.id} = {groupId}").on("groupId" -> groupId)
 

@@ -2,12 +2,13 @@ package edu.knuca.resmat.exam
 
 import java.sql.Connection
 
-import anorm.SQL
+import anorm.{BatchSql, NamedParameter, SQL}
 import com.typesafe.scalalogging.LazyLogging
 import edu.knuca.resmat.db.DatabaseService
 import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.tests.TestConfService
+import edu.knuca.resmat.user.AuthenticatedUser
 import edu.knuca.resmat.utils.CollectionUtils
 
 import scala.concurrent.ExecutionContext
@@ -21,9 +22,12 @@ class ExamConfService(val db: DatabaseService, testConfsService: TestConfService
   import edu.knuca.resmat.exam.{ExamQueries => Q}
 
   // todo optimise to save all steps at once
-  def createExamConfWithSteps(ec: ExamConfCreateDto): ExamConfWithStepsDto = db.runTransaction{ implicit c =>
+  def createExamConfWithSteps(ec: ExamConfCreateDto, ownerUserIdOpt: Option[Long] = None): ExamConfWithStepsDto = db.runTransaction{ implicit c =>
     val createdExamConfId = createExamConfTransact(ec.examConf)
     val steps = ec.stepConfs.map(esc => createExamStepConfTransact(createdExamConfId, esc))
+    ownerUserIdOpt.foreach(ownerUserId => {
+      Q.grantAccessToExamConfs(ownerUserId, Set(createdExamConfId)).execute()
+    })
     getExamConfDtoTransact(createdExamConfId)
   }
 
@@ -70,6 +74,11 @@ class ExamConfService(val db: DatabaseService, testConfsService: TestConfService
     val rowsUpdated = Q.updateExamConf(id, ec).executeUpdate()
     if (rowsUpdated != 1) throw new RuntimeException(s"Failed to update exam conf with id $id, rows updated: " + rowsUpdated)
     getExamConfTransact(id)
+  }
+
+  def setArchivedForExamConf(id: Long, isArchived: Boolean): Unit = db.run { implicit c =>
+    val ec = getExamConfTransact(id)
+    updateExamConfTransact(id, ec.copy(isArchived = isArchived))
   }
 
   private def createExamStepConfTransact(examConfId: Long, esc: ExamStepConfCreateDto)(implicit c: Connection): Long = {
@@ -134,8 +143,21 @@ class ExamConfService(val db: DatabaseService, testConfsService: TestConfService
     )
   }
 
-  def findExamConfs(): Seq[ExamConf] = db.run{ implicit c =>
-    Q.findExamConfs.as(Q.examConfParser.*)
+  def findExamConfs(isArchived: Option[Boolean], onlyAccessible: Boolean)(implicit user: AuthenticatedUser): Seq[ExamConf] = db.run{ implicit c =>
+    val accessibleForUserId = if (onlyAccessible) { Some(user.id) } else None 
+    Q.findExamConfs(isArchived, accessibleForUserId).as(Q.examConfParser.*)
+  }
+
+  def getAccessToExamConfs(userId: Long): UserExamConfAccessDto = db.run{ implicit c =>
+    val examConfIds = Q.getAccessToExamConfs(userId).as(Q.userExamConfAccessParser.*)
+    UserExamConfAccessDto(userId, examConfIds.toSet)
+  }
+
+  def setUserExamConfAccess(dto: UserExamConfAccessDto): Unit = db.runTransaction { implicit c =>
+    Q.removeAccessToExamConfs(dto.userId).execute()
+    if (dto.examConfIds.nonEmpty) {
+      Q.grantAccessToExamConfs(dto.userId, dto.examConfIds).execute()
+    }
   }
 
   def getExamConfDto(id: Long): ExamConfWithStepsDto = {
@@ -189,6 +211,7 @@ object ExamQueries {
     val name = "name"
     val description = "description"
     val maxScore = "max_score"
+    val isArchived = "is_archived"
   }
 
   object ESC {
@@ -206,6 +229,15 @@ object ExamQueries {
     val hasToBeSubmitted = "has_to_be_submitted"
     val dataSet = "data_set"
   }
+
+  object UsECs {
+    val table = "users_exam_confs"
+    val userId = "user_id"
+    val examConfId = "exam_conf_id"
+  }
+  val userExamConfAccessParser = for {
+    examConfId <- long(UsECs.examConfId)
+  } yield examConfId
 
   val examConfParser  = for {
     id <- long(EC.id)
@@ -255,18 +287,50 @@ object ExamQueries {
       .on("description" -> ec.description)
       .on("maxScore" -> ec.maxScore)
 
+  def getAccessToExamConfs(userId: Long) = {
+    SQL(s"SELECT * FROM ${UsECs.table} WHERE ${UsECs.userId} = {userId}")
+      .on("userId" -> userId)
+  }
+  
+  def grantAccessToExamConfs(userId: Long, ecIds: Set[Long]): BatchSql = {
+    val values = ecIds.toSeq.map( ecId =>
+      Seq[NamedParameter](
+        "userId" -> userId,
+        "examConfId" -> ecId
+      )
+    )
+    BatchSql(
+      s"""INSERT INTO ${UsECs.table} (
+         |${UsECs.userId},
+         |${UsECs.examConfId}
+         |) VALUES (
+         |{userId},
+         |{examConfId}
+         |)""".stripMargin,
+      values.head,
+      values.tail : _*
+    )
+  }
+
+  def removeAccessToExamConfs(userId: Long) = {
+    SQL(s"DELETE FROM ${UsECs.table} WHERE ${UsECs.userId} = {userId}")
+      .on("userId" -> userId)
+  }
+
   def updateExamConf(id: Long, ec: ExamConf) =
     SQL(
       s"""UPDATE ${EC.table} SET
          |${EC.name} = {name},
          |${EC.description} = {description},
-         |${EC.maxScore} = {maxScore}
+         |${EC.maxScore} = {maxScore},
+         |${EC.isArchived} = {isArchived}
          |WHERE id = {id}
        """.stripMargin)
       .on("id" -> id)
       .on("name" -> ec.name)
       .on("description" -> ec.description)
       .on("maxScore" -> ec.maxScore)
+      .on("isArchived" -> ec.isArchived)
 
   def deleteExamConf(id: Long) =
     SQL(s"DELETE FROM ${EC.table} WHERE id = {id}")
@@ -342,7 +406,17 @@ object ExamQueries {
 
   def getExamConf(id: Long) = SQL(s"SELECT * FROM ${EC.table} WHERE ${EC.id} = {id}").on("id" -> id)
 
-  def findExamConfs = SQL(s"SELECT * FROM ${EC.table}")
+  def findExamConfs(isArchived: Option[Boolean], accessibleForUserId: Option[Long]) = {
+    val archivedCondition = isArchived
+      .map(ia => s"WHERE ${EC.isArchived} IS $ia")
+      .getOrElse(s"WHERE ${EC.isArchived} IS FALSE")
+    val accessibleJoin = accessibleForUserId
+      .map(userId => s"JOIN ${UsECs.table} ON ${UsECs.table}.${UsECs.examConfId} = ${EC.table}.${EC.id} AND ${UsECs.table}.${UsECs.userId} = $userId")
+      .getOrElse("")
+    SQL(
+      s"SELECT ${EC.table}.* FROM ${EC.table} $accessibleJoin $archivedCondition"
+    )
+  }
 
   def getExamStepConf(id: Long) = SQL(s"SELECT * FROM ${ESC.table} WHERE ${ESC.id} = {id}").on("id" -> id)
 

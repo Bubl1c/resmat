@@ -46,6 +46,8 @@ case class StudentGroupEntityUpdate(name: String, isArchived: Boolean)
 
 case class StudentGroupEntity(id: Option[Long] = None, name: String, isArchived: Boolean)
 
+case class UserStudentGroupAccessDto(userId: Long, studentGroupIds: Set[Long])
+
 case class UserEntityUpdate(username: Option[String] = None,
                             password: Option[String] = None,
                             firstName: Option[String] = None,

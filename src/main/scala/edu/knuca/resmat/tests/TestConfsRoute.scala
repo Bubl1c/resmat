@@ -3,7 +3,7 @@ package edu.knuca.resmat.auth
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.CirceSupport
-import edu.knuca.resmat.exam.{TestConf, TestGroupConf}
+import edu.knuca.resmat.exam.{TestConf, TestGroupConf, UserTestGroupAccessDto}
 import edu.knuca.resmat.tests.TestConfService
 import edu.knuca.resmat.user.AuthenticatedUser
 import io.circe.generic.auto._
@@ -21,13 +21,27 @@ class TestConfsRoute(val testConfsService: TestConfService) extends CirceSupport
         complete(testConfsService.getTestSetConfDto(testSetConfId))
       }
     } ~
-    (pathPrefix("test-groups") & authorize(user.isInstructorOrHigher)) {
+    (pathPrefix("test-groups") & authorize(user.isAssistantOrHigher)) {
       pathEndOrSingleSlash {
         (post & entity(as[TestGroupConf])) { testGroupConf =>
-          complete(Future(testConfsService.createTestGroupConf(testGroupConf)))
+          complete(Future(testConfsService.createTestGroupConf(testGroupConf, Some(user.id))))
         } ~
         (parameters('isArchived.as[Boolean].?) & get) { isArchived =>
-          complete(Future(testConfsService.getTestGroupConfs(isArchived)))
+          complete(Future(testConfsService.getTestGroupConfs(isArchived, onlyAccessible = !user.isAdmin)))
+        }
+      } ~
+      (pathPrefix("access") & authorize(user.isAdmin)) {
+        pathEndOrSingleSlash {
+          (parameters('userId.as[Long]) & get) { userId =>
+            complete {
+              Future(testConfsService.getAccessToTestGroups(userId))
+            }
+          } ~
+            (put & entity(as[UserTestGroupAccessDto])) { accessDto =>
+              complete {
+                Future(testConfsService.setUserTestGroupAccess(accessDto))
+              }
+            }
         }
       } ~
       pathPrefix("with-amount-of-tests") {

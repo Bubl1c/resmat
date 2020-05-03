@@ -9,7 +9,7 @@ import edu.knuca.resmat.exam._
 import edu.knuca.resmat.exam.taskflow.TaskFlowConfAndExamService
 import edu.knuca.resmat.exam.testset.TestSetExamService
 import edu.knuca.resmat.tests.TestConfService
-import edu.knuca.resmat.user.{StudentGroupEntity, StudentGroupEntityUpdate, UserEntity, UserType, UsersService}
+import edu.knuca.resmat.user.{StudentGroupEntity, StudentGroupEntityUpdate, UserEntity, UserStudentGroupAccessDto, UserType, UsersService}
 import org.joda.time.DateTime
 
 import scala.concurrent.duration._
@@ -94,7 +94,7 @@ class InitialDataGenerator(
   db: DatabaseService,
   usersService: UsersService,
   authService: AuthService,
-  examService: ExamConfService,
+  examConfService: ExamConfService,
   problemService: ProblemConfService,
   userExamService: UserExamService,
   testSetExamService: TestSetExamService,
@@ -135,6 +135,26 @@ class InitialDataGenerator(
     val admin = await(usersService.createUser(Data.userAdmin))
     val assistant = await(usersService.createUser(Data.userAssistant))
     val instructor = await(usersService.createUser(Data.userInstructor))
+    
+    usersService.setUserStudentGroupAccess(UserStudentGroupAccessDto(
+      admin.id.get, Set(group.id.get, group2.id.get, archivedGroup.id.get)
+    ))
+    usersService.setUserStudentGroupAccess(UserStudentGroupAccessDto(
+      assistant.id.get, Set(group.id.get)
+    ))
+    usersService.setUserStudentGroupAccess(UserStudentGroupAccessDto(
+      instructor.id.get, Set(group.id.get, group2.id.get, archivedGroup.id.get)
+    ))
+    
+    testConfsService.setUserTestGroupAccess(UserTestGroupAccessDto(
+      admin.id.get, (testSet.archivedTestGroupConfs.map(_.id) ++ testSet.defaultTestSetGroupConfs.map(_.id) ++ testSet.simpleTestSetGroupConfs.map(_.id)).toSet
+    ))
+    testConfsService.setUserTestGroupAccess(UserTestGroupAccessDto(
+      assistant.id.get, testSet.defaultTestSetGroupConfs.map(_.id).toSet
+    ))
+    testConfsService.setUserTestGroupAccess(UserTestGroupAccessDto(
+      instructor.id.get, (testSet.archivedTestGroupConfs.map(_.id) ++ testSet.defaultTestSetGroupConfs.map(_.id) ++ testSet.simpleTestSetGroupConfs.map(_.id)).toSet
+    ))
 
     //b3FhdWpiamg1Y2F2c2c0ZXQ0MmVpbXVhOWh2cWUzaTlxNWhoYzVoaW9hNXV2YWd2dGg5bXUwM2htMCYxJjE0ODU1MzUxMDQwMDA
     val studentToken = insertToken(Data.userToken(student1.id.get))
@@ -148,7 +168,17 @@ class InitialDataGenerator(
         ExamStepConfCreateDto(Data.SimpleTestExamConf.testSetStep, testSet.simpleNotInsertedTestSetConfDto),
         ExamStepConfCreateDto(Data.SimpleTestExamConf.resultsStep, ResultsConf)
       )
-      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.SimpleTestExamConf.ec, steps))
+      val newEC = examConfService.createExamConfWithSteps(ExamConfCreateDto(Data.SimpleTestExamConf.ec, steps))
+      newEC
+    }
+
+    val simpleArchivedTestExamConf: ExamConfWithStepsDto = {
+      val steps = Seq(
+        ExamStepConfCreateDto(Data.SimpleTestExamConf.testSetStep, testSet.simpleNotInsertedTestSetConfDto),
+        ExamStepConfCreateDto(Data.SimpleTestExamConf.resultsStep, ResultsConf)
+      )
+      val newEC = examConfService.createExamConfWithSteps(ExamConfCreateDto(Data.SimpleTestExamConf.ec, steps))
+      examConfService.setArchivedForExamConf(newEC.examConf.id, isArchived = true)
       newEC
     }
 
@@ -158,7 +188,7 @@ class InitialDataGenerator(
         ExamStepConfCreateDto(Data.RingPlateExamConf.taskFlowStep, taskFlow.ringPlateNotInsertedTaskFlowConfDto),
         ExamStepConfCreateDto(Data.RingPlateExamConf.resultsStep, ResultsConf)
       )
-      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.RingPlateExamConf.ec, steps))
+      val newEC = examConfService.createExamConfWithSteps(ExamConfCreateDto(Data.RingPlateExamConf.ec, steps))
       newEC
     }
 
@@ -167,7 +197,7 @@ class InitialDataGenerator(
         ExamStepConfCreateDto(Data.OnlyTaskExamConf.taskFlowStep, taskFlow.ringPlateNotInsertedTaskFlowConfDto),
         ExamStepConfCreateDto(Data.OnlyTaskExamConf.resultsStep, ResultsConf)
       )
-      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.OnlyTaskExamConf.ec, steps))
+      val newEC = examConfService.createExamConfWithSteps(ExamConfCreateDto(Data.OnlyTaskExamConf.ec, steps))
       newEC
     }
 
@@ -176,9 +206,19 @@ class InitialDataGenerator(
         ExamStepConfCreateDto(Data.CrossSectionExamConf.taskFlowStep, taskFlow.crossSectionNotInsertedTaskFlowConfDto),
         ExamStepConfCreateDto(Data.CrossSectionExamConf.resultsStep, ResultsConf)
       )
-      val newEC = examService.createExamConfWithSteps(ExamConfCreateDto(Data.CrossSectionExamConf.ec, steps))
+      val newEC = examConfService.createExamConfWithSteps(ExamConfCreateDto(Data.CrossSectionExamConf.ec, steps))
       newEC
     }
+
+    examConfService.setUserExamConfAccess(UserExamConfAccessDto(admin.id.get,
+      Set(simpleTestExamConf.examConf.id, simpleArchivedTestExamConf.examConf.id, defaultExamConf.examConf.id, onlyTaskExamConf.examConf.id, crossSectionExamConf.examConf.id)
+    ))
+    examConfService.setUserExamConfAccess(UserExamConfAccessDto(instructor.id.get,
+      Set(simpleTestExamConf.examConf.id, simpleArchivedTestExamConf.examConf.id, defaultExamConf.examConf.id, onlyTaskExamConf.examConf.id, crossSectionExamConf.examConf.id)
+    ))
+    examConfService.setUserExamConfAccess(UserExamConfAccessDto(assistant.id.get,
+      Set(simpleTestExamConf.examConf.id)
+    ))
 
     userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))
     userExamService.createUserExam(Data.userExam(crossSectionExamConf.examConf.id, student1.id.get, crossSectionExamConf.firstStepId))

@@ -14,7 +14,7 @@ class ProblemConfRoute(problemService: ProblemConfService)
   import edu.knuca.resmat.http.JsonProtocol._
   import problemService._
 
-  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("problem-confs") & authorize(user.isAdmin)) {
+  def route(implicit user: AuthenticatedUser, ec: ExecutionContext): Route = (pathPrefix("problem-confs") & authorize(user.isInstructorOrHigher)) {
     pathEndOrSingleSlash{
       get {
         complete {
@@ -44,7 +44,7 @@ class ProblemConfRoute(problemService: ProblemConfService)
           }
         }
       } ~
-      pathPrefix("recalculate-variants") {
+      (pathPrefix("recalculate-variants") & authorize(user.isAdmin)) {
         pathEndOrSingleSlash {
           put {
             complete(Future(recalculateProblemVariantConfs(problemConfId)))
