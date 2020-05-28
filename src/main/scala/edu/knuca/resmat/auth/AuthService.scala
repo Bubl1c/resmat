@@ -82,19 +82,35 @@ trait AuthService { this: LazyLogging =>
   }
 
   private def getOrCreateToken(userId: Long)(implicit c: Connection): TokenEntity = {
-    TokensQueries.getByUserId(userId).as(TokensQueries.parser.singleOpt) match {
-      case Some(tokenEntity) =>
-        if(tokenEntity.expires.isDefined && tokenEntity.expires.get.getMillis <= DateTime.now().getMillis) {
-          val affectedRows = TokensQueries.delete(tokenEntity.id.get).executeUpdate()
-          if(affectedRows != 1) {
-            throw new RuntimeException(s"Failed to delete token: $tokenEntity. affectedRows = $affectedRows")
-          }
+    val tokenEntities = TokensQueries.getByUserId(userId).as(TokensQueries.parser.*)
+    if (tokenEntities.isEmpty) {
+      Await.result(createToken(userId), 5 seconds)
+    } else {
+      val isExpired = (te: TokenEntity) => te.expires.isDefined && te.expires.get.getMillis <= DateTime.now().getMillis
+      val expiredTokenEntities = tokenEntities.filter(isExpired)
+      deleteTokens(expiredTokenEntities)
+      
+      implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
+      val validTokenEntities = tokenEntities.filter(te => !isExpired(te)).sortBy(_.expires).reverse
+      val latestExpirationTE = validTokenEntities.headOption
+      latestExpirationTE match {
+        case Some(te) =>
+          val redundantValidTEs = validTokenEntities.filter(te => te.id != te.id)
+          deleteTokens(redundantValidTEs)
+          te
+        case None =>
           Await.result(createToken(userId), 5 seconds)
-        } else {
-          tokenEntity
-        }
-      case None => Await.result(createToken(userId), 5 seconds)
+      }
     }
+  }
+  
+  private def deleteTokens(tokenEntities: Seq[TokenEntity])(implicit c: Connection) = {
+    tokenEntities.foreach(te => {
+      val affectedRows = TokensQueries.delete(te.id.get).executeUpdate()
+      if(affectedRows != 1) {
+        throw new RuntimeException(s"Failed to delete token: $te. affectedRows = $affectedRows")
+      }
+    })
   }
 
 }

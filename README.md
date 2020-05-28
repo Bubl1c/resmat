@@ -15,10 +15,14 @@ IntelliJ - run `edu.knuca.resmat.Api`
 ssh -i ~/.ssh/aws_key_pair.pem ubuntu@ec2-52-57-195-49.eu-central-1.compute.amazonaws.com
 ssh -i ~/.ssh/aws_key_pair.pem ubuntu@ec2-3-120-209-125.eu-central-1.compute.amazonaws.com
 
+scp -i ~/.ssh/aws_key_pair.pem /Users/amozh/Downloads/newrelic-java-5.12.0.zip ubuntu@ec2-52-57-195-49.eu-central-1.compute.amazonaws.com:~/
+
 sudo systemctl status resmat-api
 sudo systemctl restart resmat-api
 sudo systemctl stop resmat-api
 sudo systemctl start resmat-api
+
+journalctl -u resmat-api -e
 ```
 
 # Bash
