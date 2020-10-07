@@ -36,7 +36,7 @@ object TestUtils {
         val correctNumber = Try(correctOption.value.toDouble).getOrElse{
           throw new IllegalStateException(s"Correct data for test conf with id $testConfId has to be of type Double")
         }
-        NumberUtils.areAlmostEqual(correctNumber, submittedNumber, precision)
+        NumberUtils.areAlmostEqualV2(correctNumber, submittedNumber, precision)
       case TestOptionValueType.Text =>
         submitted == correctOption.value
       case _ =>

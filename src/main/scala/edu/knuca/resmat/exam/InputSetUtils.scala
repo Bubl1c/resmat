@@ -20,7 +20,7 @@ object InputSetUtils {
         case Some(submittedInputAnswer) =>
           val areEqual = submittedInputAnswer.value match {
             case Some(sia) => correctAnswer.value match {
-              case Some(ca) => NumberUtils.areAlmostEqual(ca, sia, precision)
+              case Some(ca) => NumberUtils.areAlmostEqualV2(ca, sia, precision)
               case None => false
             }
             case None => correctAnswer.value match {
